@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>POC Implementation Session Summary</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f6f8fb;
+        --card: #ffffff;
+        --text: #172033;
+        --muted: #58677a;
+        --border: #d9e1ed;
+        --accent: #0f766e;
+        --accent-soft: #dff7f3;
+        --warning: #92400e;
+        --warning-soft: #fff7ed;
+        --code: #eef2f7;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #101623;
+          --card: #172033;
+          --text: #edf2f7;
+          --muted: #adbacb;
+          --border: #2d394c;
+          --accent: #5eead4;
+          --accent-soft: #123f3a;
+          --warning: #fdba74;
+          --warning-soft: #422006;
+          --code: #202b3b;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        line-height: 1.6;
+      }
+
+      main {
+        width: min(1120px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 48px 0;
+      }
+
+      header,
+      section {
+        margin-bottom: 24px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.15;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2.4rem, 6vw, 4.5rem);
+        letter-spacing: -0.07em;
+      }
+
+      h2 {
+        margin: 0 0 14px;
+      }
+
+      h3 {
+        margin: 20px 0 8px;
+      }
+
+      p {
+        margin: 0 0 14px;
+      }
+
+      ul {
+        margin: 0 0 16px 1.25rem;
+        padding: 0;
+      }
+
+      li {
+        margin: 6px 0;
+      }
+
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: var(--code);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.92em;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0;
+      }
+
+      th,
+      td {
+        padding: 10px;
+        border: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: color-mix(in srgb, var(--card) 86%, var(--accent-soft));
+      }
+
+      .hero,
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--card);
+        box-shadow: 0 12px 34px rgb(15 23 42 / 8%);
+      }
+
+      .hero {
+        padding: clamp(24px, 5vw, 48px);
+        background:
+          radial-gradient(
+            circle at top right,
+            color-mix(in srgb, var(--accent) 24%, transparent),
+            transparent 38%
+          ),
+          var(--card);
+      }
+
+      .card {
+        padding: 24px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .pill-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 18px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .pill-list li {
+        margin: 0;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 700;
+        font-size: 0.9rem;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+      }
+
+      .warning {
+        border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+        background: var(--warning-soft);
+        color: var(--warning);
+      }
+
+      .file-list {
+        columns: 2;
+      }
+
+      @media (max-width: 760px) {
+        .file-list {
+          columns: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <p class="muted">Session date: 2026-06-03</p>
+        <h1>Fish Auction POC implementation summary</h1>
+        <p>
+          This document summarizes the work completed in the session that started the auction proof
+          of concept for the <code>hylh/auction</code>
+          repository.
+        </p>
+        <ul class="pill-list" aria-label="Implemented stack">
+          <li>TanStack Start</li>
+          <li>TanStack Router</li>
+          <li>TanStack Query</li>
+          <li>PostgreSQL</li>
+          <li>Drizzle ORM</li>
+          <li>Zod</li>
+          <li>Server-Sent Events</li>
+          <li>Vitest</li>
+          <li>oxlint</li>
+          <li>oxfmt</li>
+        </ul>
+      </header>
+
+      <section class="card">
+        <h2>Outcome</h2>
+        <p>
+          Implemented the first working vertical slice for a full-stack fish auction house POC. The
+          application now has a TanStack Start scaffold, domain schema, seed data, transactional bid
+          rules, real-time auction events, core UI routes, metrics, simulator plumbing, tests, and
+          local setup documentation.
+        </p>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>1. App scaffold</h2>
+          <ul>
+            <li>Created <code>package.json</code> with pnpm scripts.</li>
+            <li>Added TypeScript config, Vite config, and Vitest config.</li>
+            <li>
+              Added TanStack Start root document, router setup, Query Client provider, navigation,
+              and base CSS.
+            </li>
+            <li>
+              Added <code>.gitignore</code> for dependencies, build output, env files, and generated
+              route tree.
+            </li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h2>2. Database and local infrastructure</h2>
+          <ul>
+            <li>Added Docker Compose PostgreSQL service with persistent volume and healthcheck.</li>
+            <li>
+              Added Drizzle configuration, database client, schema, and initial SQL migration.
+            </li>
+            <li>
+              Modeled <code>users</code>, <code>fish_items</code>, <code>auctions</code>,
+              <code>bids</code>, and <code>sales</code>.
+            </li>
+            <li>
+              Added indexes for status, species, timing, bid history, sales, and uniqueness for one
+              sale per auction/winning bid.
+            </li>
+            <li>
+              Added deterministic seed data for demo sellers, buyers, admin, fish inventory,
+              active/closed auctions, bids, and a completed sale.
+            </li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h2>3. Domain rules and services</h2>
+          <ul>
+            <li>
+              Added shared constants for currency, curated species, demo users, demo fish, and demo
+              auctions.
+            </li>
+            <li>
+              Added integer money and weight helpers:
+              <code>centsFromMajor</code> and <code>gramsFromKilograms</code>.
+            </li>
+            <li>
+              Added Zod schemas for fish input, bid input, UUIDs, species, and auction close input.
+            </li>
+            <li>
+              Implemented typed bid rejection codes:
+              <code>STALE_BID</code>, <code>AUCTION_NOT_ACTIVE</code>,
+              <code>SELLER_OWN_AUCTION</code>, <code>INSUFFICIENT_INCREMENT</code>, and
+              <code>INVALID_AMOUNT</code>.
+            </li>
+            <li>
+              Implemented transactional bid acceptance with auction row locking, current-highest-bid
+              checks, seller permission checks, minimum increment validation, and post-commit event
+              publication.
+            </li>
+            <li>Implemented admin auction close behavior for sold and unsold outcomes.</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h2>4. Real-time events and observability</h2>
+          <ul>
+            <li>
+              Added typed auction events for <code>bid.accepted</code>, <code>bid.rejected</code>,
+              <code>auction.closed</code>, and <code>sale.completed</code>.
+            </li>
+            <li>Added an in-process auction event broadcaster with subscribe and publish APIs.</li>
+            <li>
+              Added per-auction SSE endpoint at
+              <code>/api/auctions/$auctionId/events</code>.
+            </li>
+            <li>
+              Ensured rejected bid SSE events are only sent when the listener has the matching
+              acting user id.
+            </li>
+            <li>Added structured server logging helpers.</li>
+            <li>Added OpenTelemetry API span usage around bid mutations.</li>
+            <li>Added Prometheus-style metrics at <code>/metrics</code>.</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h2>5. User-facing routes</h2>
+          <ul>
+            <li>
+              <code>/</code>: live operational dashboard showing active auctions, latest bids,
+              recent sales, and inventory needing action.
+            </li>
+            <li>
+              <code>/auctions/$auctionId</code>: auction detail page with live bid chain, demo buyer
+              selector, bid form, SSE subscription, Query cache patching for accepted bids, and
+              aggregate invalidation.
+            </li>
+            <li>
+              <code>/inventory/new</code>: fish inventory form with curated species, kilograms,
+              catch region, grade, seller, starting price, description, and optional image URL.
+            </li>
+            <li>
+              <code>/admin</code>: admin/history/statistics dashboard with total sales, average bid
+              price, popular fish, auction close controls, completed sales, and bid history.
+            </li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h2>6. Simulator and documentation</h2>
+          <ul>
+            <li>
+              Added simulator API route at <code>/api/simulate</code> that submits bids through the
+              same service path as the app.
+            </li>
+            <li>
+              Added <code>pnpm simulate</code> script with configurable bid count and interval
+              arguments.
+            </li>
+            <li>
+              Expanded <code>README.md</code> with local setup steps, routes, and script
+              descriptions.
+            </li>
+            <li>Added <code>.env.example</code> with default database URL and app origin.</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="card">
+        <h2>Session task status</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Task</th>
+              <th>What it covered</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Scaffolding TanStack app</td>
+              <td>
+                pnpm package metadata, TanStack Start/Vite configuration, TypeScript config, root
+                route, and base styling.
+              </td>
+              <td>Done</td>
+            </tr>
+            <tr>
+              <td>Modeling auction database</td>
+              <td>
+                PostgreSQL Docker Compose, Drizzle schema, migration, database client, deterministic
+                seed data, and database scripts.
+              </td>
+              <td>Done</td>
+            </tr>
+            <tr>
+              <td>Implementing auction logic</td>
+              <td>
+                Zod schemas, money/weight helpers, typed bid errors, bid validation, auction close
+                behavior, metrics, and broadcaster.
+              </td>
+              <td>Done</td>
+            </tr>
+            <tr>
+              <td>Building POC routes</td>
+              <td>
+                Dashboard, auction detail, SSE cache patching, inventory form, admin dashboard,
+                metrics endpoint, simulator endpoint, and simulator command.
+              </td>
+              <td>Done</td>
+            </tr>
+            <tr>
+              <td>Validating POC</td>
+              <td>
+                Vitest coverage, dependency installation, formatting, linting, build, and
+                type-check.
+              </td>
+              <td>Done</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>Review findings fixed before completion</h2>
+        <ul>
+          <li>
+            Prevented duplicate sales by requiring auctions to be active before closing and adding
+            unique sale indexes for auction and winning bid.
+          </li>
+          <li>
+            Fixed popular-fish statistics so sale value and sold kilograms are not multiplied by the
+            number of bids.
+          </li>
+          <li>
+            Fixed SSE filtering so <code>bid.rejected</code> events do not leak to listeners without
+            the matching acting user id.
+          </li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Validation performed</h2>
+        <ul>
+          <li><code>pnpm install</code></li>
+          <li><code>pnpm test</code>: 3 files, 10 tests passed.</li>
+          <li><code>pnpm lint</code></li>
+          <li><code>pnpm format</code></li>
+          <li><code>pnpm format:check</code></li>
+          <li><code>pnpm build</code></li>
+          <li><code>pnpm exec tsc --noEmit</code></li>
+        </ul>
+        <p>
+          A code-review pass was also run over the new POC changes, and the substantive findings
+          were fixed.
+        </p>
+      </section>
+
+      <section class="card warning">
+        <h2>Remaining environment note</h2>
+        <p>
+          Docker is installed, but the Docker Desktop daemon was not running during the session.
+          Because of that,
+          <code>docker compose up -d && pnpm db:migrate && pnpm db:seed</code>
+          could not be runtime-validated. The configuration and scripts are in place for that check
+          once Docker Desktop is running.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Files and directories added or changed</h2>
+        <ul class="file-list">
+          <li><code>README.md</code></li>
+          <li><code>.env.example</code></li>
+          <li><code>.gitignore</code></li>
+          <li><code>docker-compose.yml</code></li>
+          <li><code>drizzle.config.ts</code></li>
+          <li><code>drizzle/0000_initial_fish_auction.sql</code></li>
+          <li><code>drizzle/meta/_journal.json</code></li>
+          <li><code>package.json</code></li>
+          <li><code>pnpm-lock.yaml</code></li>
+          <li><code>tsconfig.json</code></li>
+          <li><code>vite.config.ts</code></li>
+          <li><code>vitest.config.ts</code></li>
+          <li><code>src/db/client.ts</code></li>
+          <li><code>src/db/schema.ts</code></li>
+          <li><code>src/domain/bid-rules.ts</code></li>
+          <li><code>src/domain/bid-rules.test.ts</code></li>
+          <li><code>src/domain/constants.ts</code></li>
+          <li><code>src/domain/events.ts</code></li>
+          <li><code>src/domain/events.test.ts</code></li>
+          <li><code>src/domain/logger.ts</code></li>
+          <li><code>src/domain/metrics.ts</code></li>
+          <li><code>src/domain/money.ts</code></li>
+          <li><code>src/domain/money-weight.test.ts</code></li>
+          <li><code>src/domain/validation.ts</code></li>
+          <li><code>src/domain/weight.ts</code></li>
+          <li><code>src/router.tsx</code></li>
+          <li><code>src/routes/__root.tsx</code></li>
+          <li><code>src/routes/admin.tsx</code></li>
+          <li><code>src/routes/api.auctions.$auctionId.events.ts</code></li>
+          <li><code>src/routes/api.simulate.ts</code></li>
+          <li><code>src/routes/auctions.$auctionId.tsx</code></li>
+          <li><code>src/routes/index.tsx</code></li>
+          <li><code>src/routes/inventory.new.tsx</code></li>
+          <li><code>src/routes/metrics.ts</code></li>
+          <li><code>src/scripts/seed.ts</code></li>
+          <li><code>src/scripts/simulate.ts</code></li>
+          <li><code>src/server/auction-service.ts</code></li>
+          <li><code>src/server/functions.ts</code></li>
+          <li><code>src/styles.css</code></li>
+          <li>
+            <code>documentation/poc-implementation-session-summary.html</code>
+          </li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

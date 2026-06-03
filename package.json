@@ -1,0 +1,44 @@
+{
+  "name": "auction",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "lint": "oxlint .",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx src/scripts/seed.ts",
+    "db:studio": "drizzle-kit studio",
+    "simulate": "tsx src/scripts/simulate.ts"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "1.9.0",
+    "@tanstack/react-query": "5.101.0",
+    "@tanstack/react-router": "1.170.11",
+    "@tanstack/react-start": "1.168.19",
+    "drizzle-orm": "0.45.2",
+    "postgres": "3.4.7",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "zod": "4.1.13"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "latest",
+    "drizzle-kit": "0.31.10",
+    "oxfmt": "0.53.0",
+    "oxlint": "1.68.0",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3",
+    "vite": "latest",
+    "vitest": "4.0.15"
+  },
+  "packageManager": "pnpm@10.27.0"
+}

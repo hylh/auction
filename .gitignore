@@ -1,0 +1,8 @@
+node_modules
+.env
+.output
+.vinxi
+.nitro
+dist
+coverage
+src/routeTree.gen.ts

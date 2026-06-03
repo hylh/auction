@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Auction Project Decisions</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f8fb;
+        --card: #ffffff;
+        --text: #172033;
+        --muted: #536173;
+        --border: #d9e0ea;
+        --accent: #0f766e;
+        --accent-soft: #d9f7f3;
+        --code: #eef2f7;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #101623;
+          --card: #172033;
+          --text: #edf2f7;
+          --muted: #a9b6c7;
+          --border: #2a3547;
+          --accent: #5eead4;
+          --accent-soft: #123f3a;
+          --code: #202b3b;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        line-height: 1.6;
+      }
+
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 48px 24px;
+      }
+
+      header {
+        margin-bottom: 32px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.2;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2rem, 5vw, 3.25rem);
+      }
+
+      h2 {
+        margin: 0 0 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      h3 {
+        margin: 24px 0 8px;
+      }
+
+      p {
+        margin: 0 0 16px;
+      }
+
+      ul {
+        margin: 0 0 16px 1.25rem;
+        padding: 0;
+      }
+
+      li {
+        margin: 6px 0;
+      }
+
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: var(--code);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.92em;
+      }
+
+      .card {
+        margin: 24px 0;
+        padding: 24px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: var(--card);
+        box-shadow: 0 8px 24px rgb(15 23 42 / 8%);
+      }
+
+      .meta {
+        color: var(--muted);
+      }
+
+      .pill-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 16px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .pill-list li {
+        margin: 0;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 650;
+        font-size: 0.9rem;
+      }
+
+      .decision-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+      }
+
+      .decision {
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--card) 92%, var(--accent-soft));
+      }
+
+      .decision strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="meta">Saved project brief and grilling decisions</p>
+        <h1>Fullstack TypeScript Fish Auction House</h1>
+        <p>
+          This document captures the requirements from
+          <code>.github\copilot-instructions.md</code> and the decisions made during the grill-me
+          design session.
+        </p>
+        <ul class="pill-list" aria-label="Project keywords">
+          <li>TanStack Start</li>
+          <li>TanStack Router</li>
+          <li>TanStack Query</li>
+          <li>PostgreSQL</li>
+          <li>Drizzle ORM</li>
+          <li>Server-Sent Events</li>
+          <li>Fish auctions</li>
+          <li>pnpm</li>
+          <li>oxlint</li>
+          <li>oxfmt</li>
+        </ul>
+      </header>
+
+      <section class="card">
+        <h2>Original product requirements</h2>
+        <ul>
+          <li>Build an auction house for selling and buying items.</li>
+          <li>Manage an inventory of items for sale.</li>
+          <li>Let users add new items for sale, place bids on items, and complete sales.</li>
+          <li>Provide a dashboard for current auctions, bids, and sales.</li>
+          <li>
+            Provide auction statistics including total sales, average bid price, and most popular
+            items.
+          </li>
+          <li>
+            Use modern TypeScript ecosystem best practices and showcase TypeScript as a fullstack
+            language.
+          </li>
+          <li>Include metrics and monitoring for performance and errors.</li>
+          <li>Include a way to generate new items, bids, and sales.</li>
+          <li>
+            Ensure that when a buyer places a bid, the visible bid chain updates in real time for
+            all users.
+          </li>
+          <li>Items are fish, and fish amounts are measured in kilograms.</li>
+          <li>
+            Use TanStack Start as the base, with TanStack Router, TanStack CLI, and TanStack Query.
+          </li>
+          <li>Use pnpm for package management.</li>
+          <li>
+            Use oxlint and oxfmt for linting and formatting, configured according to TanStack
+            recommendations.
+          </li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Implementation strategy</h2>
+        <p>
+          The first milestone is a full vertical auction slice rather than a tooling-only scaffold
+          or analytics-first build.
+        </p>
+        <p>
+          The initial deliverable should be a runnable TanStack Start app with tooling, PostgreSQL
+          and Drizzle schema, seeded demo users/fish/auctions, and the live auction detail flow.
+          Dashboards, analytics, metrics, and the simulator are layered on top once the auction flow
+          works end to end.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Resolved decisions</h2>
+        <div class="decision-grid">
+          <div class="decision">
+            <strong>Project baseline</strong>
+            Use the TanStack CLI scaffold first, then add domain modules around TanStack Start
+            conventions.
+          </div>
+          <div class="decision">
+            <strong>Package manager</strong>
+            Use pnpm.
+          </div>
+          <div class="decision">
+            <strong>Linting and formatting</strong>
+            Configure oxlint and oxfmt with required scripts for lint, format, format check, and
+            tests.
+          </div>
+          <div class="decision">
+            <strong>Persistence</strong>
+            Use PostgreSQL with Drizzle ORM.
+          </div>
+          <div class="decision">
+            <strong>Local infrastructure</strong>
+            Use Docker Compose for PostgreSQL and run the app/scripts with pnpm.
+          </div>
+          <div class="decision">
+            <strong>Migrations</strong>
+            Use Drizzle Kit migrations committed to the repository, with pnpm scripts for
+            <code>db:generate</code>, <code>db:migrate</code>, <code>db:seed</code>, and
+            <code>db:studio</code>.
+          </div>
+          <div class="decision">
+            <strong>Domain model</strong>
+            Separate <code>fish_items</code> from <code>auctions</code>. Fish inventory is distinct
+            from auction lifecycle.
+          </div>
+          <div class="decision">
+            <strong>Fish weight</strong>
+            Input and display kilograms in the UI, but store integer grams in the database.
+          </div>
+          <div class="decision">
+            <strong>Money</strong>
+            Store monetary values as integer cents with one configured currency.
+          </div>
+          <div class="decision">
+            <strong>Auction type</strong>
+            Use ascending English auctions with a configurable minimum bid increment.
+          </div>
+          <div class="decision">
+            <strong>Bid consistency</strong>
+            Enforce bids inside a database transaction, reject stale bids, and broadcast only after
+            commit.
+          </div>
+          <div class="decision">
+            <strong>Real time</strong>
+            Use Server-Sent Events per auction for bid and sale updates.
+          </div>
+          <div class="decision">
+            <strong>Meaning of chain</strong>
+            Treat "chain" as the real-time visible bid history, not blockchain.
+          </div>
+          <div class="decision">
+            <strong>Users</strong>
+            Use seeded demo users with a header demo user switcher instead of full auth in the MVP.
+          </div>
+          <div class="decision">
+            <strong>Permissions</strong>
+            Sellers manage their own fish and auctions, buyers bid on other sellers' active
+            auctions, sellers cannot bid on their own auctions, and admins can close, withdraw, and
+            view all records.
+          </div>
+          <div class="decision">
+            <strong>Sales completion</strong>
+            Auctions can be closed manually or by time. The highest valid bid wins; auctions with no
+            bids close as unsold.
+          </div>
+          <div class="decision">
+            <strong>Inventory states</strong>
+            Use <code>draft</code>, <code>listed</code>, <code>in_auction</code>, <code>sold</code>,
+            and <code>withdrawn</code>.
+          </div>
+          <div class="decision">
+            <strong>Auction timing</strong>
+            Use <code>startsAt</code> and <code>endsAt</code>. Only active auctions accept bids.
+            Finalization can be lazy or admin-triggered.
+          </div>
+          <div class="decision">
+            <strong>Data access</strong>
+            Use TanStack Start server functions for core queries and mutations, TanStack Query for
+            client cache, and a small HTTP/SSE surface for streaming and simulator access.
+          </div>
+          <div class="decision">
+            <strong>Validation</strong>
+            Use shared Zod schemas across server functions, API handlers, and UI forms.
+          </div>
+          <div class="decision">
+            <strong>Statistics</strong>
+            Compute live relational aggregates from PostgreSQL with appropriate indexes, not a
+            separate analytics store.
+          </div>
+          <div class="decision">
+            <strong>Monitoring</strong>
+            Use OpenTelemetry, a Prometheus-style metrics endpoint, and structured logs.
+          </div>
+          <div class="decision">
+            <strong>Testing</strong>
+            Use Vitest unit tests and integration tests. Do not add Playwright for now.
+          </div>
+          <div class="decision">
+            <strong>Realtime testing</strong>
+            Integration-test the SSE/event broadcaster at the server level with multiple listeners
+            receiving the same ordered bid event.
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Fish inventory model</h2>
+        <p>Required fish fields for the MVP:</p>
+        <ul>
+          <li>Species</li>
+          <li>Display name</li>
+          <li>Weight in kilograms in the UI, stored as grams</li>
+          <li>Catch region</li>
+          <li>Freshness or grade</li>
+          <li>Starting price</li>
+          <li>Seller</li>
+          <li>Optional description</li>
+          <li>Optional external image URL</li>
+        </ul>
+        <p>
+          Species should be selected from a curated MVP list so popularity statistics group cleanly:
+          salmon, cod, tuna, halibut, mackerel, trout, and herring.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Dashboards and routes</h2>
+        <h3>Routes</h3>
+        <ul>
+          <li><code>/</code> - live operational dashboard</li>
+          <li><code>/auctions/$auctionId</code> - auction detail page with live bid history</li>
+          <li><code>/inventory/new</code> - add a fish item</li>
+          <li><code>/admin</code> - history, admin, and statistics dashboard</li>
+          <li><code>/metrics</code> - scrapeable metrics endpoint</li>
+        </ul>
+
+        <h3>Live operational dashboard</h3>
+        <p>
+          Show active auctions, latest bids, recently completed sales, and inventory requiring
+          action.
+        </p>
+
+        <h3>History/admin dashboard</h3>
+        <p>
+          Focus on audit and management: completed and unsold auctions, sale records, bid history,
+          inventory status changes, and admin actions such as closing auctions or withdrawing fish
+          items.
+        </p>
+        <p>
+          Statistics should live in this dashboard as summary cards and charts with filters by date
+          range and fish species.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Statistics definitions</h2>
+        <ul>
+          <li>Total sales: aggregate completed sale value from accepted winning bids.</li>
+          <li>Average bid price: average accepted bid amount, stored and computed in cents.</li>
+          <li>
+            Most popular fish items: rank fish species by bid count, while also showing total
+            kilograms sold and total sales value.
+          </li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Realtime behavior</h2>
+        <p>
+          SSE events should be explicit and typed. Supported event shapes should include
+          <code>bid.accepted</code>, <code>bid.rejected</code> for the actor only,
+          <code>auction.closed</code>, and <code>sale.completed</code>.
+        </p>
+        <p>
+          Event payloads should include the auction id, bid id, amount in cents, bidder display
+          name, timestamp, and a current highest-bid snapshot. The auction detail page should patch
+          the TanStack Query cache immediately from accepted bid events, while aggregate dashboard
+          and statistics queries should be invalidated and refetched.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Bid validation and errors</h2>
+        <p>The server should return explicit typed bid errors for:</p>
+        <ul>
+          <li>Stale bid</li>
+          <li>Auction not active</li>
+          <li>Seller bidding on their own auction</li>
+          <li>Insufficient increment</li>
+          <li>Invalid amount</li>
+        </ul>
+        <p>Invalid bids must not be silently accepted or hidden behind generic refresh behavior.</p>
+      </section>
+
+      <section class="card">
+        <h2>Generated demo activity</h2>
+        <p>
+          Provide deterministic seed scripts and an optional local simulator. The simulator should
+          create auctions and bids through the same server APIs used by the application so
+          validation, persistence, metrics, and realtime updates are exercised.
+        </p>
+        <p>
+          Expose commands such as <code>pnpm db:seed</code> and <code>pnpm simulate</code>. The
+          simulator should accept options for auction count, bid interval, and duration, with
+          deterministic fake fish data as the default.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Monitoring and metrics</h2>
+        <p>
+          The first monitoring pass should include OpenTelemetry instrumentation, structured server
+          logs, and a Prometheus-style metrics endpoint.
+        </p>
+        <p>Mandatory domain metrics:</p>
+        <ul>
+          <li>Accepted bids counter</li>
+          <li>Rejected bids counter</li>
+          <li>Auctions created counter</li>
+          <li>Auctions closed counter</li>
+          <li>Sales completed counter</li>
+          <li>Total sale value in cents</li>
+          <li>Request latency histogram</li>
+          <li>Bid mutation duration histogram</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Testing scope</h2>
+        <p>
+          The test plan is Vitest-focused. Use unit tests for domain rules and integration tests for
+          server functions, database behavior, and realtime broadcaster behavior.
+        </p>
+        <p>Playwright/browser automation is intentionally out of scope for now.</p>
+      </section>
+
+      <section class="card">
+        <h2>Deletion and audit policy</h2>
+        <p>
+          Do not hard-delete auctions, bids, or sales in the MVP. Use statuses such as withdrawn,
+          closed, and unsold so the admin dashboard and statistics remain auditable.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

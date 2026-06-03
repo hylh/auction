@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fish Auction Implementation Roadmap</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f6f8fb;
+        --card: #ffffff;
+        --text: #172033;
+        --muted: #58677a;
+        --border: #d9e1ed;
+        --accent: #0f766e;
+        --accent-soft: #dff7f3;
+        --warning: #92400e;
+        --warning-soft: #fff7ed;
+        --code: #eef2f7;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #101623;
+          --card: #172033;
+          --text: #edf2f7;
+          --muted: #adbacb;
+          --border: #2d394c;
+          --accent: #5eead4;
+          --accent-soft: #123f3a;
+          --warning: #fdba74;
+          --warning-soft: #422006;
+          --code: #202b3b;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        line-height: 1.6;
+      }
+
+      main {
+        width: min(1120px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 48px 0;
+      }
+
+      header,
+      section {
+        margin-bottom: 24px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.15;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2.3rem, 6vw, 4.25rem);
+        letter-spacing: -0.06em;
+      }
+
+      h2 {
+        margin: 0 0 14px;
+      }
+
+      h3 {
+        margin: 20px 0 8px;
+      }
+
+      p {
+        margin: 0 0 14px;
+      }
+
+      ul {
+        margin: 0 0 16px 1.25rem;
+        padding: 0;
+      }
+
+      li {
+        margin: 6px 0;
+      }
+
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: var(--code);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.92em;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0;
+      }
+
+      th,
+      td {
+        padding: 10px;
+        border: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: color-mix(in srgb, var(--card) 86%, var(--accent-soft));
+      }
+
+      .hero,
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--card);
+        box-shadow: 0 12px 34px rgb(15 23 42 / 8%);
+      }
+
+      .hero {
+        padding: clamp(24px, 5vw, 48px);
+        background:
+          radial-gradient(
+            circle at top right,
+            color-mix(in srgb, var(--accent) 24%, transparent),
+            transparent 38%
+          ),
+          var(--card);
+      }
+
+      .card {
+        padding: 24px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .pill-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 18px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .pill-list li {
+        margin: 0;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 650;
+        font-size: 0.9rem;
+      }
+
+      .phase-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+      }
+
+      .phase {
+        padding: 18px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: color-mix(in srgb, var(--card) 92%, var(--accent-soft));
+      }
+
+      .phase strong {
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      .callout {
+        padding: 16px;
+        border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
+        border-radius: 16px;
+        background: var(--warning-soft);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <p class="muted">Saved June 3, 2026</p>
+        <h1>Fish Auction Implementation Roadmap</h1>
+        <p>
+          This roadmap starts from the current proof-of-concept: a runnable TanStack Start auction
+          app with PostgreSQL, Drizzle schema and seed data, live auction detail, per-auction SSE,
+          dashboard, inventory intake, admin statistics, metrics, simulator entrypoint, and initial
+          unit tests.
+        </p>
+        <ul class="pill-list" aria-label="Roadmap themes">
+          <li>Auction lifecycle</li>
+          <li>Transactional bidding</li>
+          <li>Admin controls</li>
+          <li>Integration coverage</li>
+          <li>Observability</li>
+          <li>Demo readiness</li>
+        </ul>
+      </header>
+
+      <section class="card">
+        <h2>Current baseline</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>Implemented now</th>
+              <th>Main remaining gap</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Core app</td>
+              <td>
+                TanStack Start routes for <code>/</code>, <code>/auctions/$auctionId</code>,
+                <code>/inventory/new</code>, <code>/admin</code>, and <code>/metrics</code>.
+              </td>
+              <td>Route-level error handling, loading states, and deeper UX polish.</td>
+            </tr>
+            <tr>
+              <td>Persistence</td>
+              <td>
+                PostgreSQL via Docker Compose, Drizzle schema, migration, deterministic seed data,
+                and demo users.
+              </td>
+              <td>
+                Lifecycle audit records, richer constraints, and integration test database setup.
+              </td>
+            </tr>
+            <tr>
+              <td>Bidding</td>
+              <td>
+                Transactional bid writes, stale bid rejection, bid increment rules, seller
+                protection, and typed bid errors.
+              </td>
+              <td>Server-level integration tests and stronger concurrency verification.</td>
+            </tr>
+            <tr>
+              <td>Real time</td>
+              <td>
+                Per-auction SSE broadcaster for accepted bids, rejected bids scoped to the actor,
+                auction close, and sale completion events.
+              </td>
+              <td>SSE endpoint tests, reconnect behavior, and client-side resilience.</td>
+            </tr>
+            <tr>
+              <td>Admin and history</td>
+              <td>Admin dashboard with auctions, completed sales, bid history, and aggregates.</td>
+              <td>
+                Withdrawal controls, status history, admin action history, and richer filtering.
+              </td>
+            </tr>
+            <tr>
+              <td>Observability</td>
+              <td>
+                Structured logging helpers, OpenTelemetry span around bid placement, and
+                Prometheus-style counters/gauges.
+              </td>
+              <td>Request-wide instrumentation, useful histograms, error counters, and docs.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>Recommended implementation sequence</h2>
+        <div class="phase-grid">
+          <article class="phase">
+            <strong>Phase 1 - Close the auction lifecycle gaps</strong>
+            <ul>
+              <li>
+                Create auctions from listed fish inventory through a validated server function.
+              </li>
+              <li>Move scheduled auctions to active when their start time arrives.</li>
+              <li>Close expired auctions automatically as sold or unsold.</li>
+              <li>
+                Make close operations idempotent so repeated admin or scheduler calls are safe.
+              </li>
+              <li>
+                Broadcast <code>auction.closed</code> and <code>sale.completed</code> only after
+                commit.
+              </li>
+            </ul>
+          </article>
+
+          <article class="phase">
+            <strong>Phase 2 - Expand admin operations and auditability</strong>
+            <ul>
+              <li>Add admin withdrawal flows for fish items and active auctions.</li>
+              <li>Persist inventory status changes and admin actions in audit tables.</li>
+              <li>
+                Show unsold auctions, withdrawn inventory, and status history on
+                <code>/admin</code>.
+              </li>
+              <li>Add filters by status, species, seller, buyer, and date range.</li>
+            </ul>
+          </article>
+
+          <article class="phase">
+            <strong>Phase 3 - Harden bidding and real-time behavior</strong>
+            <ul>
+              <li>Add integration tests for stale bid races against PostgreSQL row locks.</li>
+              <li>Test rejected bid SSE delivery only to the acting user.</li>
+              <li>Add EventSource reconnect guidance and cache reconciliation after reconnect.</li>
+              <li>
+                Keep dashboard and admin aggregates invalidated rather than manually recomputed.
+              </li>
+            </ul>
+          </article>
+
+          <article class="phase">
+            <strong>Phase 4 - Improve inventory and auction creation UX</strong>
+            <ul>
+              <li>Turn newly listed inventory into scheduled or active auctions from the UI.</li>
+              <li>Add validation feedback next to individual form fields.</li>
+              <li>Support optional image previews while preserving external URL validation.</li>
+              <li>Make money and kilogram inputs display parsed values before submit.</li>
+            </ul>
+          </article>
+
+          <article class="phase">
+            <strong>Phase 5 - Make observability production-minded</strong>
+            <ul>
+              <li>Wrap server functions and API handlers with request latency measurement.</li>
+              <li>Replace last-value duration gauges with useful buckets or summaries.</li>
+              <li>Add counters for validation failures, close failures, and simulator requests.</li>
+              <li>Document local metrics scraping and OpenTelemetry environment configuration.</li>
+            </ul>
+          </article>
+
+          <article class="phase">
+            <strong>Phase 6 - Upgrade the simulator and demo data</strong>
+            <ul>
+              <li>
+                Let the simulator create auctions through the same application path as the UI.
+              </li>
+              <li>
+                Add options for auction count, bid interval, duration, buyer mix, and rejection
+                rate.
+              </li>
+              <li>Keep simulator data deterministic by default, with an optional random seed.</li>
+              <li>Exercise bidding, closing, metrics, logging, and SSE updates in one demo run.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Acceptance criteria by milestone</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Milestone</th>
+              <th>Done means</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Lifecycle complete</td>
+              <td>
+                Listed fish can become auctions; scheduled auctions activate; expired auctions
+                close; auctions with bids create sales; auctions without bids become unsold.
+              </td>
+            </tr>
+            <tr>
+              <td>Admin audit ready</td>
+              <td>
+                Admins can close and withdraw records, and every admin action plus inventory status
+                transition is visible in history.
+              </td>
+            </tr>
+            <tr>
+              <td>Real-time confidence</td>
+              <td>
+                Multiple SSE listeners receive ordered accepted bid events; rejected events only
+                reach the acting user; reconnects end in a consistent query cache.
+              </td>
+            </tr>
+            <tr>
+              <td>Integration coverage</td>
+              <td>
+                Vitest covers server functions, PostgreSQL transactions, sale completion, unsold
+                closing, metrics side effects, and broadcaster behavior.
+              </td>
+            </tr>
+            <tr>
+              <td>Demo readiness</td>
+              <td>
+                A fresh clone can run <code>pnpm install</code>, <code>docker compose up -d</code>,
+                <code>pnpm db:migrate</code>, <code>pnpm db:seed</code>, <code>pnpm dev</code>, and
+                <code>pnpm simulate</code> to show live bid updates and completed sales.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>Near-term backlog</h2>
+        <ol>
+          <li>
+            Add auction creation schemas, server function, and UI action for listed fish inventory.
+          </li>
+          <li>
+            Add an auction lifecycle service that activates due auctions and closes expired active
+            auctions.
+          </li>
+          <li>
+            Add status history and admin action tables with Drizzle migration and seeded examples.
+          </li>
+          <li>
+            Add PostgreSQL-backed Vitest integration tests for bid placement and auction closing.
+          </li>
+          <li>
+            Add SSE endpoint tests for ordered accepted events and actor-scoped rejected events.
+          </li>
+          <li>
+            Expand the simulator so it creates auctions, places bids, closes auctions, and reports
+            metrics deltas.
+          </li>
+          <li>
+            Improve form-level validation messages and admin filters before adding visual polish.
+          </li>
+        </ol>
+      </section>
+
+      <section class="callout">
+        <h2>Guiding constraint</h2>
+        <p>
+          Keep the next work focused on correctness before polish: every lifecycle transition should
+          be transactional, observable, covered by tests, and reflected in the dashboards without
+          duplicating validation between client and server.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
