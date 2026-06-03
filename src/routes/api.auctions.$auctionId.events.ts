@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { subscribeToAuction, type AuctionEvent } from "../domain/events";
+import {
+  shouldDeliverAuctionEventToSubscriber,
+  subscribeToAuction,
+  type AuctionEvent,
+} from "../domain/events";
 
 export const Route = createFileRoute("/api/auctions/$auctionId/events")({
   server: {
@@ -20,7 +24,7 @@ export const Route = createFileRoute("/api/auctions/$auctionId/events")({
             };
 
             const unsubscribe = subscribeToAuction(params.auctionId, (event: AuctionEvent) => {
-              if (event.type === "bid.rejected" && (!userId || event.actorUserId !== userId)) {
+              if (!shouldDeliverAuctionEventToSubscriber(event, userId)) {
                 return;
               }
               send(event.type, event);

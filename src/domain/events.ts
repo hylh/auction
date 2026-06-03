@@ -58,6 +58,13 @@ export function publishAuctionEvent(event: AuctionEvent) {
   }
 }
 
+export function shouldDeliverAuctionEventToSubscriber(
+  event: AuctionEvent,
+  userId: string | null | undefined,
+) {
+  return event.type !== "bid.rejected" || event.actorUserId === userId;
+}
+
 export function subscribeToAuction(auctionId: string, listener: AuctionEventListener) {
   const auctionListeners = listeners.get(auctionId) ?? new Set<AuctionEventListener>();
   auctionListeners.add(listener);

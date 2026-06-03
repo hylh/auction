@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { publishAuctionEvent, subscribeToAuction } from "./events";
-import type { BidAcceptedEvent } from "./events";
+import {
+  publishAuctionEvent,
+  shouldDeliverAuctionEventToSubscriber,
+  subscribeToAuction,
+} from "./events";
+import type { AuctionClosedEvent, BidAcceptedEvent, BidRejectedEvent } from "./events";
 
 describe("auction event broadcaster", () => {
   it("delivers ordered auction events to multiple listeners", () => {
@@ -24,6 +28,21 @@ describe("auction event broadcaster", () => {
     unsubscribeFirst();
     unsubscribeSecond();
   });
+
+  it("only delivers rejected bid events to the acting user", () => {
+    const auctionId = crypto.randomUUID();
+    const actingUserId = crypto.randomUUID();
+    const otherUserId = crypto.randomUUID();
+    const rejected = rejectedBidEvent(auctionId, actingUserId);
+
+    expect(shouldDeliverAuctionEventToSubscriber(rejected, actingUserId)).toBe(true);
+    expect(shouldDeliverAuctionEventToSubscriber(rejected, otherUserId)).toBe(false);
+    expect(shouldDeliverAuctionEventToSubscriber(rejected, null)).toBe(false);
+    expect(shouldDeliverAuctionEventToSubscriber(bidEvent(auctionId, "bid-1", 1000), null)).toBe(
+      true,
+    );
+    expect(shouldDeliverAuctionEventToSubscriber(closedEvent(auctionId), otherUserId)).toBe(true);
+  });
 });
 
 function bidEvent(auctionId: string, bidId: string, amountCents: number): BidAcceptedEvent {
@@ -39,5 +58,26 @@ function bidEvent(auctionId: string, bidId: string, amountCents: number): BidAcc
     auctionId,
     bid,
     currentHighestBid: bid,
+  };
+}
+
+function rejectedBidEvent(auctionId: string, actorUserId: string): BidRejectedEvent {
+  return {
+    type: "bid.rejected",
+    auctionId,
+    actorUserId,
+    code: "STALE_BID",
+    message: "The current highest bid changed before this bid was accepted",
+    currentHighestBidCents: 1000,
+    rejectedAt: new Date().toISOString(),
+  };
+}
+
+function closedEvent(auctionId: string): AuctionClosedEvent {
+  return {
+    type: "auction.closed",
+    auctionId,
+    status: "closed",
+    closedAt: new Date().toISOString(),
   };
 }

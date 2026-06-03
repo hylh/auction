@@ -28,6 +28,7 @@ function AuctionDetailPage() {
   const [bidderId, setBidderId] = useState("");
   const [amountMajor, setAmountMajor] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
 
   const suggestedAmountMajor = useMemo(() => {
     if (!auction.data) return "";
@@ -89,10 +90,23 @@ function AuctionDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["admin"] });
     };
 
+    const onConnected = () => {
+      setConnectionMessage(null);
+      queryClient.invalidateQueries({ queryKey: ["auction", auctionId] });
+    };
+
+    const onRealtimeError = () => {
+      setConnectionMessage(
+        "Realtime connection interrupted. The browser will reconnect and this auction refreshes every few seconds.",
+      );
+    };
+
     eventSource.addEventListener("bid.accepted", onAccepted);
     eventSource.addEventListener("bid.rejected", onRejected);
     eventSource.addEventListener("auction.closed", onClosed);
     eventSource.addEventListener("sale.completed", onClosed);
+    eventSource.addEventListener("connected", onConnected);
+    eventSource.addEventListener("error", onRealtimeError);
 
     return () => eventSource.close();
   }, [auctionId, bidderId, queryClient]);
@@ -212,6 +226,7 @@ function AuctionDetailPage() {
           {message && (
             <p className={message.includes("accepted") ? "success" : "error"}>{message}</p>
           )}
+          {connectionMessage && <p className="muted">{connectionMessage}</p>}
         </article>
 
         <article className="card">
