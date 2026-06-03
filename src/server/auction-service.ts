@@ -1,7 +1,15 @@
 import { trace } from "@opentelemetry/api";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../db/client";
-import { auctions, bids, fishItems, sales, users } from "../db/schema";
+import {
+  adminActions,
+  auctions,
+  bids,
+  fishItems,
+  inventoryStatusChanges,
+  sales,
+  users,
+} from "../db/schema";
 import { evaluateBid, type BidErrorCode } from "../domain/bid-rules";
 import { CURRENCY } from "../domain/constants";
 import {
@@ -15,8 +23,22 @@ import {
 import { logInfo, logWarn } from "../domain/logger";
 import { incrementMetric, observeBidMutationDuration } from "../domain/metrics";
 import { centsFromMajor } from "../domain/money";
-import { bidInputSchema, closeAuctionInputSchema, fishInputSchema } from "../domain/validation";
+import {
+  adminFiltersSchema,
+  type AdminFilters,
+  auctionInputSchema,
+  bidInputSchema,
+  closeAuctionInputSchema,
+  fishInputSchema,
+  withdrawAuctionInputSchema,
+  withdrawFishItemInputSchema,
+} from "../domain/validation";
 import { gramsFromKilograms } from "../domain/weight";
+
+type AuctionLifecycleStatus = "scheduled" | "active" | "closed" | "unsold" | "withdrawn";
+type InventoryLifecycleStatus = "draft" | "listed" | "in_auction" | "sold" | "withdrawn";
+type CloseReason = "manual" | "expired";
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type DemoUser = {
   id: string;
@@ -52,10 +74,34 @@ export type SaleSummary = {
   auctionId: string;
   fishDisplayName: string;
   species: string;
+  weightGrams: number;
   buyerDisplayName: string;
   sellerDisplayName: string;
   amountCents: number;
   completedAt: string;
+};
+
+export type InventoryStatusChangeSummary = {
+  id: string;
+  fishItemId: string;
+  fishDisplayName: string;
+  species: string;
+  fromStatus: string | null;
+  toStatus: string;
+  changedByDisplayName: string | null;
+  reason: string;
+  createdAt: string;
+};
+
+export type AdminActionSummary = {
+  id: string;
+  adminDisplayName: string;
+  action: string;
+  auctionId: string | null;
+  fishItemId: string | null;
+  fishDisplayName: string | null;
+  reason: string;
+  createdAt: string;
 };
 
 export type DashboardData = {
@@ -77,8 +123,13 @@ export type AuctionDetail = AuctionSummary & {
 };
 
 export type AdminData = {
+  demoUsers: Array<DemoUser>;
   completedSales: Array<SaleSummary>;
   auctions: Array<AuctionSummary>;
+  inventoryNeedingAction: Array<FishSummary>;
+  withdrawnInventory: Array<FishSummary>;
+  inventoryStatusChanges: Array<InventoryStatusChangeSummary>;
+  adminActions: Array<AdminActionSummary>;
   bidHistory: Array<
     BidSnapshot & {
       auctionId: string;
@@ -96,6 +147,14 @@ export type AdminData = {
       totalSalesCents: number;
     }>;
   };
+};
+
+export type CloseAuctionResult = {
+  auctionId: string;
+  status: AuctionLifecycleStatus;
+  changed: boolean;
+  closedEvent: AuctionClosedEvent | null;
+  saleEvent: SaleCompletedEvent | null;
 };
 
 export type PlaceBidResult =
@@ -124,6 +183,8 @@ export async function listDemoUsers(): Promise<Array<DemoUser>> {
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
+  await advanceAuctionLifecycle();
+
   const [demoUsers, activeAuctions, latestBids, recentSales, inventoryNeedingAction] =
     await Promise.all([
       listDemoUsers(),
@@ -143,6 +204,8 @@ export async function getDashboardData(): Promise<DashboardData> {
 }
 
 export async function getAuctionDetail(auctionId: string): Promise<AuctionDetail> {
+  await advanceAuctionLifecycle();
+
   const auction = await db.query.auctions.findFirst({
     where: eq(auctions.id, auctionId),
     with: {
@@ -181,21 +244,34 @@ export async function getAuctionDetail(auctionId: string): Promise<AuctionDetail
 
 export async function createFishItem(input: unknown) {
   const data = fishInputSchema.parse(input);
-  const [created] = await db
-    .insert(fishItems)
-    .values({
-      species: data.species,
-      displayName: data.displayName,
-      weightGrams: gramsFromKilograms(data.weightKilograms),
-      catchRegion: data.catchRegion,
-      grade: data.grade,
-      startingPriceCents: centsFromMajor(data.startingPriceMajor),
-      sellerId: data.sellerId,
-      status: "listed",
-      description: data.description || null,
-      imageUrl: data.imageUrl || null,
-    })
-    .returning();
+  const created = await db.transaction(async (tx) => {
+    const [fish] = await tx
+      .insert(fishItems)
+      .values({
+        species: data.species,
+        displayName: data.displayName,
+        weightGrams: gramsFromKilograms(data.weightKilograms),
+        catchRegion: data.catchRegion,
+        grade: data.grade,
+        startingPriceCents: centsFromMajor(data.startingPriceMajor),
+        sellerId: data.sellerId,
+        status: "listed",
+        description: data.description || null,
+        imageUrl: data.imageUrl || null,
+      })
+      .returning();
+
+    await recordInventoryStatusChange(tx, {
+      fishItemId: fish.id,
+      auctionId: null,
+      fromStatus: null,
+      toStatus: "listed",
+      changedByUserId: data.sellerId,
+      reason: "Fish inventory listed",
+    });
+
+    return fish;
+  });
 
   logInfo("fish_item.created", {
     fishItemId: created.id,
@@ -206,8 +282,96 @@ export async function createFishItem(input: unknown) {
   return toFishSummary(created);
 }
 
+export async function createAuction(input: unknown): Promise<AuctionSummary> {
+  const data = auctionInputSchema.parse(input);
+  const now = new Date();
+
+  if (data.endsAt <= now) {
+    throw new Error("Auction end time must be in the future");
+  }
+
+  const createdAuction = await db.transaction(async (tx) => {
+    const admin = await tx.query.users.findFirst({
+      where: and(eq(users.id, data.adminUserId), eq(users.role, "admin")),
+    });
+    if (!admin) {
+      throw new Error("Only admins can create auctions");
+    }
+
+    await tx.execute(sql`select id from fish_items where id = ${data.fishItemId} for update`);
+
+    const fish = await tx.query.fishItems.findFirst({
+      where: eq(fishItems.id, data.fishItemId),
+      with: {
+        seller: true,
+      },
+    });
+    if (!fish) {
+      throw new Error(`Fish item ${data.fishItemId} was not found`);
+    }
+    if (fish.status !== "listed") {
+      throw new Error("Only listed fish inventory can be auctioned");
+    }
+
+    const initialStatus = data.startsAt <= now && now < data.endsAt ? "active" : "scheduled";
+    const [auction] = await tx
+      .insert(auctions)
+      .values({
+        fishItemId: fish.id,
+        status: initialStatus,
+        startsAt: data.startsAt,
+        endsAt: data.endsAt,
+        minimumIncrementCents: data.minimumIncrementCents,
+      })
+      .returning();
+
+    await tx
+      .update(fishItems)
+      .set({ status: "in_auction", updatedAt: now })
+      .where(eq(fishItems.id, fish.id));
+
+    await recordInventoryStatusChange(tx, {
+      fishItemId: fish.id,
+      auctionId: auction.id,
+      fromStatus: fish.status,
+      toStatus: "in_auction",
+      changedByUserId: data.adminUserId,
+      reason: "Auction created from listed inventory",
+    });
+    await recordAdminAction(tx, {
+      adminUserId: data.adminUserId,
+      action: "create_auction",
+      auctionId: auction.id,
+      fishItemId: fish.id,
+      reason: "Auction created from listed inventory",
+    });
+
+    return {
+      id: auction.id,
+      status: auction.status,
+      startsAt: auction.startsAt.toISOString(),
+      endsAt: auction.endsAt.toISOString(),
+      minimumIncrementCents: auction.minimumIncrementCents,
+      fish: toFishSummary({ ...fish, status: "in_auction" }),
+      seller: toUserSummary(fish.seller),
+      currentHighestBid: null,
+    };
+  });
+
+  incrementMetric("auctionsCreated");
+  logInfo("auction.created", {
+    auctionId: createdAuction.id,
+    fishItemId: data.fishItemId,
+    status: createdAuction.status,
+  });
+
+  return createdAuction;
+}
+
 export async function placeBid(input: unknown): Promise<PlaceBidResult> {
   const data = bidInputSchema.parse(input);
+  await advanceAuctionLifecycle();
+
   const started = performance.now();
 
   const result = await tracer.startActiveSpan("placeBid", async (span) => {
@@ -335,18 +499,43 @@ export async function placeBid(input: unknown): Promise<PlaceBidResult> {
   return result;
 }
 
-export async function closeAuction(input: unknown) {
+export async function closeAuction(input: unknown): Promise<CloseAuctionResult> {
   const data = closeAuctionInputSchema.parse(input);
 
   const result = await db.transaction(async (tx) => {
-    await tx.execute(sql`select id from auctions where id = ${data.auctionId} for update`);
-
     const admin = await tx.query.users.findFirst({
       where: and(eq(users.id, data.adminUserId), eq(users.role, "admin")),
     });
     if (!admin) {
       throw new Error("Only admins can close auctions");
     }
+
+    return closeAuctionInTransaction(tx, {
+      auctionId: data.auctionId,
+      adminUserId: data.adminUserId,
+      now: new Date(),
+      reason: "manual",
+    });
+  });
+
+  publishCloseResult(result);
+
+  return result;
+}
+
+export async function withdrawAuction(input: unknown) {
+  const data = withdrawAuctionInputSchema.parse(input);
+  const reason = data.reason ?? "Auction withdrawn by admin";
+
+  const result = await db.transaction(async (tx) => {
+    const admin = await tx.query.users.findFirst({
+      where: and(eq(users.id, data.adminUserId), eq(users.role, "admin")),
+    });
+    if (!admin) {
+      throw new Error("Only admins can withdraw auctions");
+    }
+
+    await tx.execute(sql`select id from auctions where id = ${data.auctionId} for update`);
 
     const auction = await tx.query.auctions.findFirst({
       where: eq(auctions.id, data.auctionId),
@@ -357,117 +546,146 @@ export async function closeAuction(input: unknown) {
     if (!auction) {
       throw new Error(`Auction ${data.auctionId} was not found`);
     }
-    if (auction.status !== "active") {
-      throw new Error("Only active auctions can be closed");
+    if (auction.status === "withdrawn") {
+      return { changed: false as const, auctionId: auction.id, fishItemId: auction.fishItemId };
+    }
+    if (auction.status !== "active" && auction.status !== "scheduled") {
+      throw new Error("Only active or scheduled auctions can be withdrawn");
     }
 
-    const winningBid = await tx.query.bids.findFirst({
-      where: eq(bids.auctionId, data.auctionId),
-      orderBy: [desc(bids.amountCents), desc(bids.acceptedAt)],
-    });
-
-    const closedAt = new Date();
-    if (!winningBid) {
-      await tx
-        .update(auctions)
-        .set({ status: "unsold", closedAt, updatedAt: closedAt })
-        .where(eq(auctions.id, data.auctionId));
-      await tx
-        .update(fishItems)
-        .set({ status: "listed", updatedAt: closedAt })
-        .where(eq(fishItems.id, auction.fishItemId));
-
-      const closedEvent: AuctionClosedEvent = {
-        type: "auction.closed",
-        auctionId: data.auctionId,
-        status: "unsold",
-        closedAt: closedAt.toISOString(),
-      };
-      return { closedEvent, saleEvent: null };
-    }
-
+    const now = new Date();
     await tx
       .update(auctions)
-      .set({ status: "closed", closedAt, updatedAt: closedAt })
-      .where(eq(auctions.id, data.auctionId));
+      .set({ status: "withdrawn", closedAt: now, updatedAt: now })
+      .where(eq(auctions.id, auction.id));
     await tx
       .update(fishItems)
-      .set({ status: "sold", updatedAt: closedAt })
+      .set({ status: "withdrawn", updatedAt: now })
       .where(eq(fishItems.id, auction.fishItemId));
 
-    const [sale] = await tx
-      .insert(sales)
-      .values({
-        auctionId: data.auctionId,
-        fishItemId: auction.fishItemId,
-        winningBidId: winningBid.id,
-        buyerId: winningBid.bidderId,
-        sellerId: auction.fishItem.sellerId,
-        amountCents: winningBid.amountCents,
-        currency: CURRENCY,
-      })
-      .returning();
+    await recordInventoryStatusChange(tx, {
+      fishItemId: auction.fishItemId,
+      auctionId: auction.id,
+      fromStatus: auction.fishItem.status,
+      toStatus: "withdrawn",
+      changedByUserId: data.adminUserId,
+      reason,
+    });
+    await recordAdminAction(tx, {
+      adminUserId: data.adminUserId,
+      action: "withdraw_auction",
+      auctionId: auction.id,
+      fishItemId: auction.fishItemId,
+      reason,
+    });
 
-    const closedEvent: AuctionClosedEvent = {
-      type: "auction.closed",
-      auctionId: data.auctionId,
-      status: "closed",
-      closedAt: closedAt.toISOString(),
-    };
-    const saleEvent: SaleCompletedEvent = {
-      type: "sale.completed",
-      auctionId: data.auctionId,
-      saleId: sale.id,
-      amountCents: sale.amountCents,
-      completedAt: sale.completedAt.toISOString(),
-    };
-    return { closedEvent, saleEvent };
+    return { changed: true as const, auctionId: auction.id, fishItemId: auction.fishItemId };
   });
 
-  incrementMetric("auctionsClosed");
-  publishAuctionEvent(result.closedEvent);
-
-  if (result.saleEvent) {
-    incrementMetric("salesCompleted");
-    incrementMetric("totalSaleValueCents", result.saleEvent.amountCents);
-    publishAuctionEvent(result.saleEvent);
+  if (result.changed) {
+    logInfo("auction.withdrawn", {
+      auctionId: result.auctionId,
+      fishItemId: result.fishItemId,
+    });
   }
-
-  logInfo("auction.closed", {
-    auctionId: data.auctionId,
-    status: result.closedEvent.status,
-  });
 
   return result;
 }
 
-export async function getAdminData(): Promise<AdminData> {
-  const [completedSales, allAuctions, bidHistory, saleRows, bidRows, popularityRows] =
-    await Promise.all([
-      loadRecentSales(50),
-      loadAuctionSummaries(),
-      loadLatestBids(50),
-      db.select({ amountCents: sales.amountCents }).from(sales),
-      db.select({ amountCents: bids.amountCents }).from(bids),
-      db
-        .select({
-          species: fishItems.species,
-          weightGrams: fishItems.weightGrams,
-          bidId: bids.id,
-          saleId: sales.id,
-          saleAmountCents: sales.amountCents,
-        })
-        .from(fishItems)
-        .leftJoin(auctions, eq(auctions.fishItemId, fishItems.id))
-        .leftJoin(bids, eq(bids.auctionId, auctions.id))
-        .leftJoin(sales, eq(sales.fishItemId, fishItems.id)),
-    ]);
+export async function withdrawFishItem(input: unknown) {
+  const data = withdrawFishItemInputSchema.parse(input);
+  const reason = data.reason ?? "Fish inventory withdrawn by admin";
 
-  const totalSalesCents = saleRows.reduce((sum, sale) => sum + sale.amountCents, 0);
+  const result = await db.transaction(async (tx) => {
+    const admin = await tx.query.users.findFirst({
+      where: and(eq(users.id, data.adminUserId), eq(users.role, "admin")),
+    });
+    if (!admin) {
+      throw new Error("Only admins can withdraw fish inventory");
+    }
+
+    await tx.execute(sql`select id from fish_items where id = ${data.fishItemId} for update`);
+
+    const fish = await tx.query.fishItems.findFirst({
+      where: eq(fishItems.id, data.fishItemId),
+    });
+    if (!fish) {
+      throw new Error(`Fish item ${data.fishItemId} was not found`);
+    }
+    if (fish.status === "withdrawn") {
+      return { changed: false as const, fishItemId: fish.id };
+    }
+    if (fish.status === "sold") {
+      throw new Error("Sold fish inventory cannot be withdrawn");
+    }
+    if (fish.status === "in_auction") {
+      throw new Error("Withdraw the active auction instead of withdrawing in-auction inventory");
+    }
+
+    const now = new Date();
+    await tx
+      .update(fishItems)
+      .set({ status: "withdrawn", updatedAt: now })
+      .where(eq(fishItems.id, fish.id));
+    await recordInventoryStatusChange(tx, {
+      fishItemId: fish.id,
+      auctionId: null,
+      fromStatus: fish.status,
+      toStatus: "withdrawn",
+      changedByUserId: data.adminUserId,
+      reason,
+    });
+    await recordAdminAction(tx, {
+      adminUserId: data.adminUserId,
+      action: "withdraw_inventory",
+      auctionId: null,
+      fishItemId: fish.id,
+      reason,
+    });
+
+    return { changed: true as const, fishItemId: fish.id };
+  });
+
+  if (result.changed) {
+    logInfo("fish_item.withdrawn", { fishItemId: result.fishItemId });
+  }
+
+  return result;
+}
+
+export async function getAdminData(input: unknown = {}): Promise<AdminData> {
+  const filters = adminFiltersSchema.parse(input ?? {});
+  await advanceAuctionLifecycle();
+
+  const [
+    demoUsers,
+    allCompletedSales,
+    allAuctions,
+    inventoryNeedingAction,
+    withdrawnInventory,
+    statusChanges,
+    actionHistory,
+    allBidHistory,
+  ] = await Promise.all([
+    listDemoUsers(),
+    loadRecentSales(null, filters),
+    loadAuctionSummaries(undefined, filters),
+    loadInventoryNeedingAction(filters),
+    loadWithdrawnInventory(filters),
+    loadInventoryStatusChanges(filters),
+    loadAdminActions(filters),
+    loadLatestBids(null, filters),
+  ]);
+
+  const completedSales = allCompletedSales.slice(0, 50);
+  const bidHistory = allBidHistory.slice(0, 50);
+  const totalSalesCents = allCompletedSales.reduce((sum, sale) => sum + sale.amountCents, 0);
   const averageBidCents =
-    bidRows.length === 0
+    allBidHistory.length === 0
       ? 0
-      : Math.round(bidRows.reduce((sum, bid) => sum + bid.amountCents, 0) / bidRows.length);
+      : Math.round(
+          allBidHistory.reduce((sum, bid) => sum + bid.amountCents, 0) / allBidHistory.length,
+        );
 
   const popularBySpecies = new Map<
     string,
@@ -480,30 +698,42 @@ export async function getAdminData(): Promise<AdminData> {
     }
   >();
 
-  for (const row of popularityRows) {
-    const current = popularBySpecies.get(row.species) ?? {
-      species: row.species,
+  for (const bid of allBidHistory) {
+    const current = popularBySpecies.get(bid.species) ?? {
+      species: bid.species,
       bidCount: 0,
       totalKilogramsSold: 0,
       totalSalesCents: 0,
       seenSaleIds: new Set<string>(),
     };
+    current.bidCount += 1;
+    popularBySpecies.set(bid.species, current);
+  }
 
-    if (row.bidId) {
-      current.bidCount += 1;
+  for (const sale of allCompletedSales) {
+    const current = popularBySpecies.get(sale.species) ?? {
+      species: sale.species,
+      bidCount: 0,
+      totalKilogramsSold: 0,
+      totalSalesCents: 0,
+      seenSaleIds: new Set<string>(),
+    };
+    if (!current.seenSaleIds.has(sale.id)) {
+      current.seenSaleIds.add(sale.id);
+      current.totalKilogramsSold += sale.weightGrams / 1000;
+      current.totalSalesCents += sale.amountCents;
     }
-    if (row.saleId && row.saleAmountCents && !current.seenSaleIds.has(row.saleId)) {
-      current.seenSaleIds.add(row.saleId);
-      current.totalKilogramsSold += row.weightGrams / 1000;
-      current.totalSalesCents += row.saleAmountCents;
-    }
-
-    popularBySpecies.set(row.species, current);
+    popularBySpecies.set(sale.species, current);
   }
 
   return {
+    demoUsers,
     completedSales,
     auctions: allAuctions,
+    inventoryNeedingAction,
+    withdrawnInventory,
+    inventoryStatusChanges: statusChanges,
+    adminActions: actionHistory,
     bidHistory,
     statistics: {
       totalSalesCents,
@@ -515,7 +745,227 @@ export async function getAdminData(): Promise<AdminData> {
   };
 }
 
-async function loadAuctionSummaries(status?: "active") {
+export async function advanceAuctionLifecycle(now = new Date()) {
+  const activatedAuctions = await db
+    .update(auctions)
+    .set({ status: "active", updatedAt: now })
+    .where(
+      and(eq(auctions.status, "scheduled"), lte(auctions.startsAt, now), gt(auctions.endsAt, now)),
+    )
+    .returning({ id: auctions.id });
+
+  for (const auction of activatedAuctions) {
+    logInfo("auction.activated", { auctionId: auction.id });
+  }
+
+  const expiredAuctions = await db
+    .select({ id: auctions.id })
+    .from(auctions)
+    .where(and(inArray(auctions.status, ["active", "scheduled"]), lte(auctions.endsAt, now)))
+    .orderBy(asc(auctions.endsAt));
+
+  const closeResults: Array<CloseAuctionResult> = [];
+  for (const auction of expiredAuctions) {
+    const result = await db.transaction((tx) =>
+      closeAuctionInTransaction(tx, {
+        auctionId: auction.id,
+        adminUserId: null,
+        now,
+        reason: "expired",
+      }),
+    );
+    publishCloseResult(result);
+    closeResults.push(result);
+  }
+
+  return {
+    activatedCount: activatedAuctions.length,
+    closedCount: closeResults.filter((result) => result.changed).length,
+  };
+}
+
+async function closeAuctionInTransaction(
+  tx: Transaction,
+  input: {
+    auctionId: string;
+    adminUserId: string | null;
+    now: Date;
+    reason: CloseReason;
+  },
+): Promise<CloseAuctionResult> {
+  await tx.execute(sql`select id from auctions where id = ${input.auctionId} for update`);
+
+  const auction = await tx.query.auctions.findFirst({
+    where: eq(auctions.id, input.auctionId),
+    with: {
+      fishItem: true,
+    },
+  });
+  if (!auction) {
+    throw new Error(`Auction ${input.auctionId} was not found`);
+  }
+
+  if (
+    auction.status === "closed" ||
+    auction.status === "unsold" ||
+    auction.status === "withdrawn"
+  ) {
+    return {
+      auctionId: auction.id,
+      status: auction.status,
+      changed: false,
+      closedEvent: null,
+      saleEvent: null,
+    };
+  }
+
+  if (auction.status === "scheduled" && input.reason === "manual") {
+    throw new Error("Only active auctions can be closed manually");
+  }
+  if (input.reason === "expired" && auction.endsAt > input.now) {
+    throw new Error("Only expired auctions can be closed automatically");
+  }
+  if (auction.status !== "active" && auction.status !== "scheduled") {
+    throw new Error("Only active or expired scheduled auctions can be closed");
+  }
+
+  const winningBid = await tx.query.bids.findFirst({
+    where: eq(bids.auctionId, input.auctionId),
+    orderBy: [desc(bids.amountCents), desc(bids.acceptedAt)],
+  });
+
+  const closedAt = input.now;
+  if (!winningBid) {
+    await tx
+      .update(auctions)
+      .set({ status: "unsold", closedAt, updatedAt: closedAt })
+      .where(eq(auctions.id, input.auctionId));
+    await tx
+      .update(fishItems)
+      .set({ status: "listed", updatedAt: closedAt })
+      .where(eq(fishItems.id, auction.fishItemId));
+    await recordInventoryStatusChange(tx, {
+      fishItemId: auction.fishItemId,
+      auctionId: auction.id,
+      fromStatus: auction.fishItem.status,
+      toStatus: "listed",
+      changedByUserId: input.adminUserId,
+      reason:
+        input.reason === "manual" ? "Auction closed without bids" : "Auction expired without bids",
+    });
+    if (input.adminUserId) {
+      await recordAdminAction(tx, {
+        adminUserId: input.adminUserId,
+        action: "close_auction",
+        auctionId: auction.id,
+        fishItemId: auction.fishItemId,
+        reason: "Auction closed without bids",
+      });
+    }
+
+    const closedEvent: AuctionClosedEvent = {
+      type: "auction.closed",
+      auctionId: input.auctionId,
+      status: "unsold",
+      closedAt: closedAt.toISOString(),
+    };
+    return {
+      auctionId: input.auctionId,
+      status: "unsold",
+      changed: true,
+      closedEvent,
+      saleEvent: null,
+    };
+  }
+
+  await tx
+    .update(auctions)
+    .set({ status: "closed", closedAt, updatedAt: closedAt })
+    .where(eq(auctions.id, input.auctionId));
+  await tx
+    .update(fishItems)
+    .set({ status: "sold", updatedAt: closedAt })
+    .where(eq(fishItems.id, auction.fishItemId));
+  await recordInventoryStatusChange(tx, {
+    fishItemId: auction.fishItemId,
+    auctionId: auction.id,
+    fromStatus: auction.fishItem.status,
+    toStatus: "sold",
+    changedByUserId: input.adminUserId,
+    reason:
+      input.reason === "manual"
+        ? "Auction closed with winning bid"
+        : "Auction expired with winning bid",
+  });
+
+  const [sale] = await tx
+    .insert(sales)
+    .values({
+      auctionId: input.auctionId,
+      fishItemId: auction.fishItemId,
+      winningBidId: winningBid.id,
+      buyerId: winningBid.bidderId,
+      sellerId: auction.fishItem.sellerId,
+      amountCents: winningBid.amountCents,
+      currency: CURRENCY,
+      completedAt: closedAt,
+    })
+    .returning();
+
+  if (input.adminUserId) {
+    await recordAdminAction(tx, {
+      adminUserId: input.adminUserId,
+      action: "close_auction",
+      auctionId: auction.id,
+      fishItemId: auction.fishItemId,
+      reason: "Auction closed with winning bid",
+    });
+  }
+
+  const closedEvent: AuctionClosedEvent = {
+    type: "auction.closed",
+    auctionId: input.auctionId,
+    status: "closed",
+    closedAt: closedAt.toISOString(),
+  };
+  const saleEvent: SaleCompletedEvent = {
+    type: "sale.completed",
+    auctionId: input.auctionId,
+    saleId: sale.id,
+    amountCents: sale.amountCents,
+    completedAt: sale.completedAt.toISOString(),
+  };
+
+  return {
+    auctionId: input.auctionId,
+    status: "closed",
+    changed: true,
+    closedEvent,
+    saleEvent,
+  };
+}
+
+function publishCloseResult(result: CloseAuctionResult) {
+  if (!result.changed || !result.closedEvent) {
+    return;
+  }
+
+  incrementMetric("auctionsClosed");
+  publishAuctionEvent(result.closedEvent);
+
+  if (result.saleEvent) {
+    incrementMetric("salesCompleted");
+    incrementMetric("totalSaleValueCents", result.saleEvent.amountCents);
+    publishAuctionEvent(result.saleEvent);
+  }
+
+  logInfo("auction.closed", {
+    auctionId: result.auctionId,
+    status: result.status,
+  });
+}
+
+async function loadAuctionSummaries(status?: "active", filters?: AdminFilters) {
   const auctionRows = await db.query.auctions.findMany({
     where: status ? eq(auctions.status, status) : undefined,
     with: {
@@ -529,25 +979,27 @@ async function loadAuctionSummaries(status?: "active") {
           bidder: true,
         },
         orderBy: [desc(bids.amountCents), desc(bids.acceptedAt)],
-        limit: 1,
       },
+      sales: true,
     },
     orderBy: [asc(auctions.endsAt)],
   });
 
-  return auctionRows.map((auction) => ({
-    id: auction.id,
-    status: auction.status,
-    startsAt: auction.startsAt.toISOString(),
-    endsAt: auction.endsAt.toISOString(),
-    minimumIncrementCents: auction.minimumIncrementCents,
-    fish: toFishSummary(auction.fishItem),
-    seller: toUserSummary(auction.fishItem.seller),
-    currentHighestBid: auction.bids[0] ? toBidSnapshot(auction.bids[0]) : null,
-  }));
+  return auctionRows
+    .filter((auction) => auctionMatchesFilters(auction, filters))
+    .map((auction) => ({
+      id: auction.id,
+      status: auction.status,
+      startsAt: auction.startsAt.toISOString(),
+      endsAt: auction.endsAt.toISOString(),
+      minimumIncrementCents: auction.minimumIncrementCents,
+      fish: toFishSummary(auction.fishItem),
+      seller: toUserSummary(auction.fishItem.seller),
+      currentHighestBid: auction.bids[0] ? toBidSnapshot(auction.bids[0]) : null,
+    }));
 }
 
-async function loadLatestBids(limit: number) {
+async function loadLatestBids(limit: number | null, filters?: AdminFilters) {
   const bidRows = await db.query.bids.findMany({
     with: {
       bidder: true,
@@ -558,18 +1010,21 @@ async function loadLatestBids(limit: number) {
       },
     },
     orderBy: [desc(bids.acceptedAt)],
-    limit,
   });
 
-  return bidRows.map((bid) => ({
-    ...toBidSnapshot(bid),
-    auctionId: bid.auctionId,
-    fishDisplayName: bid.auction.fishItem.displayName,
-    species: bid.auction.fishItem.species,
-  }));
+  const mappedBids = bidRows
+    .filter((bid) => bidMatchesFilters(bid, filters))
+    .map((bid) => ({
+      ...toBidSnapshot(bid),
+      auctionId: bid.auctionId,
+      fishDisplayName: bid.auction.fishItem.displayName,
+      species: bid.auction.fishItem.species,
+    }));
+
+  return limit === null ? mappedBids : mappedBids.slice(0, limit);
 }
 
-async function loadRecentSales(limit: number) {
+async function loadRecentSales(limit: number | null, filters?: AdminFilters) {
   const saleRows = await db.query.sales.findMany({
     with: {
       fishItem: true,
@@ -577,29 +1032,264 @@ async function loadRecentSales(limit: number) {
       seller: true,
     },
     orderBy: [desc(sales.completedAt)],
-    limit,
   });
 
-  return saleRows.map((sale) => ({
-    id: sale.id,
-    auctionId: sale.auctionId,
-    fishDisplayName: sale.fishItem.displayName,
-    species: sale.fishItem.species,
-    buyerDisplayName: sale.buyer.displayName,
-    sellerDisplayName: sale.seller.displayName,
-    amountCents: sale.amountCents,
-    completedAt: sale.completedAt.toISOString(),
-  }));
+  const mappedSales = saleRows
+    .filter((sale) => saleMatchesFilters(sale, filters))
+    .map((sale) => ({
+      id: sale.id,
+      auctionId: sale.auctionId,
+      fishDisplayName: sale.fishItem.displayName,
+      species: sale.fishItem.species,
+      weightGrams: sale.fishItem.weightGrams,
+      buyerDisplayName: sale.buyer.displayName,
+      sellerDisplayName: sale.seller.displayName,
+      amountCents: sale.amountCents,
+      completedAt: sale.completedAt.toISOString(),
+    }));
+
+  return limit === null ? mappedSales : mappedSales.slice(0, limit);
 }
 
-async function loadInventoryNeedingAction() {
+async function loadInventoryNeedingAction(filters?: AdminFilters) {
   const fishRows = await db.query.fishItems.findMany({
     where: (item, { inArray }) => inArray(item.status, ["draft", "listed"]),
     orderBy: [desc(fishItems.createdAt)],
-    limit: 8,
+    limit: filters ? 50 : 8,
   });
 
-  return fishRows.map(toFishSummary);
+  return fishRows.filter((fish) => fishMatchesFilters(fish, filters)).map(toFishSummary);
+}
+
+async function loadWithdrawnInventory(filters?: AdminFilters) {
+  const fishRows = await db.query.fishItems.findMany({
+    where: eq(fishItems.status, "withdrawn"),
+    orderBy: [desc(fishItems.updatedAt)],
+    limit: 50,
+  });
+
+  return fishRows.filter((fish) => fishMatchesFilters(fish, filters)).map(toFishSummary);
+}
+
+async function loadInventoryStatusChanges(
+  filters?: AdminFilters,
+): Promise<Array<InventoryStatusChangeSummary>> {
+  const changes = await db.query.inventoryStatusChanges.findMany({
+    with: {
+      fishItem: true,
+      changedBy: true,
+    },
+    orderBy: [desc(inventoryStatusChanges.createdAt)],
+    limit: 100,
+  });
+
+  return changes
+    .filter((change) => statusChangeMatchesFilters(change, filters))
+    .map((change) => ({
+      id: change.id,
+      fishItemId: change.fishItemId,
+      fishDisplayName: change.fishItem.displayName,
+      species: change.fishItem.species,
+      fromStatus: change.fromStatus,
+      toStatus: change.toStatus,
+      changedByDisplayName: change.changedBy?.displayName ?? null,
+      reason: change.reason,
+      createdAt: change.createdAt.toISOString(),
+    }));
+}
+
+async function loadAdminActions(filters?: AdminFilters): Promise<Array<AdminActionSummary>> {
+  const actions = await db.query.adminActions.findMany({
+    with: {
+      admin: true,
+      auction: true,
+      fishItem: true,
+    },
+    orderBy: [desc(adminActions.createdAt)],
+    limit: 100,
+  });
+
+  return actions
+    .filter((action) => adminActionMatchesFilters(action, filters))
+    .map((action) => ({
+      id: action.id,
+      adminDisplayName: action.admin.displayName,
+      action: action.action,
+      auctionId: action.auctionId,
+      fishItemId: action.fishItemId,
+      fishDisplayName: action.fishItem?.displayName ?? null,
+      reason: action.reason,
+      createdAt: action.createdAt.toISOString(),
+    }));
+}
+
+async function recordInventoryStatusChange(
+  tx: Transaction,
+  input: {
+    fishItemId: string;
+    auctionId: string | null;
+    fromStatus: InventoryLifecycleStatus | null;
+    toStatus: InventoryLifecycleStatus;
+    changedByUserId: string | null;
+    reason: string;
+  },
+) {
+  if (input.fromStatus === input.toStatus) return;
+
+  await tx.insert(inventoryStatusChanges).values({
+    fishItemId: input.fishItemId,
+    auctionId: input.auctionId,
+    fromStatus: input.fromStatus,
+    toStatus: input.toStatus,
+    changedByUserId: input.changedByUserId,
+    reason: input.reason,
+  });
+}
+
+async function recordAdminAction(
+  tx: Transaction,
+  input: {
+    adminUserId: string;
+    action: string;
+    auctionId: string | null;
+    fishItemId: string | null;
+    reason: string;
+  },
+) {
+  await tx.insert(adminActions).values(input);
+}
+
+function auctionMatchesFilters(
+  auction: {
+    status: string;
+    startsAt: Date;
+    closedAt: Date | null;
+    fishItem: { species: string; sellerId: string };
+    bids: Array<{ bidderId: string }>;
+    sales: Array<{ buyerId: string }>;
+  },
+  filters?: AdminFilters,
+) {
+  if (!filters) return true;
+  if (filters.status && auction.status !== filters.status) return false;
+  if (filters.species && auction.fishItem.species !== filters.species) return false;
+  if (filters.sellerId && auction.fishItem.sellerId !== filters.sellerId) return false;
+  if (
+    filters.buyerId &&
+    !auction.bids.some((bid) => bid.bidderId === filters.buyerId) &&
+    !auction.sales.some((sale) => sale.buyerId === filters.buyerId)
+  ) {
+    return false;
+  }
+  return dateMatches(auction.closedAt ?? auction.startsAt, filters);
+}
+
+function bidMatchesFilters(
+  bid: {
+    bidderId: string;
+    acceptedAt: Date;
+    auction: { status: string; fishItem: { species: string; sellerId: string } };
+  },
+  filters?: AdminFilters,
+) {
+  if (!filters) return true;
+  if (filters.status && bid.auction.status !== filters.status) return false;
+  if (filters.species && bid.auction.fishItem.species !== filters.species) return false;
+  if (filters.sellerId && bid.auction.fishItem.sellerId !== filters.sellerId) return false;
+  if (filters.buyerId && bid.bidderId !== filters.buyerId) return false;
+  return dateMatches(bid.acceptedAt, filters);
+}
+
+function saleMatchesFilters(
+  sale: {
+    buyerId: string;
+    completedAt: Date;
+    fishItem: { species: string; sellerId: string };
+  },
+  filters?: AdminFilters,
+) {
+  if (!filters) return true;
+  if (filters.status && filters.status !== "closed" && filters.status !== "sold") return false;
+  if (filters.species && sale.fishItem.species !== filters.species) return false;
+  if (filters.sellerId && sale.fishItem.sellerId !== filters.sellerId) return false;
+  if (filters.buyerId && sale.buyerId !== filters.buyerId) return false;
+  return dateMatches(sale.completedAt, filters);
+}
+
+function fishMatchesFilters(
+  fish: { status: string; species: string; sellerId: string; updatedAt?: Date },
+  filters?: AdminFilters,
+) {
+  if (!filters) return true;
+  if (filters.status && fish.status !== filters.status) return false;
+  if (filters.species && fish.species !== filters.species) return false;
+  if (filters.sellerId && fish.sellerId !== filters.sellerId) return false;
+  if (filters.buyerId) return false;
+  return fish.updatedAt ? dateMatches(fish.updatedAt, filters) : true;
+}
+
+function statusChangeMatchesFilters(
+  change: {
+    toStatus: string;
+    createdAt: Date;
+    fishItem: { species: string; sellerId: string };
+  },
+  filters?: AdminFilters,
+) {
+  if (!filters) return true;
+  if (filters.status && change.toStatus !== filters.status) return false;
+  if (filters.species && change.fishItem.species !== filters.species) return false;
+  if (filters.sellerId && change.fishItem.sellerId !== filters.sellerId) return false;
+  if (filters.buyerId) return false;
+  return dateMatches(change.createdAt, filters);
+}
+
+function adminActionMatchesFilters(
+  action: {
+    action: string;
+    createdAt: Date;
+    auction: { status: string } | null;
+    fishItem: { species: string; sellerId: string } | null;
+  },
+  filters?: AdminFilters,
+) {
+  if (!filters) return true;
+  if (filters.status && !adminActionMatchesStatus(action, filters.status)) return false;
+  if (filters.buyerId) return false;
+  if (filters.species && action.fishItem?.species !== filters.species) return false;
+  if (filters.sellerId && action.fishItem?.sellerId !== filters.sellerId) return false;
+  return dateMatches(action.createdAt, filters);
+}
+
+function adminActionMatchesStatus(
+  action: {
+    action: string;
+    auction: { status: string } | null;
+    fishItem: { status?: string } | null;
+  },
+  status: string,
+) {
+  if (action.fishItem?.status === status || action.auction?.status === status) {
+    return true;
+  }
+  if (
+    action.action === "close_auction" &&
+    status === "sold" &&
+    action.fishItem?.status === "sold"
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function dateMatches(date: Date, filters: AdminFilters) {
+  if (filters.fromDate && date < filters.fromDate) return false;
+  if (filters.toDate) {
+    const toDateInclusive = new Date(filters.toDate);
+    toDateInclusive.setDate(toDateInclusive.getDate() + 1);
+    if (date >= toDateInclusive) return false;
+  }
+  return true;
 }
 
 function toBidSnapshot(bid: {

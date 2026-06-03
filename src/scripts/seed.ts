@@ -1,11 +1,21 @@
 import { db, sqlClient } from "../db/client";
-import { auctions, bids, fishItems, sales, users } from "../db/schema";
+import {
+  adminActions,
+  auctions,
+  bids,
+  fishItems,
+  inventoryStatusChanges,
+  sales,
+  users,
+} from "../db/schema";
 import { DEMO_AUCTIONS, DEMO_FISH, DEMO_USERS } from "../domain/constants";
 
 const now = new Date();
 const minutes = (value: number) => new Date(now.getTime() + value * 60_000);
 
 async function main() {
+  await db.delete(adminActions);
+  await db.delete(inventoryStatusChanges);
   await db.delete(sales);
   await db.delete(bids);
   await db.delete(auctions);
@@ -87,6 +97,18 @@ async function main() {
       sellerId: DEMO_USERS.sellerFjord,
       status: "listed",
     },
+    {
+      id: DEMO_FISH.trout,
+      species: "trout",
+      displayName: "Withdrawn mountain trout batch",
+      weightGrams: 28500,
+      catchRegion: "Hardanger",
+      grade: "A",
+      startingPriceCents: 125000,
+      sellerId: DEMO_USERS.sellerNorth,
+      status: "withdrawn",
+      description: "Withdrawn during quality inspection before auction.",
+    },
   ]);
 
   await db.insert(auctions).values([
@@ -157,6 +179,89 @@ async function main() {
     amountCents: 465000,
     completedAt: minutes(-50),
   });
+
+  await db.insert(inventoryStatusChanges).values([
+    {
+      fishItemId: DEMO_FISH.salmon,
+      auctionId: DEMO_AUCTIONS.salmon,
+      fromStatus: "listed",
+      toStatus: "in_auction",
+      changedByUserId: DEMO_USERS.admin,
+      reason: "Seeded auction created from listed inventory",
+      createdAt: minutes(-35),
+    },
+    {
+      fishItemId: DEMO_FISH.cod,
+      auctionId: DEMO_AUCTIONS.cod,
+      fromStatus: "listed",
+      toStatus: "in_auction",
+      changedByUserId: DEMO_USERS.admin,
+      reason: "Seeded auction created from listed inventory",
+      createdAt: minutes(-20),
+    },
+    {
+      fishItemId: DEMO_FISH.tuna,
+      auctionId: DEMO_AUCTIONS.tuna,
+      fromStatus: "in_auction",
+      toStatus: "sold",
+      changedByUserId: DEMO_USERS.admin,
+      reason: "Seeded auction closed with winning bid",
+      createdAt: minutes(-55),
+    },
+    {
+      fishItemId: DEMO_FISH.herring,
+      auctionId: null,
+      fromStatus: null,
+      toStatus: "listed",
+      changedByUserId: DEMO_USERS.sellerFjord,
+      reason: "Seeded listed inventory",
+      createdAt: minutes(-10),
+    },
+    {
+      fishItemId: DEMO_FISH.trout,
+      auctionId: null,
+      fromStatus: "listed",
+      toStatus: "withdrawn",
+      changedByUserId: DEMO_USERS.admin,
+      reason: "Seeded quality inspection withdrawal",
+      createdAt: minutes(-8),
+    },
+  ]);
+
+  await db.insert(adminActions).values([
+    {
+      adminUserId: DEMO_USERS.admin,
+      action: "create_auction",
+      auctionId: DEMO_AUCTIONS.salmon,
+      fishItemId: DEMO_FISH.salmon,
+      reason: "Seeded auction created from listed inventory",
+      createdAt: minutes(-35),
+    },
+    {
+      adminUserId: DEMO_USERS.admin,
+      action: "create_auction",
+      auctionId: DEMO_AUCTIONS.cod,
+      fishItemId: DEMO_FISH.cod,
+      reason: "Seeded auction created from listed inventory",
+      createdAt: minutes(-20),
+    },
+    {
+      adminUserId: DEMO_USERS.admin,
+      action: "close_auction",
+      auctionId: DEMO_AUCTIONS.tuna,
+      fishItemId: DEMO_FISH.tuna,
+      reason: "Seeded auction closed with winning bid",
+      createdAt: minutes(-55),
+    },
+    {
+      adminUserId: DEMO_USERS.admin,
+      action: "withdraw_inventory",
+      auctionId: null,
+      fishItemId: DEMO_FISH.trout,
+      reason: "Seeded quality inspection withdrawal",
+      createdAt: minutes(-8),
+    },
+  ]);
 
   console.info("Seeded deterministic fish auction demo data.");
 }

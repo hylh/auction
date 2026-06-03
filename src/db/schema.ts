@@ -142,9 +142,53 @@ export const sales = pgTable(
   ],
 );
 
+export const inventoryStatusChanges = pgTable(
+  "inventory_status_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fishItemId: uuid("fish_item_id")
+      .notNull()
+      .references(() => fishItems.id),
+    auctionId: uuid("auction_id").references(() => auctions.id),
+    fromStatus: inventoryStatusEnum("from_status"),
+    toStatus: inventoryStatusEnum("to_status").notNull(),
+    changedByUserId: uuid("changed_by_user_id").references(() => users.id),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("inventory_status_changes_fish_item_idx").on(table.fishItemId),
+    index("inventory_status_changes_auction_idx").on(table.auctionId),
+    index("inventory_status_changes_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export const adminActions = pgTable(
+  "admin_actions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    adminUserId: uuid("admin_user_id")
+      .notNull()
+      .references(() => users.id),
+    action: text("action").notNull(),
+    auctionId: uuid("auction_id").references(() => auctions.id),
+    fishItemId: uuid("fish_item_id").references(() => fishItems.id),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("admin_actions_admin_idx").on(table.adminUserId),
+    index("admin_actions_auction_idx").on(table.auctionId),
+    index("admin_actions_fish_item_idx").on(table.fishItemId),
+    index("admin_actions_created_at_idx").on(table.createdAt),
+  ],
+);
+
 export const usersRelations = relations(users, ({ many }) => ({
   fishItems: many(fishItems),
   bids: many(bids),
+  changedInventoryStatuses: many(inventoryStatusChanges),
+  adminActions: many(adminActions),
 }));
 
 export const fishItemsRelations = relations(fishItems, ({ one, many }) => ({
@@ -154,6 +198,8 @@ export const fishItemsRelations = relations(fishItems, ({ one, many }) => ({
   }),
   auctions: many(auctions),
   sales: many(sales),
+  statusChanges: many(inventoryStatusChanges),
+  adminActions: many(adminActions),
 }));
 
 export const auctionsRelations = relations(auctions, ({ one, many }) => ({
@@ -163,6 +209,8 @@ export const auctionsRelations = relations(auctions, ({ one, many }) => ({
   }),
   bids: many(bids),
   sales: many(sales),
+  inventoryStatusChanges: many(inventoryStatusChanges),
+  adminActions: many(adminActions),
 }));
 
 export const bidsRelations = relations(bids, ({ one }) => ({
@@ -196,5 +244,35 @@ export const salesRelations = relations(sales, ({ one }) => ({
   seller: one(users, {
     fields: [sales.sellerId],
     references: [users.id],
+  }),
+}));
+
+export const inventoryStatusChangesRelations = relations(inventoryStatusChanges, ({ one }) => ({
+  fishItem: one(fishItems, {
+    fields: [inventoryStatusChanges.fishItemId],
+    references: [fishItems.id],
+  }),
+  auction: one(auctions, {
+    fields: [inventoryStatusChanges.auctionId],
+    references: [auctions.id],
+  }),
+  changedBy: one(users, {
+    fields: [inventoryStatusChanges.changedByUserId],
+    references: [users.id],
+  }),
+}));
+
+export const adminActionsRelations = relations(adminActions, ({ one }) => ({
+  admin: one(users, {
+    fields: [adminActions.adminUserId],
+    references: [users.id],
+  }),
+  auction: one(auctions, {
+    fields: [adminActions.auctionId],
+    references: [auctions.id],
+  }),
+  fishItem: one(fishItems, {
+    fields: [adminActions.fishItemId],
+    references: [fishItems.id],
   }),
 }));

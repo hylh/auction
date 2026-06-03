@@ -8,6 +8,13 @@
       "when": 0,
       "tag": "0000_initial_fish_auction",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780490717828,
+      "tag": "0001_shocking_randall_flagg",
+      "breakpoints": true
     }
   ]
 }

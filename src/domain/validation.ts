@@ -3,6 +3,45 @@ import { FISH_SPECIES } from "./constants";
 
 export const uuidSchema = z.string().uuid();
 export const speciesSchema = z.enum(FISH_SPECIES);
+export const adminStatusSchema = z.enum([
+  "draft",
+  "listed",
+  "in_auction",
+  "sold",
+  "withdrawn",
+  "scheduled",
+  "active",
+  "closed",
+  "unsold",
+]);
+
+const optionalDateSchema = z.preprocess(
+  (value) => (value === "" || value === undefined ? undefined : value),
+  z.coerce.date().optional(),
+);
+
+const optionalUuidSchema = z.preprocess(
+  (value) => (value === "" || value === undefined ? undefined : value),
+  uuidSchema.optional(),
+);
+
+const optionalSpeciesSchema = z.preprocess(
+  (value) => (value === "" || value === undefined ? undefined : value),
+  speciesSchema.optional(),
+);
+
+const optionalAdminStatusSchema = z.preprocess(
+  (value) => (value === "" || value === undefined ? undefined : value),
+  adminStatusSchema.optional(),
+);
+
+const optionalReasonSchema = z
+  .string()
+  .trim()
+  .max(300)
+  .optional()
+  .or(z.literal(""))
+  .transform((value) => value || undefined);
 
 export const fishInputSchema = z.object({
   species: speciesSchema,
@@ -23,7 +62,48 @@ export const bidInputSchema = z.object({
   expectedHighestBidCents: z.coerce.number().int().nonnegative().nullable(),
 });
 
+export const auctionInputSchema = z
+  .object({
+    fishItemId: uuidSchema,
+    adminUserId: uuidSchema,
+    startsAt: z.coerce.date(),
+    endsAt: z.coerce.date(),
+    minimumIncrementCents: z.coerce.number().int().positive(),
+  })
+  .refine((input) => input.startsAt < input.endsAt, {
+    message: "Auction end time must be after the start time",
+    path: ["endsAt"],
+  });
+
 export const closeAuctionInputSchema = z.object({
   auctionId: uuidSchema,
   adminUserId: uuidSchema,
 });
+
+export const withdrawAuctionInputSchema = z.object({
+  auctionId: uuidSchema,
+  adminUserId: uuidSchema,
+  reason: optionalReasonSchema,
+});
+
+export const withdrawFishItemInputSchema = z.object({
+  fishItemId: uuidSchema,
+  adminUserId: uuidSchema,
+  reason: optionalReasonSchema,
+});
+
+export const adminFiltersSchema = z
+  .object({
+    status: optionalAdminStatusSchema,
+    species: optionalSpeciesSchema,
+    sellerId: optionalUuidSchema,
+    buyerId: optionalUuidSchema,
+    fromDate: optionalDateSchema,
+    toDate: optionalDateSchema,
+  })
+  .refine((filters) => !filters.fromDate || !filters.toDate || filters.fromDate <= filters.toDate, {
+    message: "From date must be before to date",
+    path: ["toDate"],
+  });
+
+export type AdminFilters = z.infer<typeof adminFiltersSchema>;

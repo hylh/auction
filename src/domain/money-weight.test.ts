@@ -6,12 +6,14 @@ describe("money helpers", () => {
   it("stores money as integer cents", () => {
     expect(centsFromMajor("123.45")).toBe(12345);
     expect(centsFromMajor("123")).toBe(12300);
+    expect(centsFromMajor("123,45")).toBe(12345);
   });
 
   it("rejects values with more than two decimals", () => {
     expect(() => centsFromMajor("10.999")).toThrow(
       "Money values must use at most two decimal places",
     );
+    expect(() => centsFromMajor("")).toThrow("Money values must use at most two decimal places");
   });
 });
 

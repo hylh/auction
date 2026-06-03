@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { formatMoney } from "../domain/money";
+import { centsFromMajor, formatMoney } from "../domain/money";
 import { formatKilograms } from "../domain/weight";
 import type { AuctionEvent } from "../domain/events";
 import type { AuctionDetail } from "../server/auction-service";
@@ -18,6 +18,7 @@ function AuctionDetailPage() {
   const auction = useQuery({
     queryKey: ["auction", auctionId],
     queryFn: () => getAuctionDetailFn({ data: { auctionId } }),
+    refetchInterval: 5000,
   });
 
   const buyers = useMemo(
@@ -28,11 +29,27 @@ function AuctionDetailPage() {
   const [amountMajor, setAmountMajor] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
+  const suggestedAmountMajor = useMemo(() => {
+    if (!auction.data) return "";
+    const nextMinimum =
+      auction.data.currentHighestBid === null
+        ? auction.data.fish.startingPriceCents
+        : auction.data.currentHighestBid.amountCents + auction.data.minimumIncrementCents;
+
+    return (nextMinimum / 100).toFixed(2);
+  }, [auction.data]);
+
   useEffect(() => {
     if (!bidderId && buyers[0]) {
       setBidderId(buyers[0].id);
     }
   }, [bidderId, buyers]);
+
+  useEffect(() => {
+    if (!amountMajor && suggestedAmountMajor) {
+      setAmountMajor(suggestedAmountMajor);
+    }
+  }, [amountMajor, suggestedAmountMajor]);
 
   useEffect(() => {
     const eventSource = new EventSource(
@@ -83,7 +100,8 @@ function AuctionDetailPage() {
   const bidMutation = useMutation({
     mutationFn: async () => {
       if (!auction.data) throw new Error("Auction is not loaded");
-      const amountCents = Math.round(Number(amountMajor) * 100);
+      if (!bidderId) throw new Error("Choose a demo buyer before submitting a bid");
+      const amountCents = centsFromMajor(amountMajor);
       return placeBidFn({
         data: {
           auctionId,
@@ -98,10 +116,23 @@ function AuctionDetailPage() {
         setMessage(result.message);
         return;
       }
+      queryClient.setQueryData<AuctionDetail>(["auction", auctionId], (current) => {
+        if (!current) return current;
+        if (current.bids.some((bid) => bid.bidId === result.event.bid.bidId)) {
+          return current;
+        }
+
+        return {
+          ...current,
+          currentHighestBid: result.event.currentHighestBid,
+          bids: [result.event.bid, ...current.bids],
+        };
+      });
       setMessage("Bid accepted and broadcast to listeners.");
       setAmountMajor("");
       queryClient.invalidateQueries({ queryKey: ["auction", auctionId] });
     },
+    onError: (error) => setMessage(error.message),
   });
 
   if (auction.isLoading) {

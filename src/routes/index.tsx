@@ -12,6 +12,7 @@ function Dashboard() {
   const dashboard = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => getDashboardFn(),
+    refetchInterval: 5000,
   });
 
   if (dashboard.isLoading) {
@@ -49,7 +50,11 @@ function Dashboard() {
             {data.activeAuctions.map((auction) => (
               <div className="row" key={auction.id}>
                 <div>
-                  <strong>{auction.fish.displayName}</strong>
+                  <strong>
+                    <Link to="/auctions/$auctionId" params={{ auctionId: auction.id }}>
+                      {auction.fish.displayName}
+                    </Link>
+                  </strong>
                   <div className="muted">
                     {auction.fish.species} from {auction.fish.catchRegion} ·{" "}
                     {formatKilograms(auction.fish.weightGrams)}
