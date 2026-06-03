@@ -43,13 +43,24 @@ const optionalReasonSchema = z
   .or(z.literal(""))
   .transform((value) => value || undefined);
 
+const decimalNumberSchema = (decimalPlaces: number, schema: z.ZodNumber) =>
+  z.preprocess((value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const raw = value.trim();
+    const decimalPattern = new RegExp(`^\\d+([,.]\\d{1,${decimalPlaces}})?$`);
+    return decimalPattern.test(raw) ? Number(raw.replace(",", ".")) : Number.NaN;
+  }, schema);
+
 export const fishInputSchema = z.object({
   species: speciesSchema,
   displayName: z.string().trim().min(2).max(120),
-  weightKilograms: z.coerce.number().positive().max(10000),
+  weightKilograms: decimalNumberSchema(3, z.number().positive().max(10000)),
   catchRegion: z.string().trim().min(2).max(120),
   grade: z.string().trim().min(1).max(40),
-  startingPriceMajor: z.coerce.number().positive().max(10_000_000),
+  startingPriceMajor: decimalNumberSchema(2, z.number().positive().max(10_000_000)),
   sellerId: uuidSchema,
   description: z.string().trim().max(500).optional().or(z.literal("")),
   imageUrl: z.string().trim().url().optional().or(z.literal("")),
