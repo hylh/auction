@@ -32,6 +32,7 @@ describe("metrics", () => {
     expect(text).toContain("# TYPE auction_bid_mutation_duration_seconds histogram");
     expect(text).toContain('auction_bid_mutation_duration_seconds_bucket{le="0.005"} 1');
     expect(text).toContain('auction_bid_mutation_duration_seconds_bucket{le="0.1"} 2');
+    expect(text).toContain('auction_bid_mutation_duration_seconds_bucket{le="0.3"} 2');
     expect(text).toContain('auction_bid_mutation_duration_seconds_bucket{le="+Inf"} 2');
     expect(text).toContain("auction_bid_mutation_duration_seconds_count 2");
     expect(text).toContain("auction_request_latency_seconds_count 1");

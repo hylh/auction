@@ -7,9 +7,12 @@ import {
   bids,
   fishItems,
   inventoryStatusChanges,
+  sales,
   users,
 } from "../db/schema";
+import { DEMO_USERS } from "../domain/constants";
 import { createAuction, createFishItem, placeBid } from "./auction-service";
+import { runSimulation } from "./simulator-service";
 
 const createdAuctionIds = new Set<string>();
 const createdFishItemIds = new Set<string>();
@@ -18,6 +21,7 @@ const createdUserIds = new Set<string>();
 describe("auction bidding integration", () => {
   afterEach(async () => {
     for (const auctionId of createdAuctionIds) {
+      await db.delete(sales).where(eq(sales.auctionId, auctionId));
       await db.delete(bids).where(eq(bids.auctionId, auctionId));
       await db.delete(adminActions).where(eq(adminActions.auctionId, auctionId));
       await db
@@ -89,7 +93,69 @@ describe("auction bidding integration", () => {
     expect(results.filter((result) => result.ok)).toHaveLength(1);
     expect(results.filter((result) => !result.ok && result.code === "STALE_BID")).toHaveLength(1);
   });
+
+  it("does not wait for simulator bid intervals inside the server request", async () => {
+    await ensureDemoUsers();
+
+    const started = performance.now();
+    const result = await runSimulation({
+      auctionCount: 1,
+      bidCount: 2,
+      intervalMs: 10_000,
+      durationMinutes: 30,
+      rejectionRate: 0,
+      seed: 30_001,
+      buyerIds: undefined,
+      auctionIds: undefined,
+      closeAuctions: true,
+    });
+    const elapsedMs = performance.now() - started;
+
+    for (const auction of result.createdAuctions) {
+      createdAuctionIds.add(auction.id);
+    }
+    for (const fish of result.createdFish) {
+      createdFishItemIds.add(fish.id);
+    }
+
+    expect(result.totals.acceptedBids).toBe(2);
+    expect(result.totals.completedSales).toBe(1);
+    expect(elapsedMs).toBeLessThan(5_000);
+  });
 });
+
+async function ensureDemoUsers() {
+  await db
+    .insert(users)
+    .values([
+      {
+        id: DEMO_USERS.sellerNorth,
+        displayName: "Northern Nets AS",
+        role: "seller",
+      },
+      {
+        id: DEMO_USERS.sellerFjord,
+        displayName: "Fjordline Catch Co",
+        role: "seller",
+      },
+      {
+        id: DEMO_USERS.buyerOslo,
+        displayName: "Oslo Market Buyer",
+        role: "buyer",
+      },
+      {
+        id: DEMO_USERS.buyerBergen,
+        displayName: "Bergen Seafood Buyer",
+        role: "buyer",
+      },
+      {
+        id: DEMO_USERS.admin,
+        displayName: "Auction Admin",
+        role: "admin",
+      },
+    ])
+    .onConflictDoNothing();
+}
 
 async function createTestUsers() {
   const [seller, buyerOne, buyerTwo, admin] = await db

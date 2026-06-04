@@ -9,6 +9,21 @@ type MetricName =
   | "closeFailures"
   | "simulatorRequests";
 
+export type MetricsSnapshot = {
+  counters: Record<MetricName, number>;
+  histograms: Array<{
+    name: string;
+    help: string;
+    buckets: Array<{
+      le: number | "+Inf";
+      count: number;
+    }>;
+    p99Seconds: number | null;
+    sum: number;
+    count: number;
+  }>;
+};
+
 const counters: Record<MetricName, number> = {
   acceptedBids: 0,
   rejectedBids: 0,
@@ -21,7 +36,7 @@ const counters: Record<MetricName, number> = {
   simulatorRequests: 0,
 };
 
-const durationBucketsSeconds = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
+const durationBucketsSeconds = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.3, 0.5, 1, 2.5, 5, 10];
 
 type Histogram = {
   buckets: Array<number>;
@@ -97,12 +112,50 @@ export function metricsText() {
   ].join("\n");
 }
 
+export function metricsSnapshot(): MetricsSnapshot {
+  return {
+    counters: { ...counters },
+    histograms: [
+      histogramSnapshot(
+        "auction_bid_mutation_duration_seconds",
+        "Bid mutation duration in seconds",
+        bidMutationDuration,
+      ),
+      histogramSnapshot(
+        "auction_request_latency_seconds",
+        "Server function and API request latency in seconds",
+        requestLatency,
+      ),
+    ],
+  };
+}
+
 export function resetMetrics() {
   for (const name of Object.keys(counters) as Array<MetricName>) {
     counters[name] = 0;
   }
   resetHistogram(bidMutationDuration);
   resetHistogram(requestLatency);
+}
+
+function histogramSnapshot(name: string, help: string, histogram: Histogram) {
+  return {
+    name,
+    help,
+    buckets: [
+      ...histogram.buckets.map((bucket, index) => ({
+        le: bucket,
+        count: histogram.counts[index],
+      })),
+      {
+        le: "+Inf" as const,
+        count: histogram.count,
+      },
+    ],
+    p99Seconds: percentileUpperBound(histogram, 0.99),
+    sum: histogram.sum,
+    count: histogram.count,
+  };
 }
 
 function createHistogram(buckets: Array<number>): Histogram {
@@ -129,6 +182,16 @@ function resetHistogram(histogram: Histogram) {
   histogram.counts.fill(0);
   histogram.sum = 0;
   histogram.count = 0;
+}
+
+function percentileUpperBound(histogram: Histogram, percentile: number) {
+  if (histogram.count === 0) {
+    return null;
+  }
+
+  const target = Math.ceil(histogram.count * percentile);
+  const bucketIndex = histogram.counts.findIndex((count) => count >= target);
+  return bucketIndex === -1 ? Number.POSITIVE_INFINITY : histogram.buckets[bucketIndex];
 }
 
 function histogramText(name: string, help: string, histogram: Histogram) {

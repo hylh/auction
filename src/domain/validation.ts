@@ -104,8 +104,8 @@ export const withdrawFishItemInputSchema = z.object({
 });
 
 export const simulatorInputSchema = z.object({
-  auctionCount: z.coerce.number().int().min(0).max(10).default(1),
-  bidCount: z.coerce.number().int().min(0).max(100).default(3),
+  auctionCount: z.coerce.number().int().min(0).max(1).default(1),
+  bidCount: z.coerce.number().int().min(0).max(1).default(1),
   intervalMs: z.coerce.number().int().min(0).max(60_000).default(0),
   durationMinutes: z.coerce
     .number()
@@ -116,6 +116,7 @@ export const simulatorInputSchema = z.object({
   rejectionRate: z.coerce.number().min(0).max(1).default(0.25),
   seed: z.coerce.number().int().default(20_260_604),
   buyerIds: z.array(uuidSchema).optional(),
+  auctionIds: z.array(uuidSchema).max(1).optional(),
   closeAuctions: z.boolean().default(true),
 });
 
