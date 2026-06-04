@@ -1,19 +1,9 @@
 import { z } from "zod";
-import { FISH_SPECIES } from "./constants";
+import { ADMIN_STATUSES, FISH_SPECIES } from "./constants";
 
-export const uuidSchema = z.string().uuid();
-export const speciesSchema = z.enum(FISH_SPECIES);
-export const adminStatusSchema = z.enum([
-  "draft",
-  "listed",
-  "in_auction",
-  "sold",
-  "withdrawn",
-  "scheduled",
-  "active",
-  "closed",
-  "unsold",
-]);
+const uuidSchema = z.string().uuid();
+const speciesSchema = z.enum(FISH_SPECIES);
+const adminStatusSchema = z.enum(ADMIN_STATUSES);
 
 const optionalDateSchema = z.preprocess(
   (value) => (value === "" || value === undefined ? undefined : value),

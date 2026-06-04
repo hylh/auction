@@ -1,3 +1,5 @@
+import { renderPrometheusText, type MetricFamily } from "./metric-exposition";
+
 type MetricName =
   | "acceptedBids"
   | "rejectedBids"
@@ -70,46 +72,51 @@ export async function measureRequest<T>(operation: () => Promise<T>) {
 }
 
 export function metricsText() {
+  return renderPrometheusText(metricsFamilies());
+}
+
+function metricsFamilies(): Array<MetricFamily> {
   return [
-    "# HELP auction_accepted_bids_total Accepted bid count",
-    "# TYPE auction_accepted_bids_total counter",
-    `auction_accepted_bids_total ${counters.acceptedBids}`,
-    "# HELP auction_rejected_bids_total Rejected bid count",
-    "# TYPE auction_rejected_bids_total counter",
-    `auction_rejected_bids_total ${counters.rejectedBids}`,
-    "# HELP auction_auctions_created_total Created auction count",
-    "# TYPE auction_auctions_created_total counter",
-    `auction_auctions_created_total ${counters.auctionsCreated}`,
-    "# HELP auction_auctions_closed_total Closed auction count",
-    "# TYPE auction_auctions_closed_total counter",
-    `auction_auctions_closed_total ${counters.auctionsClosed}`,
-    "# HELP auction_sales_completed_total Completed sale count",
-    "# TYPE auction_sales_completed_total counter",
-    `auction_sales_completed_total ${counters.salesCompleted}`,
-    "# HELP auction_total_sale_value_cents Total completed sale value in cents",
-    "# TYPE auction_total_sale_value_cents counter",
-    `auction_total_sale_value_cents ${counters.totalSaleValueCents}`,
-    "# HELP auction_validation_failures_total Zod validation failure count",
-    "# TYPE auction_validation_failures_total counter",
-    `auction_validation_failures_total ${counters.validationFailures}`,
-    "# HELP auction_close_failures_total Auction close failure count",
-    "# TYPE auction_close_failures_total counter",
-    `auction_close_failures_total ${counters.closeFailures}`,
-    "# HELP auction_simulator_requests_total Simulator API request count",
-    "# TYPE auction_simulator_requests_total counter",
-    `auction_simulator_requests_total ${counters.simulatorRequests}`,
-    ...histogramText(
+    counterFamily("auction_accepted_bids_total", "Accepted bid count", counters.acceptedBids),
+    counterFamily("auction_rejected_bids_total", "Rejected bid count", counters.rejectedBids),
+    counterFamily(
+      "auction_auctions_created_total",
+      "Created auction count",
+      counters.auctionsCreated,
+    ),
+    counterFamily("auction_auctions_closed_total", "Closed auction count", counters.auctionsClosed),
+    counterFamily("auction_sales_completed_total", "Completed sale count", counters.salesCompleted),
+    counterFamily(
+      "auction_total_sale_value_cents",
+      "Total completed sale value in cents",
+      counters.totalSaleValueCents,
+    ),
+    counterFamily(
+      "auction_validation_failures_total",
+      "Zod validation failure count",
+      counters.validationFailures,
+    ),
+    counterFamily(
+      "auction_close_failures_total",
+      "Auction close failure count",
+      counters.closeFailures,
+    ),
+    counterFamily(
+      "auction_simulator_requests_total",
+      "Simulator API request count",
+      counters.simulatorRequests,
+    ),
+    histogramFamily(
       "auction_bid_mutation_duration_seconds",
       "Bid mutation duration in seconds",
       bidMutationDuration,
     ),
-    ...histogramText(
+    histogramFamily(
       "auction_request_latency_seconds",
       "Server function and API request latency in seconds",
       requestLatency,
     ),
-    "",
-  ].join("\n");
+  ];
 }
 
 export function metricsSnapshot(): MetricsSnapshot {
@@ -194,19 +201,31 @@ function percentileUpperBound(histogram: Histogram, percentile: number) {
   return bucketIndex === -1 ? Number.POSITIVE_INFINITY : histogram.buckets[bucketIndex];
 }
 
-function histogramText(name: string, help: string, histogram: Histogram) {
-  return [
-    `# HELP ${name} ${help}`,
-    `# TYPE ${name} histogram`,
-    ...histogram.buckets.map(
-      (bucket, index) => `${name}_bucket{le="${bucket}"} ${histogram.counts[index]}`,
-    ),
-    `${name}_bucket{le="+Inf"} ${histogram.count}`,
-    `${name}_sum ${formatMetricNumber(histogram.sum)}`,
-    `${name}_count ${histogram.count}`,
-  ];
+function counterFamily(name: string, help: string, value: number): MetricFamily {
+  return {
+    name,
+    help,
+    type: "counter",
+    samples: [{ value }],
+  };
 }
 
-function formatMetricNumber(value: number) {
-  return Number.isInteger(value) ? value.toString() : value.toFixed(6);
+function histogramFamily(name: string, help: string, histogram: Histogram): MetricFamily {
+  return {
+    name,
+    help,
+    type: "histogram",
+    buckets: [
+      ...histogram.buckets.map((bucket, index) => ({
+        le: bucket,
+        count: histogram.counts[index],
+      })),
+      {
+        le: "+Inf" as const,
+        count: histogram.count,
+      },
+    ],
+    sum: histogram.sum,
+    count: histogram.count,
+  };
 }

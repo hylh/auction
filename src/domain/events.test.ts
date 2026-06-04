@@ -1,12 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   publishAuctionEvent,
+  resetAuctionEventBus,
   shouldDeliverAuctionEventToSubscriber,
   subscribeToAuction,
 } from "./events";
 import type { AuctionClosedEvent, BidAcceptedEvent, BidRejectedEvent } from "./events";
 
 describe("auction event broadcaster", () => {
+  afterEach(() => resetAuctionEventBus());
+
   it("delivers ordered auction events to multiple listeners", () => {
     const auctionId = crypto.randomUUID();
     const first: Array<string> = [];
@@ -27,6 +30,33 @@ describe("auction event broadcaster", () => {
 
     unsubscribeFirst();
     unsubscribeSecond();
+  });
+
+  it("filters rejected bid event delivery by subscriber", () => {
+    const auctionId = crypto.randomUUID();
+    const actingUserId = crypto.randomUUID();
+    const otherUserId = crypto.randomUUID();
+    const actingUserEvents: Array<string> = [];
+    const otherUserEvents: Array<string> = [];
+
+    const unsubscribeActor = subscribeToAuction(
+      auctionId,
+      (event) => actingUserEvents.push(event.type),
+      { userId: actingUserId },
+    );
+    const unsubscribeOther = subscribeToAuction(
+      auctionId,
+      (event) => otherUserEvents.push(event.type),
+      { userId: otherUserId },
+    );
+
+    publishAuctionEvent(rejectedBidEvent(auctionId, actingUserId));
+
+    expect(actingUserEvents).toEqual(["bid.rejected"]);
+    expect(otherUserEvents).toEqual([]);
+
+    unsubscribeActor();
+    unsubscribeOther();
   });
 
   it("only delivers rejected bid events to the acting user", () => {

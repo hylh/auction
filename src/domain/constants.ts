@@ -1,5 +1,7 @@
 export const CURRENCY = "NOK";
 
+export const USER_ROLES = ["seller", "buyer", "admin"] as const;
+
 export const FISH_SPECIES = [
   "salmon",
   "cod",
@@ -8,6 +10,22 @@ export const FISH_SPECIES = [
   "mackerel",
   "trout",
   "herring",
+] as const;
+
+export const INVENTORY_STATUSES = ["draft", "listed", "in_auction", "sold", "withdrawn"] as const;
+
+export const AUCTION_STATUSES = ["scheduled", "active", "closed", "unsold", "withdrawn"] as const;
+
+export const ADMIN_STATUSES = [
+  "draft",
+  "listed",
+  "in_auction",
+  "sold",
+  "withdrawn",
+  "scheduled",
+  "active",
+  "closed",
+  "unsold",
 ] as const;
 
 export const DEMO_USERS = {

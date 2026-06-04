@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fish Auction Code Review and Architecture Improvements</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f6f8fb;
+        --card: #ffffff;
+        --text: #172033;
+        --muted: #58677a;
+        --border: #d9e1ed;
+        --accent: #0f766e;
+        --accent-soft: #dff7f3;
+        --warning: #92400e;
+        --warning-soft: #fff7ed;
+        --code: #eef2f7;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #101623;
+          --card: #172033;
+          --text: #edf2f7;
+          --muted: #adbacb;
+          --border: #2d394c;
+          --accent: #5eead4;
+          --accent-soft: #123f3a;
+          --warning: #fdba74;
+          --warning-soft: #422006;
+          --code: #202b3b;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        line-height: 1.6;
+      }
+
+      main {
+        width: min(1120px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 48px 0;
+      }
+
+      header,
+      section {
+        margin-bottom: 24px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.15;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2.3rem, 6vw, 4.25rem);
+        letter-spacing: -0.06em;
+      }
+
+      h2 {
+        margin: 0 0 14px;
+      }
+
+      h3 {
+        margin: 22px 0 8px;
+      }
+
+      p {
+        margin: 0 0 14px;
+      }
+
+      ul,
+      ol {
+        margin: 0 0 16px 1.25rem;
+        padding: 0;
+      }
+
+      li {
+        margin: 6px 0;
+      }
+
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: var(--code);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.92em;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0;
+      }
+
+      th,
+      td {
+        padding: 10px;
+        border: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: color-mix(in srgb, var(--card) 86%, var(--accent-soft));
+      }
+
+      .hero,
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--card);
+        box-shadow: 0 12px 34px rgb(15 23 42 / 8%);
+      }
+
+      .hero {
+        padding: clamp(24px, 5vw, 48px);
+        background:
+          radial-gradient(
+            circle at top right,
+            color-mix(in srgb, var(--accent) 24%, transparent),
+            transparent 38%
+          ),
+          var(--card);
+      }
+
+      .card {
+        padding: 24px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .pill-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 18px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .pill-list li {
+        margin: 0;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 650;
+        font-size: 0.9rem;
+      }
+
+      .finding {
+        padding: 18px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: color-mix(in srgb, var(--card) 92%, var(--accent-soft));
+      }
+
+      .finding + .finding {
+        margin-top: 16px;
+      }
+
+      .callout {
+        padding: 16px;
+        border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
+        border-radius: 16px;
+        background: var(--warning-soft);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <p class="muted">Saved June 4, 2026</p>
+        <h1>Fish Auction Code Review and Architecture Improvements</h1>
+        <p>
+          This review looks for deepening opportunities in the current proof-of-concept: places
+          where a Module can hide more behaviour behind a smaller Interface, improve Locality, and
+          give callers and tests more Leverage.
+        </p>
+        <ul class="pill-list" aria-label="Review themes">
+          <li>Auction lifecycle</li>
+          <li>Transactional bidding</li>
+          <li>Realtime bid chain</li>
+          <li>Admin statistics</li>
+          <li>Validation</li>
+          <li>Observability</li>
+          <li>Simulator</li>
+        </ul>
+      </header>
+
+      <section class="card">
+        <h2>Executive summary</h2>
+        <p>
+          The project has a strong vertical slice: PostgreSQL persistence, Drizzle schema,
+          transactional bid writes, SSE updates, admin dashboards, metrics, simulator entry points,
+          and Vitest coverage for important domain rules. The main improvement opportunity is not
+          more scaffolding; it is increasing Depth at the seams that already exist.
+        </p>
+        <p>
+          The highest-leverage work is to deepen the auction lifecycle, admin query/statistics,
+          validation, realtime event, metrics, and simulator Modules. These changes would
+          concentrate domain invariants and persistence details in fewer places, make tests exercise
+          behaviour through stable Interfaces, and reduce the amount of code a maintainer must read
+          to change a fish auction rule safely.
+        </p>
+        <div class="callout">
+          <strong>Context note:</strong> no <code>CONTEXT.md</code> or ADR folder was present. This
+          review uses <code>documentation\auction-project-decisions.html</code>, the project
+          instructions, and the existing source as the domain record. No ADR conflicts were found.
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Prioritized improvement map</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Priority</th>
+              <th>Deepening opportunity</th>
+              <th>Why now</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Auction lifecycle and bidding Module</td>
+              <td>Core business behaviour; every future feature will touch it.</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>Admin query and statistics Module</td>
+              <td>Current filtering and aggregate computation leave PostgreSQL leverage unused.</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Shared validation and domain vocabulary Module</td>
+              <td>Duplicated status, species, money, and weight rules can drift.</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Realtime auction event Module</td>
+              <td>SSE works, but ordering, replay, and cache projection need one clearer seam.</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>Metrics exposition Module</td>
+              <td>Prometheus text and visual metrics rendering are duplicated and coupled.</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td>Simulator command Module</td>
+              <td>Load generation should have a narrower contract and clearer pacing ownership.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>Findings</h2>
+
+        <article class="finding">
+          <h3>1. Deepen the auction lifecycle and bidding Module</h3>
+          <p>
+            <strong>Files:</strong> <code>src\server\auction-service.ts</code>,
+            <code>src\domain\bid-rules.ts</code>, <code>src\domain\events.ts</code>,
+            <code>src\server\functions.ts</code>, <code>src\routes\auctions.$auctionId.tsx</code>.
+          </p>
+          <p>
+            <strong>Problem:</strong> <code>auction-service.ts</code> has become the main Module for
+            dashboard reads, auction detail reads, fish inventory creation, auction creation, bid
+            placement, manual close, automatic lifecycle advancement, withdrawal, admin history,
+            filtering, row mapping, event publication, metrics, and audit records. The Interface is
+            a list of many exported functions, but callers still need to understand transaction
+            ordering, status transitions, event timing, metrics side effects, and audit side
+            effects. That is a shallow Interface around a large Implementation.
+          </p>
+          <p>
+            <strong>Deletion test:</strong> deleting the current file would scatter transaction
+            locks, inventory status transitions, sale creation, event publishing, and metrics
+            increments across routes and scripts. That means the Module is earning its keep, but its
+            Interface has grown too wide for the amount of behaviour it hides.
+          </p>
+          <p>
+            <strong>Solution:</strong> deepen around the domain seams that already exist: bidding,
+            auction lifecycle, fish inventory, and read models. Keep bid acceptance and auction
+            close as behaviour-rich entry points that own transaction ordering, committed-state
+            reads, audit writes, metrics, and event publication. Move row shaping and admin read
+            models behind a separate query Module so command callers do not inherit read-model
+            complexity.
+          </p>
+          <p>
+            <strong>Benefits:</strong> Locality improves because a bid rule or lifecycle transition
+            can change in one Module instead of across exported functions and routes. Leverage
+            improves because tests can cross the same Interface as callers: "place a bid", "close an
+            auction", and "withdraw inventory" should verify persisted rows, emitted events,
+            metrics, and audit records without testing private helpers.
+          </p>
+        </article>
+
+        <article class="finding">
+          <h3>2. Push admin filtering and statistics into a PostgreSQL-backed query Module</h3>
+          <p>
+            <strong>Files:</strong> <code>src\server\auction-service.ts</code>,
+            <code>src\routes\admin.tsx</code>, <code>src\db\schema.ts</code>.
+          </p>
+          <p>
+            <strong>Problem:</strong> admin data is loaded broadly, filtered in memory, then sliced
+            or aggregated in TypeScript. Examples include <code>loadAuctionSummaries</code>,
+            <code>loadLatestBids</code>, <code>loadRecentSales</code>, and the popular fish
+            calculation in <code>getAdminData</code>. This contradicts the project decision that
+            statistics should be computed with live PostgreSQL aggregate queries and appropriate
+            indexes. It also couples the admin route to arrays that may become expensive as bid
+            history grows.
+          </p>
+          <p>
+            <strong>Deletion test:</strong> deleting the filter helpers would force equivalent
+            status, species, seller, buyer, and date rules to reappear in every admin query. They
+            are real behaviour, but they live behind the wrong seam: after data has already crossed
+            from PostgreSQL into memory.
+          </p>
+          <p>
+            <strong>Solution:</strong> create a deep admin query Module that owns the filter
+            Interface and translates it to Drizzle conditions and aggregate SQL. It should return
+            exactly the dashboard read models the UI needs: completed sales, unsold auctions, bid
+            history, status history, admin actions, total sales, average bid price, and popular fish
+            with bid count, kilograms sold, and sale value.
+          </p>
+          <p>
+            <strong>Benefits:</strong> PostgreSQL becomes the Adapter doing set operations and
+            aggregation. Locality improves because filter semantics live in one Module. Leverage
+            improves because one integration test at the query Interface can cover all surfaces that
+            currently depend on repeated in-memory filtering.
+          </p>
+        </article>
+
+        <article class="finding">
+          <h3>3. Consolidate validation, status vocabulary, money, and weight rules</h3>
+          <p>
+            <strong>Files:</strong> <code>src\domain\validation.ts</code>,
+            <code>src\domain\constants.ts</code>, <code>src\domain\money.ts</code>,
+            <code>src\domain\weight.ts</code>, <code>src\db\schema.ts</code>,
+            <code>src\routes\inventory.new.tsx</code>, <code>src\routes\admin.tsx</code>.
+          </p>
+          <p>
+            <strong>Problem:</strong> species, inventory statuses, auction statuses, currency, money
+            parsing, and weight parsing are spread across several Modules.
+            <code>validation.ts</code> mixes fish input, bid input, auction timing, close/withdraw
+            commands, simulator input, and admin filters. <code>schema.ts</code> repeats enum
+            vocabularies that also exist in domain constants and route-local arrays. The inventory
+            route validates with Zod, then validates money and weight again with conversion helpers,
+            and uses a dummy fish id to satisfy an auction schema before the real fish exists.
+          </p>
+          <p>
+            <strong>Solution:</strong> make the domain vocabulary a deeper Module: canonical
+            species, inventory status, auction status, currency, money input, and weight input
+            should be exported from one place and reused by Zod schemas, Drizzle enum declarations,
+            route options, seed data, and tests. Keep route form code as an Adapter that maps
+            browser strings into shared input shapes rather than re-implementing validation
+            decisions.
+          </p>
+          <p>
+            <strong>Benefits:</strong> Locality improves because changing a fish species, status, or
+            unit invariant happens once. Leverage improves because tests for money and weight
+            parsing protect both server functions and UI form validation. The Interface becomes
+            smaller: callers ask the domain Module to parse fish, auction, bid, or admin input
+            instead of knowing which combination of Zod schemas and conversion helpers to call.
+          </p>
+        </article>
+
+        <article class="finding">
+          <h3>4. Deepen the realtime auction event Module</h3>
+          <p>
+            <strong>Files:</strong> <code>src\domain\events.ts</code>,
+            <code>src\routes\api.auctions.$auctionId.events.ts</code>,
+            <code>src\server\auction-service.ts</code>,
+            <code>src\routes\auctions.$auctionId.tsx</code>, <code>src\domain\events.test.ts</code>,
+            <code>src\server\auction-service.integration.test.ts</code>.
+          </p>
+          <p>
+            <strong>Problem:</strong> the in-memory broadcaster is small and useful, but the
+            complete realtime Interface spans several places: event type definitions, subscriber
+            filtering, SSE formatting, connected messages, post-commit publication from bid and
+            close operations, and TanStack Query cache patching in the auction detail route. The
+            current test covers the in-memory broadcaster but not the full "accepted bid commits,
+            then all listeners receive the ordered event" behaviour required by the project brief.
+          </p>
+          <p>
+            <strong>Solution:</strong> deepen an auction event Module that owns event construction,
+            subscriber visibility, SSE encoding, and delivery guarantees. Keep the
+            transport-specific stream as an Adapter at the HTTP seam. Add a server-level integration
+            test that subscribes listeners, places a bid through the same command Interface as the
+            application, and asserts that ordered accepted events arrive only after persistence
+            succeeds. Add a rejected-bid test that verifies the acting-user-only rule across the SSE
+            seam.
+          </p>
+          <p>
+            <strong>Benefits:</strong> Locality improves because realtime invariants are no longer
+            split between domain events, route stream code, server command code, and client cache
+            updates. Leverage improves because one event Interface can support future replay,
+            heartbeat, or reconnect behaviour without forcing every route to learn those details.
+          </p>
+        </article>
+
+        <article class="finding">
+          <h3>5. Separate metrics collection, Prometheus exposition, and visual rendering</h3>
+          <p>
+            <strong>Files:</strong> <code>src\domain\metrics.ts</code>,
+            <code>src\server\database-metrics.ts</code>, <code>src\routes\metrics.ts</code>,
+            <code>src\domain\metrics.test.ts</code>.
+          </p>
+          <p>
+            <strong>Problem:</strong> the metrics code works, but two Modules hand-roll Prometheus
+            text formatting and both define number-formatting helpers. The visual metrics page is
+            also a large route-local string renderer coupled to both in-memory counters and database
+            metrics. The Interface to metrics is therefore broader than it needs to be: callers must
+            know which metrics source returns text, which returns a snapshot, and how route
+            rendering combines them.
+          </p>
+          <p>
+            <strong>Deletion test:</strong> deleting either text formatter would cause similar HELP,
+            TYPE, label, bucket, and number-formatting logic to reappear. That is a sign the
+            formatting behaviour belongs behind a shared exposition seam.
+          </p>
+          <p>
+            <strong>Solution:</strong> create a metrics exposition Module that accepts metric
+            families and renders Prometheus text. Treat in-memory domain metrics and PostgreSQL
+            database metrics as Adapters that produce metric families. Move the visual page
+            rendering behind a presenter Module or keep it route-local only after the data shape has
+            been normalized.
+          </p>
+          <p>
+            <strong>Benefits:</strong> Locality improves because Prometheus escaping, label
+            formatting, histograms, counters, and gauges are verified in one place. Leverage
+            improves because adding a new request, bid, or database metric does not require copying
+            exposition details.
+          </p>
+        </article>
+
+        <article class="finding">
+          <h3>6. Narrow and clarify the simulator command Interface</h3>
+          <p>
+            <strong>Files:</strong> <code>src\server\simulator-service.ts</code>,
+            <code>src\routes\api.simulate.ts</code>, <code>src\scripts\simulate.ts</code>,
+            <code>src\domain\validation.ts</code>,
+            <code>src\server\auction-service.integration.test.ts</code>.
+          </p>
+          <p>
+            <strong>Problem:</strong> the simulator deliberately exercises the real service path,
+            which is a good decision. However, the server-side Interface still exposes
+            scheduling-looking fields such as <code>intervalMs</code> even though pacing happens in
+            the CLI script. The server Implementation also directly orchestrates fish creation,
+            auction creation, bid placement, dashboard fallback, auction detail loading, and close
+            operations. This makes the simulator useful but broad.
+          </p>
+          <p>
+            <strong>Solution:</strong> split the simulator into a CLI pacing Module and a server
+            "single simulation step" Module. The server step should take a narrow request, such as
+            create one auction, place one bid against supplied auction ids, or close supplied
+            auctions. The CLI can own intervals, run duration, and load profile composition. Keep
+            the auction command Module as the Adapter used by the simulator so validation, metrics,
+            and events still exercise the production path.
+          </p>
+          <p>
+            <strong>Benefits:</strong> Locality improves because load pacing and domain mutation
+            semantics are separate. Leverage improves because the same server step can be tested
+            deterministically and reused by scripts, demo buttons, or future load profiles without
+            broadening the auction command Interface.
+          </p>
+        </article>
+
+        <article class="finding">
+          <h3>7. Move route-local orchestration into feature Modules where behaviour repeats</h3>
+          <p>
+            <strong>Files:</strong> <code>src\routes\auctions.$auctionId.tsx</code>,
+            <code>src\routes\inventory.new.tsx</code>, <code>src\routes\admin.tsx</code>,
+            <code>src\routes\index.tsx</code>.
+          </p>
+          <p>
+            <strong>Problem:</strong> routes currently own UI rendering plus query keys, mutation
+            invalidation, cache patching, form validation mapping, filter state, and status-specific
+            action rules. Some of this is normal for a POC, but as the product grows these route
+            Modules will become shallow: the Interface is just a route, while the Implementation
+            contains many behaviours that need independent tests.
+          </p>
+          <p>
+            <strong>Solution:</strong> introduce feature Modules only where repeated behaviour
+            appears: live auction detail state, inventory intake form state, and admin
+            filters/actions. Do not extract presentation for its own sake. Use the deletion test: if
+            deleting a feature Module would force cache-update, validation, or action-rule
+            complexity back into several routes, it is worth keeping.
+          </p>
+          <p>
+            <strong>Benefits:</strong> Locality improves because query invalidation and
+            route-specific domain decisions are not mixed with markup. Leverage improves because
+            tests can exercise form parsing, cache projection, and action enablement through a
+            feature Interface while the route stays a thin Adapter to TanStack Router.
+          </p>
+        </article>
+
+        <article class="finding">
+          <h3>8. Expand tests at the behavioural Interfaces, not around private helpers</h3>
+          <p>
+            <strong>Files:</strong> <code>src\domain\bid-rules.test.ts</code>,
+            <code>src\domain\events.test.ts</code>, <code>src\domain\money-weight.test.ts</code>,
+            <code>src\domain\metrics.test.ts</code>,
+            <code>src\server\auction-service.integration.test.ts</code>.
+          </p>
+          <p>
+            <strong>Problem:</strong> unit tests cover bid rules, events, metrics, money, and
+            weight; integration tests cover stale bid races and simulator request timing. The
+            important gaps are at the behavioural Interfaces: seller cannot bid on own auction
+            through persistence, non-admin users cannot create/close/withdraw auctions, accepted
+            bids publish after commit, rejected bids are actor-only, auction close creates the
+            expected sale and inventory status records, and unsold close returns inventory to
+            listed.
+          </p>
+          <p>
+            <strong>Solution:</strong> add integration tests through the deepened command and event
+            Interfaces. Replace tests that know private mapping/filter helpers with tests that
+            assert observable results: rows, typed errors, events, metrics counters, and
+            dashboard/admin read models.
+          </p>
+          <p>
+            <strong>Benefits:</strong> The Interface becomes the test surface. Tests survive
+            internal refactors because they describe fish auction behaviour rather than helper
+            structure.
+          </p>
+        </article>
+      </section>
+
+      <section class="card">
+        <h2>Recommended first implementation slice</h2>
+        <ol>
+          <li>
+            Deepen the auction command Module around bid placement and auction close first. Keep the
+            public behaviour the same, but make the command Interface own transaction, audit, event,
+            and metrics side effects.
+          </li>
+          <li>
+            Add integration tests for seller-own-auction rejection, admin permission failures,
+            accepted bid event delivery after commit, sale completion, and unsold close.
+          </li>
+          <li>
+            Move admin statistics to PostgreSQL aggregate queries once the command behaviour is
+            pinned down by tests.
+          </li>
+          <li>
+            Consolidate domain vocabulary and validation before adding new species, statuses, or
+            dashboard filters.
+          </li>
+        </ol>
+        <p>
+          This sequence protects the core fish auction lifecycle first, then improves query
+          performance and maintainability without changing user-visible routes.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

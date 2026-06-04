@@ -1,4 +1,5 @@
 import { databaseApplicationName, sqlClient } from "../db/client";
+import { renderPrometheusText, type MetricFamily } from "../domain/metric-exposition";
 
 export type DatabaseMetrics = {
   databaseSizeBytes: number;
@@ -197,48 +198,102 @@ export async function loadDatabaseMetrics(): Promise<DatabaseMetrics> {
 }
 
 export function databaseMetricsText(metrics: DatabaseMetrics) {
+  return renderPrometheusText(databaseMetricsFamilies(metrics));
+}
+
+function databaseMetricsFamilies(metrics: DatabaseMetrics): Array<MetricFamily> {
   return [
-    "# HELP auction_database_size_bytes PostgreSQL database size in bytes",
-    "# TYPE auction_database_size_bytes gauge",
-    `auction_database_size_bytes ${metrics.databaseSizeBytes}`,
-    "# HELP auction_database_connections PostgreSQL connection count by state",
-    "# TYPE auction_database_connections gauge",
-    `auction_database_connections{state="total"} ${metrics.connections.total}`,
-    `auction_database_connections{state="active"} ${metrics.connections.active}`,
-    `auction_database_connections{state="idle"} ${metrics.connections.idle}`,
-    "# HELP auction_database_app_connections PostgreSQL connection count for this application",
-    "# TYPE auction_database_app_connections gauge",
-    `auction_database_app_connections{application="${metrics.connections.applicationName}",state="total"} ${metrics.connections.appTotal}`,
-    `auction_database_app_connections{application="${metrics.connections.applicationName}",state="active"} ${metrics.connections.appActive}`,
-    `auction_database_app_connections{application="${metrics.connections.applicationName}",state="idle"} ${metrics.connections.appIdle}`,
-    "# HELP auction_database_table_rows Exact table row count",
-    "# TYPE auction_database_table_rows gauge",
-    ...metrics.tables.map(
-      (table) => `auction_database_table_rows{table="${table.tableName}"} ${table.rowCount}`,
-    ),
-    "# HELP auction_database_table_size_bytes PostgreSQL table size in bytes",
-    "# TYPE auction_database_table_size_bytes gauge",
-    ...metrics.tables.flatMap((table) => [
-      `auction_database_table_size_bytes{table="${table.tableName}",kind="total"} ${table.totalBytes}`,
-      `auction_database_table_size_bytes{table="${table.tableName}",kind="heap"} ${table.heapBytes}`,
-      `auction_database_table_size_bytes{table="${table.tableName}",kind="index"} ${table.indexBytes}`,
+    gaugeFamily("auction_database_size_bytes", "PostgreSQL database size in bytes", [
+      { value: metrics.databaseSizeBytes },
     ]),
-    "# HELP auction_database_active_auctions Active auction count from PostgreSQL",
-    "# TYPE auction_database_active_auctions gauge",
-    `auction_database_active_auctions ${metrics.load.activeAuctions}`,
-    "# HELP auction_database_bids_recent Recent accepted bids from PostgreSQL",
-    "# TYPE auction_database_bids_recent gauge",
-    `auction_database_bids_recent{window="1m"} ${metrics.load.bidsLastMinute}`,
-    `auction_database_bids_recent{window="5m"} ${metrics.load.bidsLastFiveMinutes}`,
-    "# HELP auction_database_auctions_created_recent Recently created auctions from PostgreSQL",
-    "# TYPE auction_database_auctions_created_recent gauge",
-    `auction_database_auctions_created_recent{window="1m"} ${metrics.load.auctionsCreatedLastMinute}`,
-    "# HELP auction_database_active_auction_bid_distribution Bid concentration across active auctions",
-    "# TYPE auction_database_active_auction_bid_distribution gauge",
-    `auction_database_active_auction_bid_distribution{stat="average"} ${formatMetricNumber(metrics.load.averageBidsPerActiveAuction)}`,
-    `auction_database_active_auction_bid_distribution{stat="max"} ${metrics.load.hottestAuctionBidCount}`,
-    "",
-  ].join("\n");
+    gaugeFamily("auction_database_connections", "PostgreSQL connection count by state", [
+      { labels: [["state", "total"]], value: metrics.connections.total },
+      { labels: [["state", "active"]], value: metrics.connections.active },
+      { labels: [["state", "idle"]], value: metrics.connections.idle },
+    ]),
+    gaugeFamily(
+      "auction_database_app_connections",
+      "PostgreSQL connection count for this application",
+      [
+        {
+          labels: [
+            ["application", metrics.connections.applicationName],
+            ["state", "total"],
+          ],
+          value: metrics.connections.appTotal,
+        },
+        {
+          labels: [
+            ["application", metrics.connections.applicationName],
+            ["state", "active"],
+          ],
+          value: metrics.connections.appActive,
+        },
+        {
+          labels: [
+            ["application", metrics.connections.applicationName],
+            ["state", "idle"],
+          ],
+          value: metrics.connections.appIdle,
+        },
+      ],
+    ),
+    gaugeFamily(
+      "auction_database_table_rows",
+      "Exact table row count",
+      metrics.tables.map((table) => ({
+        labels: [["table", table.tableName]],
+        value: table.rowCount,
+      })),
+    ),
+    gaugeFamily(
+      "auction_database_table_size_bytes",
+      "PostgreSQL table size in bytes",
+      metrics.tables.flatMap((table) => [
+        {
+          labels: [
+            ["table", table.tableName],
+            ["kind", "total"],
+          ],
+          value: table.totalBytes,
+        },
+        {
+          labels: [
+            ["table", table.tableName],
+            ["kind", "heap"],
+          ],
+          value: table.heapBytes,
+        },
+        {
+          labels: [
+            ["table", table.tableName],
+            ["kind", "index"],
+          ],
+          value: table.indexBytes,
+        },
+      ]),
+    ),
+    gaugeFamily("auction_database_active_auctions", "Active auction count from PostgreSQL", [
+      { value: metrics.load.activeAuctions },
+    ]),
+    gaugeFamily("auction_database_bids_recent", "Recent accepted bids from PostgreSQL", [
+      { labels: [["window", "1m"]], value: metrics.load.bidsLastMinute },
+      { labels: [["window", "5m"]], value: metrics.load.bidsLastFiveMinutes },
+    ]),
+    gaugeFamily(
+      "auction_database_auctions_created_recent",
+      "Recently created auctions from PostgreSQL",
+      [{ labels: [["window", "1m"]], value: metrics.load.auctionsCreatedLastMinute }],
+    ),
+    gaugeFamily(
+      "auction_database_active_auction_bid_distribution",
+      "Bid concentration across active auctions",
+      [
+        { labels: [["stat", "average"]], value: metrics.load.averageBidsPerActiveAuction },
+        { labels: [["stat", "max"]], value: metrics.load.hottestAuctionBidCount },
+      ],
+    ),
+  ];
 }
 
 function parseNumber(value: string | number | null | undefined) {
@@ -248,6 +303,15 @@ function parseNumber(value: string | number | null | undefined) {
   return typeof value === "number" ? value : Number(value);
 }
 
-function formatMetricNumber(value: number) {
-  return Number.isInteger(value) ? value.toString() : value.toFixed(6);
+function gaugeFamily(
+  name: string,
+  help: string,
+  samples: Array<{ labels?: Array<[string, string]>; value: number }>,
+): MetricFamily {
+  return {
+    name,
+    help,
+    type: "gauge",
+    samples,
+  };
 }

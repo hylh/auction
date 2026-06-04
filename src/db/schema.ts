@@ -9,31 +9,17 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import {
+  AUCTION_STATUSES,
+  FISH_SPECIES,
+  INVENTORY_STATUSES,
+  USER_ROLES,
+} from "../domain/constants";
 
-export const userRoleEnum = pgEnum("user_role", ["seller", "buyer", "admin"]);
-export const fishSpeciesEnum = pgEnum("fish_species", [
-  "salmon",
-  "cod",
-  "tuna",
-  "halibut",
-  "mackerel",
-  "trout",
-  "herring",
-]);
-export const inventoryStatusEnum = pgEnum("inventory_status", [
-  "draft",
-  "listed",
-  "in_auction",
-  "sold",
-  "withdrawn",
-]);
-export const auctionStatusEnum = pgEnum("auction_status", [
-  "scheduled",
-  "active",
-  "closed",
-  "unsold",
-  "withdrawn",
-]);
+export const userRoleEnum = pgEnum("user_role", USER_ROLES);
+export const fishSpeciesEnum = pgEnum("fish_species", FISH_SPECIES);
+export const inventoryStatusEnum = pgEnum("inventory_status", INVENTORY_STATUSES);
+export const auctionStatusEnum = pgEnum("auction_status", AUCTION_STATUSES);
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -59,8 +45,7 @@ export const fishItems = pgTable(
     status: inventoryStatusEnum("status").notNull().default("draft"),
     description: text("description"),
     imageUrl: text("image_url"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    ...timestampsWithUpdate(),
   },
   (table) => [
     index("fish_items_seller_idx").on(table.sellerId),
@@ -81,8 +66,7 @@ export const auctions = pgTable(
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
     minimumIncrementCents: integer("minimum_increment_cents").notNull(),
     closedAt: timestamp("closed_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    ...timestampsWithUpdate(),
   },
   (table) => [
     index("auctions_fish_item_idx").on(table.fishItemId),
@@ -276,3 +260,10 @@ export const adminActionsRelations = relations(adminActions, ({ one }) => ({
     references: [fishItems.id],
   }),
 }));
+
+function timestampsWithUpdate() {
+  return {
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  };
+}

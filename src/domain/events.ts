@@ -47,14 +47,48 @@ export type AuctionEvent =
 
 export type AuctionEventListener = (event: AuctionEvent) => void;
 
-const listeners = new Map<string, Set<AuctionEventListener>>();
+type AuctionEventSubscription = {
+  userId: string | null | undefined;
+  listener: AuctionEventListener;
+};
 
-export function publishAuctionEvent(event: AuctionEvent) {
-  const subscribers = listeners.get(event.auctionId);
-  if (!subscribers) return;
+class AuctionEventBus {
+  private readonly listeners = new Map<string, Set<AuctionEventSubscription>>();
 
-  for (const listener of subscribers) {
-    listener(event);
+  publish(event: AuctionEvent) {
+    const subscribers = this.listeners.get(event.auctionId);
+    if (!subscribers) return;
+
+    for (const subscriber of subscribers) {
+      if (shouldDeliverAuctionEventToSubscriber(event, subscriber.userId)) {
+        subscriber.listener(event);
+      }
+    }
+  }
+
+  subscribe(
+    auctionId: string,
+    listener: AuctionEventListener,
+    options: { userId?: string | null } = {},
+  ) {
+    const auctionListeners = this.listeners.get(auctionId) ?? new Set<AuctionEventSubscription>();
+    const subscription = {
+      userId: options.userId,
+      listener,
+    };
+    auctionListeners.add(subscription);
+    this.listeners.set(auctionId, auctionListeners);
+
+    return () => {
+      auctionListeners.delete(subscription);
+      if (auctionListeners.size === 0) {
+        this.listeners.delete(auctionId);
+      }
+    };
+  }
+
+  reset() {
+    this.listeners.clear();
   }
 }
 
@@ -65,15 +99,20 @@ export function shouldDeliverAuctionEventToSubscriber(
   return event.type !== "bid.rejected" || event.actorUserId === userId;
 }
 
-export function subscribeToAuction(auctionId: string, listener: AuctionEventListener) {
-  const auctionListeners = listeners.get(auctionId) ?? new Set<AuctionEventListener>();
-  auctionListeners.add(listener);
-  listeners.set(auctionId, auctionListeners);
+const defaultAuctionEventBus = new AuctionEventBus();
 
-  return () => {
-    auctionListeners.delete(listener);
-    if (auctionListeners.size === 0) {
-      listeners.delete(auctionId);
-    }
-  };
+export function publishAuctionEvent(event: AuctionEvent) {
+  defaultAuctionEventBus.publish(event);
+}
+
+export function subscribeToAuction(
+  auctionId: string,
+  listener: AuctionEventListener,
+  options: { userId?: string | null } = {},
+) {
+  return defaultAuctionEventBus.subscribe(auctionId, listener, options);
+}
+
+export function resetAuctionEventBus() {
+  defaultAuctionEventBus.reset();
 }
