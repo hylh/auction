@@ -1,6 +1,6 @@
 import { aliasedTable } from "drizzle-orm/alias";
 import { asc, desc, eq, inArray } from "drizzle-orm";
-import { db } from "../db/client";
+import { db, sqlClient } from "../db/client";
 import { auctions, bids, fishItems, sales, users } from "../db/schema";
 import type { BidSnapshot } from "../domain/events";
 import type { AdminFilters } from "../domain/validation";
@@ -13,7 +13,7 @@ import {
   fishMatchesFilters,
   saleQueryConditions,
 } from "./auction-query-filters";
-import type { AuctionDetail, DashboardData, DemoUser } from "./auction-types";
+import type { AuctionDetail, DashboardData, DemoUser, TickerEntry } from "./auction-types";
 
 export async function listDemoUsers(): Promise<Array<DemoUser>> {
   return db
@@ -29,14 +29,23 @@ export async function listDemoUsers(): Promise<Array<DemoUser>> {
 export async function getDashboardData(): Promise<DashboardData> {
   await advanceAuctionLifecycle();
 
-  const [demoUsers, activeAuctions, latestBids, recentSales, inventoryNeedingAction] =
-    await Promise.all([
-      listDemoUsers(),
-      loadAuctionSummaries("active"),
-      loadLatestBids(8),
-      loadRecentSales(5),
-      loadInventoryNeedingAction(),
-    ]);
+  const [
+    demoUsers,
+    activeAuctions,
+    latestBids,
+    recentSales,
+    inventoryNeedingAction,
+    stats,
+    tickerSeries,
+  ] = await Promise.all([
+    listDemoUsers(),
+    loadAuctionSummaries("active"),
+    loadLatestBids(8),
+    loadRecentSales(5),
+    loadInventoryNeedingAction(),
+    loadDashboardStats(),
+    loadTickerSeries(),
+  ]);
 
   return {
     demoUsers,
@@ -44,7 +53,81 @@ export async function getDashboardData(): Promise<DashboardData> {
     latestBids,
     recentSales,
     inventoryNeedingAction,
+    stats,
+    tickerSeries,
   };
+}
+
+async function loadDashboardStats(): Promise<DashboardData["stats"]> {
+  try {
+    const rows = await sqlClient<
+      {
+        total_sales_today_cents: string | null;
+        average_bid_cents: string | null;
+        active_auction_count: string;
+        bids_last_minute: string;
+      }[]
+    >`
+      select
+        (select coalesce(sum(amount_cents), 0)::text from sales where completed_at >= current_date) as total_sales_today_cents,
+        (select coalesce(avg(amount_cents)::bigint, 0)::text from bids) as average_bid_cents,
+        (select count(*)::text from auctions where status = 'active') as active_auction_count,
+        (select count(*)::text from bids where accepted_at > now() - interval '1 minute') as bids_last_minute
+    `;
+    const row = rows[0];
+    return {
+      totalSalesTodayCents: Number(row?.total_sales_today_cents ?? 0),
+      averageBidCents: Number(row?.average_bid_cents ?? 0),
+      activeAuctionCount: Number(row?.active_auction_count ?? 0),
+      bidsLastMinute: Number(row?.bids_last_minute ?? 0),
+    };
+  } catch {
+    return {
+      totalSalesTodayCents: 0,
+      averageBidCents: 0,
+      activeAuctionCount: 0,
+      bidsLastMinute: 0,
+    };
+  }
+}
+
+async function loadTickerSeries(): Promise<Array<TickerEntry>> {
+  try {
+    const rows = await sqlClient<
+      {
+        species: string;
+        latest_cents: string;
+        prev_cents: string | null;
+      }[]
+    >`
+      with ranked as (
+        select
+          f.species,
+          s.amount_cents,
+          row_number() over (partition by f.species order by s.completed_at desc) as rn
+        from sales s
+        join fish_items f on f.id = s.fish_item_id
+      )
+      select
+        species,
+        max(case when rn = 1 then amount_cents end)::text as latest_cents,
+        max(case when rn = 2 then amount_cents end)::text as prev_cents
+      from ranked
+      where rn <= 2
+      group by species
+      order by species
+    `;
+
+    return rows.map((row) => {
+      const latest = Number(row.latest_cents);
+      const prev = row.prev_cents ? Number(row.prev_cents) : null;
+      const deltaPct =
+        prev !== null && prev > 0 ? Math.round(((latest - prev) / prev) * 1000) / 10 : null;
+      return { species: row.species, latestPriceCents: latest, deltaPct };
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function getAuctionDetail(auctionId: string): Promise<AuctionDetail> {

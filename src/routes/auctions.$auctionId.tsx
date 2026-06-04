@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { centsFromMajor, formatMoney } from "../domain/money";
 import { formatKilograms } from "../domain/weight";
+import { speciesColorToken } from "../domain/species-color";
 import type { AuctionEvent } from "../domain/events";
 import type { AuctionDetail } from "../server/auction-service";
 import { getAuctionDetailFn, getDemoUsersFn, placeBidFn } from "../server/functions";
@@ -170,16 +171,18 @@ function AuctionDetailPage() {
   return (
     <main className="page">
       <section className="hero">
-        <span className="pill">{detail.status}</span>
-        <h1>{detail.fish.displayName}</h1>
-        <p>
-          {detail.fish.species} · {detail.fish.grade} · {formatKilograms(detail.fish.weightGrams)}{" "}
-          from {detail.fish.catchRegion}. Seller: {detail.seller.displayName}.
-        </p>
+        <div>
+          <span className={`pill`}>{detail.status}</span>
+          <h1>{detail.fish.displayName}</h1>
+          <p>
+            {detail.fish.species} · {detail.fish.grade} · {formatKilograms(detail.fish.weightGrams)}{" "}
+            from {detail.fish.catchRegion}. Seller: {detail.seller.displayName}.
+          </p>
+        </div>
       </section>
 
       <section className="grid">
-        <article className="card">
+        <article className="card c-teal">
           <h2>Place bid</h2>
           <p className="metric">
             {detail.currentHighestBid
@@ -229,16 +232,26 @@ function AuctionDetailPage() {
           {connectionMessage && <p className="muted">{connectionMessage}</p>}
         </article>
 
-        <article className="card">
-          <h2>Live bid chain</h2>
+        <article className="card c-blue">
+          <h2>
+            Live bid chain{" "}
+            {detail.status === "active" && <span className="badge stream">STREAMING</span>}
+          </h2>
           <div className="list">
             {detail.bids.map((bid) => (
               <div className="row" key={bid.bidId}>
-                <div>
-                  <strong>{bid.bidderDisplayName}</strong>
-                  <div className="muted">{new Date(bid.acceptedAt).toLocaleTimeString()}</div>
+                <div className="name-wrap">
+                  <span
+                    className="sdot"
+                    style={{ background: `var(${speciesColorToken(detail.fish.species)})` }}
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <strong>{bid.bidderDisplayName}</strong>
+                    <div className="sub">{new Date(bid.acceptedAt).toLocaleTimeString()}</div>
+                  </div>
                 </div>
-                <span>{formatMoney(bid.amountCents)}</span>
+                <span className="amount">{formatMoney(bid.amountCents)}</span>
               </div>
             ))}
             {detail.bids.length === 0 && (

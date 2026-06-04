@@ -80,16 +80,18 @@ function NewInventoryPage() {
   return (
     <main className="page">
       <section className="hero">
-        <span className="pill">Inventory intake</span>
-        <h1>Add fish for sale.</h1>
-        <p>
-          Fish weight is entered in kilograms and stored as integer grams. Money is entered in NOK
-          and stored as integer cents. You can list inventory only, or create an active or scheduled
-          auction immediately.
-        </p>
+        <div>
+          <span className="pill">Inventory intake</span>
+          <h1>Add fish for sale.</h1>
+          <p>
+            Fish weight is entered in kilograms and stored as integer grams. Money is entered in NOK
+            and stored as integer cents. You can list inventory only, or create an active or
+            scheduled auction immediately.
+          </p>
+        </div>
       </section>
 
-      <section className="card">
+      <article className="card c-teal">
         <form
           className="form"
           onSubmit={(event) => {
@@ -284,7 +286,7 @@ function NewInventoryPage() {
           </button>
         </form>
         {message && <p className={message.type}>{message.text}</p>}
-      </section>
+      </article>
     </main>
   );
 }

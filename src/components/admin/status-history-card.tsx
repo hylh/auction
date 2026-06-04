@@ -1,3 +1,4 @@
+import { speciesColorToken } from "../../domain/species-color";
 import type { AdminData } from "../../server/auction-service";
 
 type StatusHistoryCardProps = {
@@ -6,18 +7,27 @@ type StatusHistoryCardProps = {
 
 export function StatusHistoryCard({ changes }: StatusHistoryCardProps) {
   return (
-    <article className="card">
+    <article className="card c-blue">
       <h2>Status history</h2>
       <div className="list">
         {changes.map((change) => (
           <div className="row" key={change.id}>
-            <div>
-              <strong>{change.fishDisplayName}</strong>
-              <div className="muted">
-                {change.fromStatus ?? "created"} -&gt; {change.toStatus} · {change.reason}
+            <div className="name-wrap">
+              <span
+                className="sdot"
+                style={{ background: `var(${speciesColorToken(change.species)})` }}
+                aria-hidden="true"
+              />
+              <div>
+                <strong>{change.fishDisplayName}</strong>
+                <div className="sub">
+                  {change.fromStatus ?? "created"} → {change.toStatus} · {change.reason}
+                </div>
               </div>
             </div>
-            <span>{new Date(change.createdAt).toLocaleDateString()}</span>
+            <span className="muted" style={{ fontSize: "0.82rem", whiteSpace: "nowrap" }}>
+              {new Date(change.createdAt).toLocaleDateString()}
+            </span>
           </div>
         ))}
         {changes.length === 0 && <p className="muted">No status history matches the filters.</p>}

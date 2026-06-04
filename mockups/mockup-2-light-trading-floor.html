@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fish Auction House — Mockup 2 (Light / Trading Floor)</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "IBM Plex Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+        --bg: #eef4fb;
+        --panel: #ffffff;
+        --panel-2: #f4f8fd;
+        --line: #dde7f3;
+        --text: #122036;
+        --muted: #64748b;
+        --accent: #0d9488;
+        --accent-soft: rgb(13 148 136 / 12%);
+        --up: #0f9d6f;
+        --teal: #0d9488;
+        --blue: #2563eb;
+        --amber: #d97706;
+        --pink: #db2777;
+        --violet: #7c3aed;
+        line-height: 1.5;
+        color: var(--text);
+        background:
+          radial-gradient(900px 500px at 100% -10%, rgb(37 99 235 / 10%), transparent 60%),
+          radial-gradient(800px 500px at -10% 0%, rgb(13 148 136 / 12%), transparent 55%), var(--bg);
+        background-attachment: fixed;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      a {
+        color: inherit;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.9rem clamp(1rem, 5vw, 3rem);
+        border-bottom: 1px solid var(--line);
+        background: rgb(255 255 255 / 82%);
+        backdrop-filter: blur(14px);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      .brand {
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        text-decoration: none;
+        font-size: 1.05rem;
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+      }
+      .brand .mark {
+        width: 1.65rem;
+        height: 1.65rem;
+        border-radius: 9px;
+        background: linear-gradient(135deg, var(--teal), #0ea5e9 55%, var(--blue));
+        display: grid;
+        place-items: center;
+        color: #ffffff;
+        font-size: 1rem;
+        box-shadow: 0 6px 16px rgb(14 165 233 / 35%);
+      }
+      .nav {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+      }
+      .nav a {
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 0.4rem 0.8rem;
+        text-decoration: none;
+        color: var(--muted);
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+      .nav a:hover {
+        color: var(--text);
+      }
+      .nav a.active {
+        background: linear-gradient(135deg, var(--teal), var(--blue));
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 6px 16px rgb(37 99 235 / 28%);
+      }
+
+      .ticker {
+        display: flex;
+        align-items: stretch;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(90deg, rgb(13 148 136 / 8%), rgb(37 99 235 / 8%));
+        font-size: 0.85rem;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+      }
+      .ticker-toggle {
+        flex: 0 0 auto;
+        border: 0;
+        border-right: 1px solid var(--line);
+        background: rgb(255 255 255 / 60%);
+        color: var(--muted);
+        cursor: pointer;
+        padding: 0 0.85rem;
+        font-size: 0.85rem;
+      }
+      .ticker-toggle:hover {
+        color: var(--accent);
+        background: #fff;
+      }
+      .ticker-viewport {
+        flex: 1 1 auto;
+        overflow: hidden;
+      }
+      .ticker .track {
+        display: inline-flex;
+        white-space: nowrap;
+        padding: 0.5rem 0;
+        animation: ticker-scroll 90s linear infinite;
+      }
+      .ticker:hover .track {
+        animation-play-state: paused;
+      }
+      .ticker .track.paused {
+        animation-play-state: paused;
+      }
+      .ticker span {
+        margin: 0 1.4rem;
+        color: var(--muted);
+      }
+      .ticker b {
+        color: var(--text);
+      }
+      .ticker .up {
+        color: var(--up);
+        font-weight: 700;
+      }
+      @keyframes ticker-scroll {
+        from {
+          transform: translateX(0);
+        }
+        to {
+          transform: translateX(-50%);
+        }
+      }
+
+      .page {
+        width: min(1240px, calc(100vw - 2rem));
+        margin: 0 auto;
+        padding: 1.75rem 0 4rem;
+      }
+
+      .hero {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      .hero h1 {
+        margin: 0.4rem 0 0;
+        font-size: clamp(1.8rem, 4vw, 2.8rem);
+        letter-spacing: -0.04em;
+        color: var(--text);
+      }
+      .hero p {
+        margin: 0.5rem 0 0;
+        color: var(--muted);
+        max-width: 620px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border-radius: 999px;
+        padding: 0.25rem 0.7rem;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .dot {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 50%;
+        background: var(--up);
+        box-shadow: 0 0 0 4px rgb(15 157 111 / 18%);
+      }
+
+      .stat-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      .stat {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 1.05rem 1.2rem;
+        background: var(--panel);
+        box-shadow: 0 14px 34px rgb(31 53 78 / 8%);
+      }
+      .stat::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 5px;
+      }
+      .stat .label {
+        color: var(--muted);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .stat .value {
+        font-size: 1.75rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        margin-top: 0.3rem;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+      }
+      .stat .delta {
+        font-size: 0.85rem;
+        margin-top: 0.15rem;
+        font-weight: 600;
+      }
+      .stat.teal::before {
+        background: var(--teal);
+      }
+      .stat.teal {
+        background: linear-gradient(180deg, rgb(13 148 136 / 8%), #fff 60%);
+      }
+      .stat.teal .value {
+        color: #0b7a70;
+      }
+      .stat.teal .delta {
+        color: var(--up);
+      }
+      .stat.blue::before {
+        background: var(--blue);
+      }
+      .stat.blue {
+        background: linear-gradient(180deg, rgb(37 99 235 / 8%), #fff 60%);
+      }
+      .stat.blue .value {
+        color: #1d4ed8;
+      }
+      .stat.blue .delta {
+        color: #2563eb;
+      }
+      .stat.amber::before {
+        background: var(--amber);
+      }
+      .stat.amber {
+        background: linear-gradient(180deg, rgb(217 119 6 / 9%), #fff 60%);
+      }
+      .stat.amber .value {
+        color: #b45309;
+      }
+      .stat.amber .delta {
+        color: #c2620a;
+      }
+      .stat.violet::before {
+        background: var(--violet);
+      }
+      .stat.violet {
+        background: linear-gradient(180deg, rgb(124 58 237 / 9%), #fff 60%);
+      }
+      .stat.violet .value {
+        color: #6d28d9;
+      }
+      .stat.violet .delta {
+        color: #7c3aed;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+      }
+      .card {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--panel);
+        padding: 1.1rem 1.2rem;
+        box-shadow: 0 14px 34px rgb(31 53 78 / 7%);
+      }
+      .card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+      }
+      .card.c-teal::before {
+        background: linear-gradient(90deg, var(--teal), #2dd4bf);
+      }
+      .card.c-blue::before {
+        background: linear-gradient(90deg, var(--blue), #38bdf8);
+      }
+      .card.c-amber::before {
+        background: linear-gradient(90deg, var(--amber), #fbbf24);
+      }
+      .card.c-pink::before {
+        background: linear-gradient(90deg, var(--pink), #f472b6);
+      }
+      .card h2 {
+        margin: 0.15rem 0 0.85rem;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .badge {
+        font-size: 0.72rem;
+        padding: 0.18rem 0.55rem;
+        border-radius: 999px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+      .badge.live {
+        color: #0b7a70;
+        background: rgb(13 148 136 / 14%);
+      }
+      .badge.stream {
+        color: #1d4ed8;
+        background: rgb(37 99 235 / 14%);
+      }
+
+      .list {
+        display: grid;
+        gap: 0;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding: 0.7rem 0;
+      }
+      .row:last-child {
+        border-bottom: 0;
+      }
+      .row a.name {
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .row a.name:hover {
+        color: var(--accent);
+      }
+      .name-wrap {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+      }
+      .sdot {
+        width: 0.6rem;
+        height: 0.6rem;
+        border-radius: 50%;
+        flex: 0 0 auto;
+      }
+      .sdot.salmon {
+        background: #fb7185;
+      }
+      .sdot.cod {
+        background: #38bdf8;
+      }
+      .sdot.tuna {
+        background: #f43f5e;
+      }
+      .sdot.halibut {
+        background: #34d399;
+      }
+      .sdot.mackerel {
+        background: #a78bfa;
+      }
+      .sdot.trout {
+        background: #fbbf24;
+      }
+      .sdot.herring {
+        background: #94a3b8;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 0.82rem;
+        margin-top: 0.15rem;
+      }
+      .amount {
+        font-weight: 700;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        white-space: nowrap;
+        color: var(--text);
+      }
+      .amount.live {
+        color: #0b7a70;
+      }
+      .avatar {
+        width: 1.8rem;
+        height: 1.8rem;
+        border-radius: 50%;
+        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 700;
+      }
+      .tag {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 0.12rem 0.5rem;
+        border-radius: 999px;
+        font-weight: 700;
+      }
+      .tag.listed {
+        color: #b45309;
+        background: rgb(217 119 6 / 14%);
+      }
+      .tag.draft {
+        color: #475569;
+        background: rgb(71 85 105 / 12%);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <a href="#" class="brand"><span class="mark">⚓</span> Fish Auction House</a>
+      <nav class="nav" aria-label="Primary">
+        <a href="#" class="active">Dashboard</a>
+        <a href="#">Add fish</a>
+        <a href="#">Admin</a>
+        <a href="#">Metrics</a>
+      </nav>
+    </header>
+
+    <div class="ticker">
+      <button
+        class="ticker-toggle"
+        type="button"
+        aria-label="Pause ticker"
+        onclick="toggleTicker(this)"
+      >
+        ⏸
+      </button>
+      <div class="ticker-viewport">
+        <div class="track">
+          <span>TUNA <b>kr 7 800</b> <span class="up">▲ +6.8%</span></span>
+          <span>COD <b>kr 3 100</b> <span class="up">▲ +2.1%</span></span>
+          <span>HALIBUT <b>kr 4 050</b> <span class="up">▲ +4.4%</span></span>
+          <span>SALMON <b>kr 2 400</b> <span class="up">▲ +1.7%</span></span>
+          <span>MACKEREL <b>kr 1 250</b> <span class="up">▲ +0.9%</span></span>
+          <span>TROUT <b>kr 3 900</b> <span class="up">▲ +3.2%</span></span>
+          <span>HERRING <b>kr 980</b> <span class="up">▲ +0.5%</span></span>
+          <span aria-hidden="true">TUNA <b>kr 7 800</b> <span class="up">▲ +6.8%</span></span>
+          <span aria-hidden="true">COD <b>kr 3 100</b> <span class="up">▲ +2.1%</span></span>
+          <span aria-hidden="true">HALIBUT <b>kr 4 050</b> <span class="up">▲ +4.4%</span></span>
+          <span aria-hidden="true">SALMON <b>kr 2 400</b> <span class="up">▲ +1.7%</span></span>
+          <span aria-hidden="true">MACKEREL <b>kr 1 250</b> <span class="up">▲ +0.9%</span></span>
+          <span aria-hidden="true">TROUT <b>kr 3 900</b> <span class="up">▲ +3.2%</span></span>
+          <span aria-hidden="true">HERRING <b>kr 980</b> <span class="up">▲ +0.5%</span></span>
+        </div>
+      </div>
+    </div>
+    <script>
+      function toggleTicker(btn) {
+        const track = btn.closest(".ticker").querySelector(".track");
+        const paused = track.classList.toggle("paused");
+        btn.textContent = paused ? "▶" : "⏸";
+        btn.setAttribute("aria-label", paused ? "Play ticker" : "Pause ticker");
+      }
+    </script>
+
+    <main class="page">
+      <section class="hero">
+        <div>
+          <span class="pill"><span class="dot"></span> Auction floor live</span>
+          <h1>Real-time bids for fresh Nordic catch.</h1>
+          <p>
+            PostgreSQL + Drizzle + TanStack Start, streamed over per-auction Server-Sent Events.
+          </p>
+        </div>
+      </section>
+
+      <section class="stat-strip">
+        <div class="stat teal">
+          <div class="label">Total sales today</div>
+          <div class="value">kr 184 250</div>
+          <div class="delta">▲ 14 sales</div>
+        </div>
+        <div class="stat blue">
+          <div class="label">Average bid</div>
+          <div class="value">kr 2 145</div>
+          <div class="delta">96 accepted</div>
+        </div>
+        <div class="stat amber">
+          <div class="label">Active auctions</div>
+          <div class="value">5</div>
+          <div class="delta">3 closing soon</div>
+        </div>
+        <div class="stat violet">
+          <div class="label">Bids / min</div>
+          <div class="value">12.4</div>
+          <div class="delta">▲ peak floor</div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="card c-teal">
+          <h2>Active auctions <span class="badge live">5 LIVE</span></h2>
+          <div class="list">
+            <div class="row">
+              <div class="name-wrap">
+                <span class="sdot tuna"></span>
+                <div>
+                  <a href="#" class="name">Bluefin tuna loin</a>
+                  <div class="sub">tuna · Skagerrak · 18.2 kg</div>
+                </div>
+              </div>
+              <a href="#" class="amount live">kr 7 800</a>
+            </div>
+            <div class="row">
+              <div class="name-wrap">
+                <span class="sdot cod"></span>
+                <div>
+                  <a href="#" class="name">Line-caught cod batch</a>
+                  <div class="sub">cod · Vesterålen · 60.0 kg</div>
+                </div>
+              </div>
+              <a href="#" class="amount live">kr 3 100</a>
+            </div>
+            <div class="row">
+              <div class="name-wrap">
+                <span class="sdot halibut"></span>
+                <div>
+                  <a href="#" class="name">Fjord halibut</a>
+                  <div class="sub">halibut · Sognefjord · 25.4 kg</div>
+                </div>
+              </div>
+              <a href="#" class="amount live">kr 4 050</a>
+            </div>
+            <div class="row">
+              <div class="name-wrap">
+                <span class="sdot salmon"></span>
+                <div>
+                  <a href="#" class="name">Morning catch salmon crate</a>
+                  <div class="sub">salmon · Lofoten · 42.5 kg</div>
+                </div>
+              </div>
+              <a href="#" class="amount live">kr 2 400</a>
+            </div>
+            <div class="row">
+              <div class="name-wrap">
+                <span class="sdot mackerel"></span>
+                <div>
+                  <a href="#" class="name">Smoked mackerel lot</a>
+                  <div class="sub">mackerel · Bergen · 31.0 kg</div>
+                </div>
+              </div>
+              <a href="#" class="amount live">kr 1 250</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="card c-blue">
+          <h2>Latest accepted bids <span class="badge stream">STREAMING</span></h2>
+          <div class="list">
+            <div class="row">
+              <div class="name-wrap">
+                <span class="avatar" style="background: #0d9488">KB</span>
+                <div>
+                  <strong>Kari Buyer</strong>
+                  <div class="sub">Bluefin tuna loin · 14:06:41</div>
+                </div>
+              </div>
+              <span class="amount">kr 7 800</span>
+            </div>
+            <div class="row">
+              <div class="name-wrap">
+                <span class="avatar" style="background: #2563eb">OR</span>
+                <div>
+                  <strong>Ola Restaurant</strong>
+                  <div class="sub">Line-caught cod batch · 14:06:33</div>
+                </div>
+              </div>
+              <span class="amount">kr 3 100</span>
+            </div>
+            <div class="row">
+              <div class="name-wrap">
+                <span class="avatar" style="background: #db2777">NF</span>
+                <div>
+                  <strong>Nordic Fishmonger</strong>
+                  <div class="sub">Fjord halibut · 14:06:21</div>
+                </div>
+              </div>
+              <span class="amount">kr 4 050</span>
+            </div>
+            <div class="row">
+              <div class="name-wrap">
+                <span class="avatar" style="background: #0d9488">KB</span>
+                <div>
+                  <strong>Kari Buyer</strong>
+                  <div class="sub">Morning catch salmon crate · 14:06:09</div>
+                </div>
+              </div>
+              <span class="amount">kr 2 400</span>
+            </div>
+            <div class="row">
+              <div class="name-wrap">
+                <span class="avatar" style="background: #d97706">BB</span>
+                <div>
+                  <strong>Bergen Bistro</strong>
+                  <div class="sub">Smoked mackerel lot · 14:05:58</div>
+                </div>
+              </div>
+              <span class="amount">kr 1 250</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="card c-amber">
+          <h2>Recent sales</h2>
+          <div class="list">
+            <div class="row">
+              <div class="name-wrap">
+                <span class="sdot trout"></span>
+                <div>
+                  <strong>Arctic trout fillet</strong>
+                  <div class="sub">Kari Buyer ← Lofoten Seafood</div>
+                </div>
+              </div>
+              <span class="amount">kr 3 900</span>
+            </div>
+            <div class="row">
+              <div class="name-wrap">
+                <span class="sdot cod"></span>
+                <div>
+                  <strong>Premium cod loin</strong>
+                  <div class="sub">Ola Restaurant ← Vesterålen Fish</div>
+                </div>
+              </div>
+              <span class="amount">kr 5 250</span>
+            </div>
+            <div class="row">
+              <div class="name-wrap">
+                <span class="sdot salmon"></span>
+                <div>
+                  <strong>Whole salmon</strong>
+                  <div class="sub">Nordic Fishmonger ← Lofoten Seafood</div>
+                </div>
+              </div>
+              <span class="amount">kr 2 750</span>
+            </div>
+            <div class="row">
+              <div class="name-wrap">
+                <span class="sdot herring"></span>
+                <div>
+                  <strong>Herring barrel</strong>
+                  <div class="sub">Bergen Bistro ← Coastal Catch</div>
+                </div>
+              </div>
+              <span class="amount">kr 980</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="card c-pink">
+          <h2>Inventory needing action</h2>
+          <div class="list">
+            <div class="row">
+              <div class="name-wrap">
+                <span class="sdot halibut"></span>
+                <div>
+                  <strong>Evening halibut crate</strong>
+                  <div class="sub">grade A · 28.0 kg · kr 3 200</div>
+                </div>
+              </div>
+              <span class="tag listed">listed</span>
+            </div>
+            <div class="row">
+              <div class="name-wrap">
+                <span class="sdot herring"></span>
+                <div>
+                  <strong>Fresh herring lot</strong>
+                  <div class="sub">grade B · 50.0 kg · kr 900</div>
+                </div>
+              </div>
+              <span class="tag draft">draft</span>
+            </div>
+            <div class="row">
+              <div class="name-wrap">
+                <span class="sdot trout"></span>
+                <div>
+                  <strong>Trout selection</strong>
+                  <div class="sub">grade A · 16.5 kg · kr 1 700</div>
+                </div>
+              </div>
+              <span class="tag listed">listed</span>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

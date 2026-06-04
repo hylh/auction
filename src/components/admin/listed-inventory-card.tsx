@@ -1,4 +1,5 @@
 import { formatMoney } from "../../domain/money";
+import { speciesColorToken } from "../../domain/species-color";
 import { FishSummary } from "./fish-summary";
 import type { AdminFish } from "./types";
 
@@ -18,12 +19,19 @@ export function ListedInventoryCard({
   onWithdrawFish,
 }: ListedInventoryCardProps) {
   return (
-    <article className="card">
+    <article className="card c-amber">
       <h2>Listed inventory</h2>
       <div className="list">
         {inventory.map((fish) => (
           <div className="row" key={fish.id}>
-            <FishSummary fish={fish} detail={<>start {formatMoney(fish.startingPriceCents)}</>} />
+            <div className="name-wrap">
+              <span
+                className="sdot"
+                style={{ background: `var(${speciesColorToken(fish.species)})` }}
+                aria-hidden="true"
+              />
+              <FishSummary fish={fish} detail={<>start {formatMoney(fish.startingPriceCents)}</>} />
+            </div>
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
               <button
                 className="button secondary"

@@ -1,3 +1,4 @@
+import { speciesColorToken } from "../../domain/species-color";
 import type { AdminData } from "../../server/auction-service";
 import { FishSummary } from "./fish-summary";
 
@@ -12,8 +13,15 @@ export function WithdrawnInventoryCard({ inventory }: WithdrawnInventoryCardProp
       <div className="list">
         {inventory.map((fish) => (
           <div className="row" key={fish.id}>
-            <FishSummary fish={fish} detail={fish.catchRegion} />
-            <span>{fish.status}</span>
+            <div className="name-wrap">
+              <span
+                className="sdot"
+                style={{ background: `var(${speciesColorToken(fish.species)})` }}
+                aria-hidden="true"
+              />
+              <FishSummary fish={fish} detail={fish.catchRegion} />
+            </div>
+            <span className={`tag ${fish.status}`}>{fish.status}</span>
           </div>
         ))}
         {inventory.length === 0 && (

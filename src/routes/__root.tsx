@@ -8,6 +8,10 @@ import {
 } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { ThemeToggle } from "../theme/ThemeToggle";
+import { themeTokensCss } from "../theme/theme-tokens-css";
+import { themeScript } from "../theme/theme-script";
+import { getThemeFn } from "../theme/theme-server";
 import "../styles.css";
 
 type RouterContext = {
@@ -28,26 +32,41 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       },
     ],
   }),
+  loader: async () => {
+    const { theme } = await getThemeFn();
+    return { theme };
+  },
   component: RootComponent,
 });
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const loaderData = Route.useLoaderData();
 
   return (
-    <RootDocument>
+    <RootDocument theme={loaderData?.theme ?? "dark"}>
       <QueryClientProvider client={queryClient}>
         <div className="shell">
           <header className="topbar">
             <Link to="/" className="brand">
+              <span className="mark">⚓</span>
               Fish Auction House
             </Link>
             <nav className="nav" aria-label="Primary">
-              <Link to="/">Dashboard</Link>
-              <Link to="/inventory/new">Add fish</Link>
-              <Link to="/admin">Admin</Link>
+              <Link to="/" activeProps={{ className: "active" }} activeOptions={{ exact: true }}>
+                Dashboard
+              </Link>
+              <Link to="/inventory/new" activeProps={{ className: "active" }}>
+                Add fish
+              </Link>
+              <Link to="/admin" activeProps={{ className: "active" }}>
+                Admin
+              </Link>
               <a href="/metrics">Metrics</a>
             </nav>
+            <div className="topbar-right">
+              <ThemeToggle />
+            </div>
           </header>
           <Outlet />
         </div>
@@ -56,10 +75,17 @@ function RootComponent() {
   );
 }
 
-function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
+function RootDocument({
+  children,
+  theme,
+}: Readonly<{ children: ReactNode; theme: "dark" | "light" }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme={theme} suppressHydrationWarning>
       <head>
+        {/* Token CSS injected before any component CSS for zero-flash theming */}
+        <style dangerouslySetInnerHTML={{ __html: themeTokensCss }} />
+        {/* Inline script runs synchronously before hydration to apply the correct theme */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <HeadContent />
       </head>
       <body>

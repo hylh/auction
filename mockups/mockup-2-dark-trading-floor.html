@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fish Auction House — Mockup 2 (Dark / Trading Floor)</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "IBM Plex Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+        --bg: #0a1018;
+        --panel: #111a26;
+        --panel-2: #0e1620;
+        --line: #1f2d3d;
+        --text: #e6edf5;
+        --muted: #7d8fa3;
+        --accent: #2dd4bf;
+        --accent-soft: rgb(45 212 191 / 12%);
+        --up: #34d399;
+        line-height: 1.5;
+        color: var(--text);
+        background: var(--bg);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      a {
+        color: inherit;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.9rem clamp(1rem, 5vw, 3rem);
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(180deg, #0d1622, #0a1018);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      .brand {
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        text-decoration: none;
+        font-size: 1.05rem;
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+      }
+      .brand .mark {
+        width: 1.6rem;
+        height: 1.6rem;
+        border-radius: 8px;
+        background: linear-gradient(135deg, var(--accent), #0ea5e9);
+        display: grid;
+        place-items: center;
+        color: #04121a;
+        font-size: 1rem;
+      }
+      .nav {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+      }
+      .nav a {
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 0.4rem 0.8rem;
+        text-decoration: none;
+        color: var(--muted);
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+      .nav a:hover {
+        color: var(--text);
+      }
+      .nav a.active {
+        background: var(--accent-soft);
+        color: var(--accent);
+        border-color: rgb(45 212 191 / 30%);
+      }
+
+      .ticker {
+        display: flex;
+        align-items: stretch;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel-2);
+        font-size: 0.85rem;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+      }
+      .ticker-toggle {
+        flex: 0 0 auto;
+        border: 0;
+        border-right: 1px solid var(--line);
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        padding: 0 0.85rem;
+        font-size: 0.85rem;
+      }
+      .ticker-toggle:hover {
+        color: var(--accent);
+        background: var(--accent-soft);
+      }
+      .ticker-viewport {
+        flex: 1 1 auto;
+        overflow: hidden;
+      }
+      .ticker .track {
+        display: inline-flex;
+        white-space: nowrap;
+        padding: 0.5rem 0;
+        animation: ticker-scroll 90s linear infinite;
+      }
+      .ticker:hover .track {
+        animation-play-state: paused;
+      }
+      .ticker .track.paused {
+        animation-play-state: paused;
+      }
+      .ticker span {
+        margin: 0 1.4rem;
+        color: var(--muted);
+      }
+      .ticker b {
+        color: var(--text);
+      }
+      .ticker .up {
+        color: var(--up);
+      }
+      @keyframes ticker-scroll {
+        from {
+          transform: translateX(0);
+        }
+        to {
+          transform: translateX(-50%);
+        }
+      }
+
+      .page {
+        width: min(1240px, calc(100vw - 2rem));
+        margin: 0 auto;
+        padding: 1.75rem 0 4rem;
+      }
+
+      .hero {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      .hero h1 {
+        margin: 0.4rem 0 0;
+        font-size: clamp(1.8rem, 4vw, 2.8rem);
+        letter-spacing: -0.04em;
+      }
+      .hero p {
+        margin: 0.5rem 0 0;
+        color: var(--muted);
+        max-width: 620px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border-radius: 999px;
+        padding: 0.25rem 0.7rem;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .dot {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 50%;
+        background: var(--up);
+        box-shadow: 0 0 0 4px rgb(52 211 153 / 18%);
+      }
+
+      .stat-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1px;
+        background: var(--line);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+      }
+      .stat {
+        background: var(--panel);
+        padding: 1.1rem 1.25rem;
+      }
+      .stat .label {
+        color: var(--muted);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .stat .value {
+        font-size: 1.7rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        margin-top: 0.25rem;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+      }
+      .stat .delta {
+        color: var(--up);
+        font-size: 0.85rem;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--panel);
+        padding: 1.1rem 1.2rem;
+      }
+      .card h2 {
+        margin: 0 0 0.85rem;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .card h2 .badge {
+        color: var(--up);
+        font-size: 0.75rem;
+        background: rgb(52 211 153 / 12%);
+        padding: 0.15rem 0.5rem;
+        border-radius: 6px;
+      }
+
+      .list {
+        display: grid;
+        gap: 0;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding: 0.7rem 0;
+      }
+      .row:last-child {
+        border-bottom: 0;
+      }
+      .row a {
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .row a:hover {
+        color: var(--accent);
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 0.82rem;
+        margin-top: 0.15rem;
+      }
+      .amount {
+        font-weight: 700;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        white-space: nowrap;
+        color: var(--text);
+      }
+      .amount.live {
+        color: var(--accent);
+      }
+      .tag {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 0.1rem 0.45rem;
+        border-radius: 5px;
+        border: 1px solid var(--line);
+        color: var(--muted);
+      }
+      .tag.listed {
+        color: #fbbf24;
+        border-color: rgb(251 191 36 / 35%);
+      }
+      .tag.draft {
+        color: #94a3b8;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <a href="#" class="brand"><span class="mark">⚓</span> Fish Auction House</a>
+      <nav class="nav" aria-label="Primary">
+        <a href="#" class="active">Dashboard</a>
+        <a href="#">Add fish</a>
+        <a href="#">Admin</a>
+        <a href="#">Metrics</a>
+      </nav>
+    </header>
+
+    <div class="ticker">
+      <button
+        class="ticker-toggle"
+        type="button"
+        aria-label="Pause ticker"
+        onclick="toggleTicker(this)"
+      >
+        ⏸
+      </button>
+      <div class="ticker-viewport">
+        <div class="track">
+          <span>TUNA <b>kr 7 800</b> <span class="up">▲ +6.8%</span></span>
+          <span>COD <b>kr 3 100</b> <span class="up">▲ +2.1%</span></span>
+          <span>HALIBUT <b>kr 4 050</b> <span class="up">▲ +4.4%</span></span>
+          <span>SALMON <b>kr 2 400</b> <span class="up">▲ +1.7%</span></span>
+          <span>MACKEREL <b>kr 1 250</b> <span class="up">▲ +0.9%</span></span>
+          <span>TROUT <b>kr 3 900</b> <span class="up">▲ +3.2%</span></span>
+          <span>HERRING <b>kr 980</b> <span class="up">▲ +0.5%</span></span>
+          <span aria-hidden="true">TUNA <b>kr 7 800</b> <span class="up">▲ +6.8%</span></span>
+          <span aria-hidden="true">COD <b>kr 3 100</b> <span class="up">▲ +2.1%</span></span>
+          <span aria-hidden="true">HALIBUT <b>kr 4 050</b> <span class="up">▲ +4.4%</span></span>
+          <span aria-hidden="true">SALMON <b>kr 2 400</b> <span class="up">▲ +1.7%</span></span>
+          <span aria-hidden="true">MACKEREL <b>kr 1 250</b> <span class="up">▲ +0.9%</span></span>
+          <span aria-hidden="true">TROUT <b>kr 3 900</b> <span class="up">▲ +3.2%</span></span>
+          <span aria-hidden="true">HERRING <b>kr 980</b> <span class="up">▲ +0.5%</span></span>
+        </div>
+      </div>
+    </div>
+    <script>
+      function toggleTicker(btn) {
+        const track = btn.closest(".ticker").querySelector(".track");
+        const paused = track.classList.toggle("paused");
+        btn.textContent = paused ? "▶" : "⏸";
+        btn.setAttribute("aria-label", paused ? "Play ticker" : "Pause ticker");
+      }
+    </script>
+
+    <main class="page">
+      <section class="hero">
+        <div>
+          <span class="pill"><span class="dot"></span> Auction floor live</span>
+          <h1>Real-time bids for fresh Nordic catch.</h1>
+          <p>
+            PostgreSQL + Drizzle + TanStack Start, streamed over per-auction Server-Sent Events.
+          </p>
+        </div>
+      </section>
+
+      <section class="stat-strip">
+        <div class="stat">
+          <div class="label">Total sales today</div>
+          <div class="value">kr 184 250</div>
+          <div class="delta">▲ 14 sales</div>
+        </div>
+        <div class="stat">
+          <div class="label">Average bid</div>
+          <div class="value">kr 2 145</div>
+          <div class="delta">96 accepted</div>
+        </div>
+        <div class="stat">
+          <div class="label">Active auctions</div>
+          <div class="value">5</div>
+          <div class="delta">3 closing soon</div>
+        </div>
+        <div class="stat">
+          <div class="label">Bids / min</div>
+          <div class="value">12.4</div>
+          <div class="delta">▲ peak floor</div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>Active auctions <span class="badge">5 LIVE</span></h2>
+          <div class="list">
+            <div class="row">
+              <div>
+                <a href="#">Bluefin tuna loin</a>
+                <div class="sub">tuna · Skagerrak · 18.2 kg</div>
+              </div>
+              <a href="#" class="amount live">kr 7 800</a>
+            </div>
+            <div class="row">
+              <div>
+                <a href="#">Line-caught cod batch</a>
+                <div class="sub">cod · Vesterålen · 60.0 kg</div>
+              </div>
+              <a href="#" class="amount live">kr 3 100</a>
+            </div>
+            <div class="row">
+              <div>
+                <a href="#">Fjord halibut</a>
+                <div class="sub">halibut · Sognefjord · 25.4 kg</div>
+              </div>
+              <a href="#" class="amount live">kr 4 050</a>
+            </div>
+            <div class="row">
+              <div>
+                <a href="#">Morning catch salmon crate</a>
+                <div class="sub">salmon · Lofoten · 42.5 kg</div>
+              </div>
+              <a href="#" class="amount live">kr 2 400</a>
+            </div>
+            <div class="row">
+              <div>
+                <a href="#">Smoked mackerel lot</a>
+                <div class="sub">mackerel · Bergen · 31.0 kg</div>
+              </div>
+              <a href="#" class="amount live">kr 1 250</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Latest accepted bids <span class="badge">STREAMING</span></h2>
+          <div class="list">
+            <div class="row">
+              <div>
+                <strong>Kari Buyer</strong>
+                <div class="sub">Bluefin tuna loin · 14:06:41</div>
+              </div>
+              <span class="amount">kr 7 800</span>
+            </div>
+            <div class="row">
+              <div>
+                <strong>Ola Restaurant</strong>
+                <div class="sub">Line-caught cod batch · 14:06:33</div>
+              </div>
+              <span class="amount">kr 3 100</span>
+            </div>
+            <div class="row">
+              <div>
+                <strong>Nordic Fishmonger</strong>
+                <div class="sub">Fjord halibut · 14:06:21</div>
+              </div>
+              <span class="amount">kr 4 050</span>
+            </div>
+            <div class="row">
+              <div>
+                <strong>Kari Buyer</strong>
+                <div class="sub">Morning catch salmon crate · 14:06:09</div>
+              </div>
+              <span class="amount">kr 2 400</span>
+            </div>
+            <div class="row">
+              <div>
+                <strong>Bergen Bistro</strong>
+                <div class="sub">Smoked mackerel lot · 14:05:58</div>
+              </div>
+              <span class="amount">kr 1 250</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Recent sales</h2>
+          <div class="list">
+            <div class="row">
+              <div>
+                <strong>Arctic trout fillet</strong>
+                <div class="sub">Kari Buyer ← Lofoten Seafood</div>
+              </div>
+              <span class="amount">kr 3 900</span>
+            </div>
+            <div class="row">
+              <div>
+                <strong>Premium cod loin</strong>
+                <div class="sub">Ola Restaurant ← Vesterålen Fish</div>
+              </div>
+              <span class="amount">kr 5 250</span>
+            </div>
+            <div class="row">
+              <div>
+                <strong>Whole salmon</strong>
+                <div class="sub">Nordic Fishmonger ← Lofoten Seafood</div>
+              </div>
+              <span class="amount">kr 2 750</span>
+            </div>
+            <div class="row">
+              <div>
+                <strong>Herring barrel</strong>
+                <div class="sub">Bergen Bistro ← Coastal Catch</div>
+              </div>
+              <span class="amount">kr 980</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Inventory needing action</h2>
+          <div class="list">
+            <div class="row">
+              <div>
+                <strong>Evening halibut crate</strong>
+                <div class="sub">grade A · 28.0 kg · kr 3 200</div>
+              </div>
+              <span class="tag listed">listed</span>
+            </div>
+            <div class="row">
+              <div>
+                <strong>Fresh herring lot</strong>
+                <div class="sub">grade B · 50.0 kg · kr 900</div>
+              </div>
+              <span class="tag draft">draft</span>
+            </div>
+            <div class="row">
+              <div>
+                <strong>Trout selection</strong>
+                <div class="sub">grade A · 16.5 kg · kr 1 700</div>
+              </div>
+              <span class="tag listed">listed</span>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,131 @@
+/**
+ * Shared CSS token definitions for both dark and light themes.
+ * Injected into the app via a <style> tag in __root.tsx and inlined verbatim
+ * in metrics.ts so both surfaces share the same variable names.
+ */
+export const themeTokensCss = `
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0a1018;
+  --panel: #111a26;
+  --panel-2: #0e1620;
+  --line: #1f2d3d;
+  --text: #e6edf5;
+  --muted: #7d8fa3;
+  --inverse: #04121a;
+  --accent: #2dd4bf;
+  --accent-soft: rgb(45 212 191 / 12%);
+  --accent-border: rgb(45 212 191 / 30%);
+  --teal: #2dd4bf;
+  --blue: #38bdf8;
+  --amber: #fbbf24;
+  --violet: #8b5cf6;
+  --pink: #ec4899;
+  --up: #34d399;
+  --success: #34d399;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --info: #38bdf8;
+  --focus-ring: rgb(45 212 191 / 40%);
+  --shadow: 0 14px 34px rgb(0 0 0 / 40%);
+  --topbar-bg: linear-gradient(180deg, #0d1622, var(--bg));
+  --topbar-backdrop: none;
+  --nav-active-bg: var(--accent-soft);
+  --nav-active-color: var(--accent);
+  --nav-active-border: var(--accent-border);
+  --nav-active-shadow: none;
+  --mark-bg: linear-gradient(135deg, var(--accent), #0ea5e9);
+  --mark-color: #04121a;
+  --mark-shadow: none;
+  --ticker-bg: var(--panel-2);
+  --ticker-btn-bg: transparent;
+  --ticker-btn-hover-bg: var(--accent-soft);
+  --stat-teal-bar: var(--teal);
+  --stat-teal-bg: var(--panel);
+  --stat-teal-value: var(--teal);
+  --stat-teal-delta: var(--up);
+  --stat-blue-bar: var(--blue);
+  --stat-blue-bg: var(--panel);
+  --stat-blue-value: var(--blue);
+  --stat-blue-delta: var(--blue);
+  --stat-amber-bar: var(--amber);
+  --stat-amber-bg: var(--panel);
+  --stat-amber-value: var(--amber);
+  --stat-amber-delta: var(--amber);
+  --stat-violet-bar: var(--violet);
+  --stat-violet-bg: var(--panel);
+  --stat-violet-value: var(--violet);
+  --stat-violet-delta: var(--violet);
+  --sp-salmon: #fb923c;
+  --sp-cod: #60a5fa;
+  --sp-tuna: #818cf8;
+  --sp-halibut: #34d399;
+  --sp-mackerel: #4ade80;
+  --sp-trout: #fbbf24;
+  --sp-herring: #94a3b8;
+  --body-bg: var(--bg);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eef4fb;
+  --panel: #ffffff;
+  --panel-2: #f4f8fd;
+  --line: #dde7f3;
+  --text: #122036;
+  --muted: #64748b;
+  --inverse: #ffffff;
+  --accent: #0d9488;
+  --accent-soft: rgb(13 148 136 / 12%);
+  --accent-border: rgb(13 148 136 / 30%);
+  --teal: #0d9488;
+  --blue: #2563eb;
+  --amber: #d97706;
+  --violet: #7c3aed;
+  --pink: #db2777;
+  --up: #0f9d6f;
+  --success: #0f9d6f;
+  --danger: #dc2626;
+  --warning: #d97706;
+  --info: #2563eb;
+  --focus-ring: rgb(13 148 136 / 40%);
+  --shadow: 0 14px 34px rgb(31 53 78 / 8%);
+  --topbar-bg: rgb(255 255 255 / 82%);
+  --topbar-backdrop: blur(14px);
+  --nav-active-bg: linear-gradient(135deg, var(--teal), var(--blue));
+  --nav-active-color: #fff;
+  --nav-active-border: transparent;
+  --nav-active-shadow: 0 6px 16px rgb(37 99 235 / 28%);
+  --mark-bg: linear-gradient(135deg, var(--teal), #0ea5e9 55%, var(--blue));
+  --mark-color: #ffffff;
+  --mark-shadow: 0 6px 16px rgb(14 165 233 / 35%);
+  --ticker-bg: linear-gradient(90deg, rgb(13 148 136 / 8%), rgb(37 99 235 / 8%));
+  --ticker-btn-bg: rgb(255 255 255 / 60%);
+  --ticker-btn-hover-bg: #fff;
+  --stat-teal-bar: var(--teal);
+  --stat-teal-bg: linear-gradient(180deg, rgb(13 148 136 / 8%), #fff 60%);
+  --stat-teal-value: #0b7a70;
+  --stat-teal-delta: var(--up);
+  --stat-blue-bar: var(--blue);
+  --stat-blue-bg: linear-gradient(180deg, rgb(37 99 235 / 8%), #fff 60%);
+  --stat-blue-value: #1d4ed8;
+  --stat-blue-delta: #2563eb;
+  --stat-amber-bar: var(--amber);
+  --stat-amber-bg: linear-gradient(180deg, rgb(217 119 6 / 9%), #fff 60%);
+  --stat-amber-value: #b45309;
+  --stat-amber-delta: #c2620a;
+  --stat-violet-bar: var(--violet);
+  --stat-violet-bg: linear-gradient(180deg, rgb(124 58 237 / 9%), #fff 60%);
+  --stat-violet-value: #6d28d9;
+  --stat-violet-delta: #7c3aed;
+  --sp-salmon: #fb7185;
+  --sp-cod: #38bdf8;
+  --sp-tuna: #f43f5e;
+  --sp-halibut: #34d399;
+  --sp-mackerel: #a78bfa;
+  --sp-trout: #fbbf24;
+  --sp-herring: #94a3b8;
+  --body-bg: radial-gradient(900px 500px at 100% -10%, rgb(37 99 235 / 10%), transparent 60%),
+    radial-gradient(800px 500px at -10% 0%, rgb(13 148 136 / 12%), transparent 55%), var(--bg);
+}
+`;

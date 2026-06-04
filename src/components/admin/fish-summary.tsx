@@ -14,7 +14,7 @@ export function FishSummary({ detail, fish }: FishSummaryProps) {
   return (
     <div>
       <strong>{fish.displayName}</strong>
-      <div className="muted">
+      <div className="sub">
         {fish.species} · {formatKilograms(fish.weightGrams)} · {detail}
       </div>
     </div>

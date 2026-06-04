@@ -74,6 +74,12 @@ export type AdminActionSummary = {
   createdAt: string;
 };
 
+export type TickerEntry = {
+  species: string;
+  latestPriceCents: number;
+  deltaPct: number | null;
+};
+
 export type DashboardData = {
   demoUsers: Array<DemoUser>;
   activeAuctions: Array<AuctionSummary>;
@@ -86,6 +92,13 @@ export type DashboardData = {
   >;
   recentSales: Array<SaleSummary>;
   inventoryNeedingAction: Array<FishSummary>;
+  stats: {
+    totalSalesTodayCents: number;
+    averageBidCents: number;
+    activeAuctionCount: number;
+    bidsLastMinute: number;
+  };
+  tickerSeries: Array<TickerEntry>;
 };
 
 export type AuctionDetail = AuctionSummary & {

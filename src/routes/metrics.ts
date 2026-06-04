@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { metricsSnapshot, metricsText, type MetricsSnapshot } from "../domain/metrics";
 import { formatMoney } from "../domain/money";
+import { themeTokensCss } from "../theme/theme-tokens-css";
+import { parseThemeFromCookieHeader } from "../theme/theme-cookie";
 import {
   databaseMetricsText,
   loadDatabaseMetrics,
@@ -21,7 +23,26 @@ export const Route = createFileRoute("/metrics")({
           });
         }
 
-        return new Response(renderMetricsPage(metricsSnapshot(), databaseMetrics), {
+        const cookieHeader = request.headers.get("cookie");
+        const setTheme = url.searchParams.get("set_theme");
+        const theme =
+          setTheme === "dark" || setTheme === "light"
+            ? setTheme
+            : parseThemeFromCookieHeader(cookieHeader);
+
+        // If theme is being set via GET param, redirect so the cookie is written
+        // (form submission → set cookie in response header → redirect to clean URL)
+        if (setTheme === "dark" || setTheme === "light") {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              Location: "/metrics",
+              "Set-Cookie": `theme=${setTheme}; Path=/; Max-Age=31536000; SameSite=Lax`,
+            },
+          });
+        }
+
+        return new Response(renderMetricsPage(metricsSnapshot(), databaseMetrics, theme), {
           headers: {
             "Content-Type": "text/html; charset=utf-8",
           },
@@ -36,7 +57,11 @@ function wantsPrometheusText(request: Request) {
   return !accept.includes("text/html");
 }
 
-function renderMetricsPage(snapshot: MetricsSnapshot, databaseMetrics: DatabaseMetrics) {
+function renderMetricsPage(
+  snapshot: MetricsSnapshot,
+  databaseMetrics: DatabaseMetrics,
+  theme: "dark" | "light" = "dark",
+) {
   const cards = [
     {
       label: "Accepted bids",
@@ -131,162 +156,115 @@ function renderMetricsPage(snapshot: MetricsSnapshot, databaseMetrics: DatabaseM
   ];
 
   return `<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="${theme}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta http-equiv="refresh" content="5" />
     <title>Fish Auction Metrics</title>
     <style>
-      :root {
-        color-scheme: light;
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        color: #102033;
-        background: #f3f7fb;
-      }
+      ${themeTokensCss}
       * { box-sizing: border-box; }
-      body { margin: 0; }
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+        line-height: 1.5;
+        color: var(--text);
+        background: var(--body-bg);
+        background-attachment: fixed;
+      }
       a { color: inherit; }
       .topbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 1rem clamp(1rem, 5vw, 3rem);
-        border-bottom: 1px solid #d7e1ee;
-        background: rgb(255 255 255 / 86%);
+        display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        padding: 0.9rem clamp(1rem, 5vw, 3rem);
+        border-bottom: 1px solid var(--line);
+        background: var(--topbar-bg);
+        backdrop-filter: var(--topbar-backdrop);
+        position: sticky; top: 0; z-index: 10;
       }
       .brand {
-        font-weight: 800;
-        letter-spacing: -0.04em;
-        text-decoration: none;
+        font-weight: 800; letter-spacing: -0.03em; text-decoration: none;
+        font-size: 1.05rem; display: flex; align-items: center; gap: 0.55rem; color: var(--text);
       }
-      .nav {
-        display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
+      .brand .mark {
+        width: 1.65rem; height: 1.65rem; border-radius: 9px;
+        background: var(--mark-bg); display: grid; place-items: center;
+        color: var(--mark-color); font-size: 1rem; box-shadow: var(--mark-shadow); flex: 0 0 auto;
       }
+      .nav { display: flex; gap: 0.4rem; flex-wrap: wrap; }
       .nav a {
-        border: 1px solid #cdd9e8;
-        border-radius: 999px;
-        padding: 0.35rem 0.75rem;
-        text-decoration: none;
-        background: #fff;
+        border: 1px solid transparent; border-radius: 8px;
+        padding: 0.4rem 0.8rem; text-decoration: none; color: var(--muted);
+        font-size: 0.9rem; font-weight: 600;
       }
-      .page {
-        width: min(1180px, calc(100vw - 2rem));
-        margin: 0 auto;
-        padding: 2rem 0 4rem;
+      .nav a:hover { color: var(--text); }
+      .theme-form { display: inline; }
+      .theme-btn {
+        border: 1px solid var(--line); border-radius: 8px; background: transparent;
+        color: var(--muted); font-size: 1rem; padding: 0.35rem 0.6rem; cursor: pointer;
       }
-      .hero,
-      .card {
-        border: 1px solid #d7e1ee;
-        border-radius: 24px;
-        background: #fff;
-        box-shadow: 0 14px 45px rgb(31 53 78 / 8%);
-      }
+      .theme-btn:hover { color: var(--accent); border-color: var(--accent-border); }
+      .page { width: min(1240px, calc(100vw - 2rem)); margin: 0 auto; padding: 1.75rem 0 4rem; }
       .hero {
-        padding: clamp(1.5rem, 4vw, 3rem);
-        margin-bottom: 1.5rem;
-        background: radial-gradient(circle at top right, rgb(15 118 110 / 18%), transparent 35%), #fff;
+        display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem; margin-bottom: 1.5rem;
       }
-      .hero h1 {
-        margin: 0;
-        font-size: clamp(2rem, 6vw, 4.5rem);
-        line-height: 0.95;
-        letter-spacing: -0.075em;
-      }
-      .hero p {
-        max-width: 720px;
-        color: #526276;
-        font-size: 1.05rem;
-      }
+      .hero h1 { margin: 0.4rem 0 0; font-size: clamp(1.8rem, 4vw, 2.8rem); letter-spacing: -0.04em; }
+      .hero p { margin: 0.5rem 0 0; color: var(--muted); max-width: 620px; }
       .pill {
-        display: inline-flex;
-        border-radius: 999px;
-        padding: 0.25rem 0.6rem;
-        background: #e5f7f3;
-        color: #0f766e;
-        font-size: 0.85rem;
-        font-weight: 700;
+        display: inline-flex; align-items: center; gap: 0.4rem; border-radius: 999px;
+        padding: 0.25rem 0.7rem; background: var(--accent-soft); color: var(--accent);
+        font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
       }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 1rem;
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+      .card {
+        position: relative; overflow: hidden;
+        border: 1px solid var(--line); border-radius: 16px; background: var(--panel);
+        padding: 1.1rem 1.2rem; box-shadow: var(--shadow);
       }
-      .card { padding: 1.25rem; }
-      .card h2,
-      .card h3 {
-        margin-top: 0;
-      }
-      .metric {
-        margin: 0.25rem 0;
-        font-size: 2rem;
-        font-weight: 800;
-        letter-spacing: -0.04em;
-      }
-      .muted { color: #66758a; }
+      .card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+      .card h2 { margin: 0.15rem 0 0.85rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+      .card h3 { margin-top: 0; color: var(--text); }
+      .metric { font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; font-family: "IBM Plex Mono", ui-monospace, monospace; color: var(--text); }
+      .muted { color: var(--muted); }
       .section { margin-top: 1rem; }
-      .bar-list {
-        display: grid;
-        gap: 0.85rem;
-      }
-      .bar-row {
-        display: grid;
-        gap: 0.35rem;
-      }
-      .bar-label {
-        display: flex;
-        justify-content: space-between;
-        gap: 1rem;
-        font-weight: 700;
-      }
-      .bar-track {
-        overflow: hidden;
-        height: 0.85rem;
-        border-radius: 999px;
-        background: #e5edf6;
-      }
-      .bar-fill {
-        height: 100%;
-        border-radius: inherit;
-        background: linear-gradient(90deg, #0f766e, #38bdf8);
-      }
-      .links {
-        display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-      }
+      .bar-list { display: grid; gap: 0.85rem; }
+      .bar-row { display: grid; gap: 0.35rem; }
+      .bar-label { display: flex; justify-content: space-between; gap: 1rem; font-weight: 700; font-size: 0.9rem; color: var(--text); }
+      .bar-track { overflow: hidden; height: 0.85rem; border-radius: 999px; background: var(--line); }
+      .bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--teal), var(--blue)); }
+      .links { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
       .button {
-        border: 1px solid #cdd9e8;
-        border-radius: 14px;
-        padding: 0.75rem 1rem;
-        background: #fff;
-        color: #102033;
-        font-weight: 800;
-        text-decoration: none;
+        border: 1px solid var(--line); border-radius: 10px; padding: 0.75rem 1rem;
+        background: var(--panel); color: var(--text); font-weight: 800;
+        text-decoration: none; font-size: 0.95rem;
       }
+      .button:hover { border-color: var(--accent-border); color: var(--accent); }
     </style>
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="/">Fish Auction House</a>
+      <a class="brand" href="/"><span class="mark">⚓</span> Fish Auction House</a>
       <nav class="nav" aria-label="Primary">
         <a href="/">Dashboard</a>
         <a href="/inventory/new">Add fish</a>
         <a href="/admin">Admin</a>
         <a href="/metrics">Metrics</a>
       </nav>
+      <form class="theme-form" method="get" action="/metrics">
+        <input type="hidden" name="set_theme" value="${theme === "dark" ? "light" : "dark"}" />
+        <button class="theme-btn" type="submit" title="${theme === "dark" ? "Light mode" : "Dark mode"}">${theme === "dark" ? "☀" : "☽"}</button>
+      </form>
     </header>
     <main class="page">
       <section class="hero">
-        <span class="pill">Live application metrics</span>
-        <h1>Fish auction observability.</h1>
-        <p>Domain counters and latency buckets refresh every five seconds. Use the Prometheus link for scrape-friendly text output.</p>
-        <div class="links">
-          <a class="button" href="/metrics?format=prometheus">Prometheus text</a>
-          <a class="button" href="/metrics" aria-current="page">Refresh now</a>
+        <div>
+          <span class="pill">Live application metrics</span>
+          <h1>Fish auction observability.</h1>
+          <p>Domain counters and latency buckets refresh every five seconds. Use the Prometheus link for scrape-friendly text output.</p>
+          <div class="links">
+            <a class="button" href="/metrics?format=prometheus">Prometheus text</a>
+            <a class="button" href="/metrics" aria-current="page">Refresh now</a>
+          </div>
         </div>
       </section>
       <section class="grid">

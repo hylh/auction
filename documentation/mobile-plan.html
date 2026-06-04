@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fish Auction Mobile Strategy Plan</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f6f8fb;
+        --card: #ffffff;
+        --text: #172033;
+        --muted: #58677a;
+        --border: #d9e1ed;
+        --accent: #0f766e;
+        --accent-soft: #dff7f3;
+        --warning: #92400e;
+        --warning-soft: #fff7ed;
+        --code: #eef2f7;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #101623;
+          --card: #172033;
+          --text: #edf2f7;
+          --muted: #adbacb;
+          --border: #2d394c;
+          --accent: #5eead4;
+          --accent-soft: #123f3a;
+          --warning: #fdba74;
+          --warning-soft: #422006;
+          --code: #202b3b;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        line-height: 1.6;
+      }
+
+      main {
+        width: min(1120px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 48px 0;
+      }
+
+      header,
+      section {
+        margin-bottom: 24px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.15;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2.3rem, 6vw, 4.25rem);
+        letter-spacing: -0.06em;
+      }
+
+      h2 {
+        margin: 0 0 14px;
+      }
+
+      h3 {
+        margin: 20px 0 8px;
+      }
+
+      p {
+        margin: 0 0 14px;
+      }
+
+      ul,
+      ol {
+        margin: 0 0 16px 1.25rem;
+        padding: 0;
+      }
+
+      li {
+        margin: 6px 0;
+      }
+
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: var(--code);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.92em;
+      }
+
+      pre {
+        margin: 12px 0;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: var(--code);
+        overflow-x: auto;
+      }
+
+      pre code {
+        padding: 0;
+        background: none;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0;
+      }
+
+      th,
+      td {
+        padding: 10px;
+        border: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: color-mix(in srgb, var(--card) 86%, var(--accent-soft));
+      }
+
+      .hero,
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--card);
+        box-shadow: 0 12px 34px rgb(15 23 42 / 8%);
+      }
+
+      .hero {
+        padding: clamp(24px, 5vw, 48px);
+        background:
+          radial-gradient(
+            circle at top right,
+            color-mix(in srgb, var(--accent) 24%, transparent),
+            transparent 38%
+          ),
+          var(--card);
+      }
+
+      .card {
+        padding: 24px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .pill-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 18px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .pill-list li {
+        margin: 0;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 650;
+        font-size: 0.9rem;
+      }
+
+      .phase-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+      }
+
+      .phase {
+        padding: 18px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: color-mix(in srgb, var(--card) 92%, var(--accent-soft));
+      }
+
+      .phase strong {
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      .callout {
+        padding: 16px;
+        border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
+        border-radius: 16px;
+        background: var(--warning-soft);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <p class="muted">Saved June 4, 2026</p>
+        <h1>Mobile Strategy Plan</h1>
+        <p>
+          A detailed plan for making the frontend work well for mobile (phone) users, based on a
+          review of every view page. Scope is the four view routes plus the shared shell.
+          <code>/metrics</code> is a raw text endpoint, not a view, so it is out of scope.
+        </p>
+        <ul class="pill-list" aria-label="Plan themes">
+          <li>Responsive breakpoints</li>
+          <li>Mobile navigation</li>
+          <li>Dense-row tuning</li>
+          <li>Sticky bid bar</li>
+          <li>Inventory wizard</li>
+          <li>Admin tabs polish</li>
+        </ul>
+      </header>
+
+      <section class="card">
+        <h2>1. Current state (what we have today)</h2>
+        <p>
+          The app is <strong>desktop-first with fluid sizing but no real mobile adaptation</strong>:
+        </p>
+        <ul>
+          <li>
+            The only <code>@media</code> rule in <code>src/styles.css</code> is
+            <code>prefers-reduced-motion</code>. There are <strong>no width breakpoints at all</strong>.
+          </li>
+          <li>
+            Layout survives narrow screens only because of fluid primitives:
+            <code>.page { width: min(1240px, calc(100vw - 2rem)) }</code>,
+            <code>.grid { repeat(auto-fit, minmax(280px, 1fr)) }</code>,
+            <code>.stat-strip { repeat(auto-fit, minmax(190px, 1fr)) }</code>, and
+            <code>hero h1 { clamp(1.8rem, 4vw, 2.8rem) }</code>.
+          </li>
+          <li>
+            So columns <em>do</em> collapse to a single column on a phone, but nothing else is tuned:
+            the top bar, dense <code>.row</code> items, long forms, and tap targets are all still
+            sized for a mouse and a wide viewport.
+          </li>
+        </ul>
+        <p>
+          The viewport meta tag is already present in <code>src/routes/__root.tsx</code>
+          (<code>width=device-width, initial-scale=1</code>), so we have a correct foundation.
+        </p>
+
+        <h3>Per-page review</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Route</th>
+              <th>File</th>
+              <th>Mobile pain points</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Shell / nav</td>
+              <td><code>src/routes/__root.tsx</code></td>
+              <td>
+                <code>.topbar</code> is a single flex row: brand + 4 nav links + theme toggle.
+                <code>justify-content: space-between</code> plus <code>flex-wrap</code> on
+                <code>.nav</code> makes links crowd and wrap awkwardly. No hamburger / app-style nav.
+              </td>
+            </tr>
+            <tr>
+              <td><code>/</code> Dashboard</td>
+              <td><code>src/routes/index.tsx</code></td>
+              <td>
+                4 stat tiles + 4 list cards. <code>.row</code> is
+                <code>flex; justify-content: space-between</code> — long fish/buyer names crowd the
+                amount on the right. Ticker is fine. No "view all" for capped lists.
+              </td>
+            </tr>
+            <tr>
+              <td><code>/auctions/$auctionId</code></td>
+              <td><code>src/routes/auctions.$auctionId.tsx</code></td>
+              <td>
+                Two cards (Place bid / Live bid chain) stack to one column. On a phone the bid form
+                scrolls away above a long chain — you must scroll up to bid.
+              </td>
+            </tr>
+            <tr>
+              <td><code>/inventory/new</code></td>
+              <td><code>src/routes/inventory.new.tsx</code></td>
+              <td>
+                A very long single form (9 fields + nested auction block). Lots of vertical
+                scrolling; easy to lose place. Prime candidate for splitting.
+              </td>
+            </tr>
+            <tr>
+              <td><code>/admin</code></td>
+              <td><code>src/routes/admin.tsx</code></td>
+              <td>
+                Now <strong>tabbed</strong> (recently added), which already removes the long scroll.
+                Remaining issue: <code>AdminFilters</code> block and the tab strip need mobile tuning.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>2. Goals &amp; principles</h2>
+        <ol>
+          <li>
+            <strong>Mobile-first CSS layering</strong> — keep the existing fluid layout, add a small
+            set of breakpoints to tune spacing, typography, navigation, and dense rows.
+          </li>
+          <li>
+            <strong>Reachability</strong> — primary navigation and the primary action on each page
+            should be reachable with a thumb.
+          </li>
+          <li><strong>Touch targets &ge; 44&times;44px</strong> — nav links, tabs, row links, buttons.</li>
+          <li>
+            <strong>No horizontal scrolling</strong> of page content (the ticker marquee is the only
+            intentional exception).
+          </li>
+          <li>
+            <strong>CSS-first, minimal JS</strong> — prefer responsive CSS over JS layout switching to
+            keep risk low (no Playwright in this project; see &sect;6).
+          </li>
+        </ol>
+
+        <h3>Proposed breakpoints</h3>
+        <p>Add to <code>src/styles.css</code>:</p>
+        <pre><code>--bp-sm: 640px;   /* large phone / small tablet */
+--bp-md: 768px;   /* tablet */
+--bp-lg: 1024px;  /* desktop */</code></pre>
+        <p>
+          Tune at <code>max-width: 640px</code> (phone) and <code>max-width: 768px</code> (tablet)
+          since the base styles are desktop-sized.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>3. Should we split pages into subpages?</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Page</th>
+              <th>Recommendation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>/inventory/new</code></td>
+              <td><strong>Yes — split into a 3-step flow.</strong> Highest-value split. See &sect;4.4.</td>
+            </tr>
+            <tr>
+              <td><code>/admin</code></td>
+              <td>
+                <strong>No split needed — tabs already solve it.</strong> Keep the single route; just
+                make the tab strip horizontally scrollable and collapse filters on mobile.
+              </td>
+            </tr>
+            <tr>
+              <td><code>/</code> Dashboard</td>
+              <td>
+                <strong>Optional.</strong> Cards are capped lists. Add dedicated "view all" index
+                routes (<code>/auctions</code>; history lives under <code>/admin</code>) only if we
+                want deep browsing on mobile. Not required for MVP mobile.
+              </td>
+            </tr>
+            <tr>
+              <td><code>/auctions/$auctionId</code></td>
+              <td>
+                <strong>No split.</strong> Instead make the bid form a sticky bottom action bar on
+                mobile (&sect;4.3).
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>4. Detailed work plan, page by page</h2>
+
+        <h3>4.1 Shared shell &amp; navigation (<code>__root.tsx</code>, <code>styles.css</code>)</h3>
+        <ul>
+          <li>
+            Convert <code>.topbar</code> for phones: keep brand + theme toggle on the top row, move
+            the 4 primary links into either a <strong>(recommended) fixed bottom tab bar</strong>
+            (<code>Dashboard / Add fish / Admin / Metrics</code>) for an app-like, thumb-reachable
+            feel, <strong>or</strong> a hamburger menu that toggles a dropdown panel.
+          </li>
+          <li>
+            If bottom nav: add <code>padding-bottom</code> to <code>.page</code> equal to the bar
+            height so content isn't hidden; respect <code>env(safe-area-inset-bottom)</code> for
+            notched phones.
+          </li>
+          <li>
+            Increase nav link padding to hit 44px tap height; mark the current route with the existing
+            <code>.active</code> style.
+          </li>
+          <li>Make <code>.topbar</code> non-sticky or shorter on phones to reclaim vertical space.</li>
+        </ul>
+
+        <h3>4.2 Dashboard (<code>index.tsx</code>)</h3>
+        <ul>
+          <li>
+            <code>.stat-strip</code>: drop to 2 columns at &le;640px, 1 column at &le;400px (override
+            the <code>minmax(190px,...)</code> so tiles don't get too tight).
+          </li>
+          <li>
+            <strong><code>.row</code> density fix (shared win across all pages):</strong> allow the
+            label block to shrink and truncate, and let the amount drop to its own line if needed:
+            <code>.name-wrap { min-width: 0 }</code> +
+            <code>overflow: hidden; text-overflow: ellipsis</code> on the name/sub; at &le;640px allow
+            <code>.row { flex-wrap: wrap }</code>.
+          </li>
+          <li>Ticker: confirm the play/pause toggle tap target is &ge;44px; otherwise unchanged.</li>
+          <li>Optional: add a "View all" link per card to future index routes.</li>
+        </ul>
+
+        <h3>4.3 Auction detail (<code>auctions.$auctionId.tsx</code>)</h3>
+        <ul>
+          <li>
+            Keep the two-card stack, but on &le;768px turn the <strong>Place bid</strong> card into a
+            <strong>sticky bottom action bar</strong> (current price + amount input + Submit) so a
+            buyer can bid without scrolling past the live chain.
+          </li>
+          <li>
+            Give the <strong>Live bid chain</strong> list a <code>max-height</code> with internal
+            scroll on mobile so the page doesn't grow unbounded and the sticky bar stays useful.
+          </li>
+          <li>
+            Ensure the buyer <code>&lt;select&gt;</code> and amount <code>&lt;input&gt;</code> are full
+            width with &ge;44px height (mostly true already via <code>.field input</code>).
+          </li>
+          <li>Keep the SSE/refresh logic unchanged — this is a pure layout change.</li>
+        </ul>
+
+        <h3>4.4 Add inventory (<code>inventory.new.tsx</code>) — split into steps</h3>
+        <p>
+          Convert the long form into a <strong>3-step wizard</strong> to reduce scrolling and
+          cognitive load on a phone. Two viable implementations:
+        </p>
+        <ul>
+          <li>
+            <strong>(Recommended) In-route stepper:</strong> keep the single
+            <code>/inventory/new</code> route, add a step state (1&rarr;3) with Back/Next, validating
+            each step before advancing. Lower routing complexity, preserves form state easily, and the
+            existing Zod validation in <code>validateForm</code> can be applied per-step.
+          </li>
+          <li>
+            <strong>Route-segment subpages:</strong> <code>/inventory/new/details</code>,
+            <code>/inventory/new/pricing</code>, <code>/inventory/new/auction</code>. Cleaner
+            URLs/deep-linking but requires lifting form state into a parent layout route or a store;
+            more work, easy to lose state on refresh. Defer unless deep-linking is needed.
+          </li>
+        </ul>
+        <p>Suggested step grouping:</p>
+        <ol>
+          <li><strong>Fish</strong> — species, display name, weight (kg), catch region, freshness/grade.</li>
+          <li><strong>Pricing &amp; seller</strong> — starting price, seller, description, image URL + preview.</li>
+          <li>
+            <strong>Auction (optional)</strong> — the existing <code>createAuction</code> toggle +
+            starts/ends/minimum increment.
+          </li>
+        </ol>
+        <p>
+          On desktop (&ge;768px) we can keep showing the full form (no stepper) so we don't regress
+          the existing experience — the stepper is the mobile presentation.
+        </p>
+
+        <h3>4.5 Admin (<code>admin.tsx</code>) — finish the mobile tuning</h3>
+        <p>Tabs already removed the long scroll. Remaining:</p>
+        <ul>
+          <li>
+            Make the <code>.tabs</code> strip <strong>horizontally scrollable</strong> on narrow
+            screens (<code>overflow-x: auto; flex-wrap: nowrap</code>) so 4+ tabs never wrap into two
+            rows; add momentum scrolling and hide the scrollbar.
+          </li>
+          <li>
+            Collapse <code>AdminFilters</code> into a single <strong>"Filters" disclosure</strong>
+            (closed by default on mobile) to reclaim vertical space; check
+            <code>filter-fields.tsx</code> grid stacks to one column.
+          </li>
+          <li>
+            Active tab panels already render only 1&ndash;2 cards, which expand to full width — good on
+            mobile. Verify card <code>.row</code> action buttons (Close/Withdraw/Start auction) wrap
+            and keep &ge;44px height.
+          </li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>5. Shared CSS changes (one place, many wins)</h2>
+        <p>Most pages benefit from a small set of shared rules in <code>src/styles.css</code>:</p>
+        <ul>
+          <li><code>.row</code> truncation + wrap behavior (see &sect;4.2).</li>
+          <li>
+            <code>.page</code> padding reduced at &le;640px (e.g.
+            <code>padding: 1.25rem 0 5rem</code> to leave room for bottom nav).
+          </li>
+          <li>Tap-target minimums for <code>.nav a</code>, <code>.tab</code>, <code>.button</code>, <code>.row a</code>.</li>
+          <li>Tab strip horizontal scroll.</li>
+          <li>Stat strip column overrides at phone widths.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>6. Testing &amp; verification (no Playwright)</h2>
+        <p>
+          This repo deliberately excludes browser automation, so verify responsively without it:
+        </p>
+        <ul>
+          <li>
+            Manual device-emulation pass (Chrome DevTools) at 360, 390, 414, 768px for each route: nav
+            reachable, no horizontal scroll, bid bar sticky, wizard steps validate.
+          </li>
+          <li>
+            Add Vitest component tests for any <strong>new logic</strong> (e.g., the inventory
+            stepper's per-step validation and step navigation) — logic only, not pixels.
+          </li>
+          <li>
+            Keep changes CSS-first so the existing unit/integration tests continue to cover the domain
+            behavior unchanged.
+          </li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>7. Suggested implementation order (phased)</h2>
+        <div class="phase-grid">
+          <div class="phase">
+            <strong>Phase 1 — Shared CSS foundation</strong>
+            Breakpoints, <code>.row</code> truncation/wrap, tap targets, <code>.page</code> padding.
+            Low risk, broad benefit.
+          </div>
+          <div class="phase">
+            <strong>Phase 2 — Navigation</strong>
+            Mobile bottom nav / hamburger in <code>__root.tsx</code>.
+          </div>
+          <div class="phase">
+            <strong>Phase 3 — Admin polish</strong>
+            Scrollable tab strip + collapsible filters.
+          </div>
+          <div class="phase">
+            <strong>Phase 4 — Auction detail</strong>
+            Sticky mobile bid bar + scrollable chain.
+          </div>
+          <div class="phase">
+            <strong>Phase 5 — Dashboard</strong>
+            Stat-strip columns + optional "view all" links.
+          </div>
+          <div class="phase">
+            <strong>Phase 6 — Inventory wizard</strong>
+            In-route 3-step flow (largest change, do last).
+          </div>
+        </div>
+        <p class="callout">
+          Phases 1&ndash;4 deliver most of the mobile usability win with minimal structural change;
+          phase 6 is the only one that meaningfully restructures a page.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

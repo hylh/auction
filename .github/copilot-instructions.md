@@ -4,6 +4,8 @@ This repository is a greenfield fullstack TypeScript showcase for a fish auction
 
 For a fuller decision log, see `documentation/auction-project-decisions.html`.
 
+All documentation must be written as HTML files in the `documentation/` directory. Do not add documentation as Markdown or other formats.
+
 ## Product goal
 
 Create an auction house where users can list fish inventory, run auctions, place bids, complete sales, and inspect live and historical auction activity.
