@@ -10,6 +10,7 @@ Full-stack TypeScript POC for a fish auction house using TanStack Start, TanStac
 4. Run `pnpm db:migrate`.
 5. Run `pnpm db:seed`.
 6. Start the app with `pnpm dev`.
+7. Scrape local metrics from `http://localhost:3000/metrics`.
 
 Routes:
 
@@ -34,3 +35,9 @@ Routes:
 | `pnpm db:seed`                                      | Seed deterministic demo users, fish, auctions, bids, and sales |
 | `pnpm db:studio`                                    | Open Drizzle Studio                                            |
 | `pnpm simulate -- --bid-count 5 --interval-ms 1000` | Submit bids through the simulator API against a running app    |
+
+## Observability
+
+The `/metrics` route exposes Prometheus text metrics for accepted/rejected bids, auction and sale lifecycle counters, validation and close failures, simulator requests, request latency buckets, and bid mutation duration buckets.
+
+OpenTelemetry spans are emitted with the `fish-auction` tracer around bid mutations. Configure your Node OpenTelemetry provider/exporter with standard environment variables such as `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and `OTEL_TRACES_EXPORTER` when running the app under an SDK-enabled runtime.

@@ -4,7 +4,10 @@ type MetricName =
   | "auctionsCreated"
   | "auctionsClosed"
   | "salesCompleted"
-  | "totalSaleValueCents";
+  | "totalSaleValueCents"
+  | "validationFailures"
+  | "closeFailures"
+  | "simulatorRequests";
 
 const counters: Record<MetricName, number> = {
   acceptedBids: 0,
@@ -13,26 +16,42 @@ const counters: Record<MetricName, number> = {
   auctionsClosed: 0,
   salesCompleted: 0,
   totalSaleValueCents: 0,
+  validationFailures: 0,
+  closeFailures: 0,
+  simulatorRequests: 0,
 };
 
-const bidMutationDurationsMs: Array<number> = [];
-const requestLatenciesMs: Array<number> = [];
+const durationBucketsSeconds = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
+
+type Histogram = {
+  buckets: Array<number>;
+  counts: Array<number>;
+  sum: number;
+  count: number;
+};
+
+const bidMutationDuration = createHistogram(durationBucketsSeconds);
+const requestLatency = createHistogram(durationBucketsSeconds);
 
 export function incrementMetric(name: MetricName, amount = 1) {
   counters[name] += amount;
 }
 
 export function observeBidMutationDuration(ms: number) {
-  bidMutationDurationsMs.push(ms);
+  observeHistogram(bidMutationDuration, ms / 1000);
 }
 
 export function observeRequestLatency(ms: number) {
-  requestLatenciesMs.push(ms);
+  observeHistogram(requestLatency, ms / 1000);
 }
 
-export function measureRequest<T>(operation: () => Promise<T>) {
+export async function measureRequest<T>(operation: () => Promise<T>) {
   const started = performance.now();
-  return operation().finally(() => observeRequestLatency(performance.now() - started));
+  try {
+    return await operation();
+  } finally {
+    observeRequestLatency(performance.now() - started);
+  }
 }
 
 export function metricsText() {
@@ -55,16 +74,76 @@ export function metricsText() {
     "# HELP auction_total_sale_value_cents Total completed sale value in cents",
     "# TYPE auction_total_sale_value_cents counter",
     `auction_total_sale_value_cents ${counters.totalSaleValueCents}`,
-    "# HELP auction_bid_mutation_duration_ms_last Last bid mutation duration in milliseconds",
-    "# TYPE auction_bid_mutation_duration_ms_last gauge",
-    `auction_bid_mutation_duration_ms_last ${last(bidMutationDurationsMs)}`,
-    "# HELP auction_request_latency_ms_last Last request latency in milliseconds",
-    "# TYPE auction_request_latency_ms_last gauge",
-    `auction_request_latency_ms_last ${last(requestLatenciesMs)}`,
+    "# HELP auction_validation_failures_total Zod validation failure count",
+    "# TYPE auction_validation_failures_total counter",
+    `auction_validation_failures_total ${counters.validationFailures}`,
+    "# HELP auction_close_failures_total Auction close failure count",
+    "# TYPE auction_close_failures_total counter",
+    `auction_close_failures_total ${counters.closeFailures}`,
+    "# HELP auction_simulator_requests_total Simulator API request count",
+    "# TYPE auction_simulator_requests_total counter",
+    `auction_simulator_requests_total ${counters.simulatorRequests}`,
+    ...histogramText(
+      "auction_bid_mutation_duration_seconds",
+      "Bid mutation duration in seconds",
+      bidMutationDuration,
+    ),
+    ...histogramText(
+      "auction_request_latency_seconds",
+      "Server function and API request latency in seconds",
+      requestLatency,
+    ),
     "",
   ].join("\n");
 }
 
-function last(values: Array<number>) {
-  return values.length === 0 ? 0 : values[values.length - 1];
+export function resetMetrics() {
+  for (const name of Object.keys(counters) as Array<MetricName>) {
+    counters[name] = 0;
+  }
+  resetHistogram(bidMutationDuration);
+  resetHistogram(requestLatency);
+}
+
+function createHistogram(buckets: Array<number>): Histogram {
+  return {
+    buckets,
+    counts: Array.from({ length: buckets.length }, () => 0),
+    sum: 0,
+    count: 0,
+  };
+}
+
+function observeHistogram(histogram: Histogram, value: number) {
+  histogram.sum += value;
+  histogram.count += 1;
+
+  for (let index = 0; index < histogram.buckets.length; index += 1) {
+    if (value <= histogram.buckets[index]) {
+      histogram.counts[index] += 1;
+    }
+  }
+}
+
+function resetHistogram(histogram: Histogram) {
+  histogram.counts.fill(0);
+  histogram.sum = 0;
+  histogram.count = 0;
+}
+
+function histogramText(name: string, help: string, histogram: Histogram) {
+  return [
+    `# HELP ${name} ${help}`,
+    `# TYPE ${name} histogram`,
+    ...histogram.buckets.map(
+      (bucket, index) => `${name}_bucket{le="${bucket}"} ${histogram.counts[index]}`,
+    ),
+    `${name}_bucket{le="+Inf"} ${histogram.count}`,
+    `${name}_sum ${formatMetricNumber(histogram.sum)}`,
+    `${name}_count ${histogram.count}`,
+  ];
+}
+
+function formatMetricNumber(value: number) {
+  return Number.isInteger(value) ? value.toString() : value.toFixed(6);
 }
