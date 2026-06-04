@@ -103,6 +103,22 @@ export const withdrawFishItemInputSchema = z.object({
   reason: optionalReasonSchema,
 });
 
+export const simulatorInputSchema = z.object({
+  auctionCount: z.coerce.number().int().min(0).max(10).default(1),
+  bidCount: z.coerce.number().int().min(0).max(100).default(3),
+  intervalMs: z.coerce.number().int().min(0).max(60_000).default(0),
+  durationMinutes: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(24 * 60)
+    .default(30),
+  rejectionRate: z.coerce.number().min(0).max(1).default(0.25),
+  seed: z.coerce.number().int().default(20_260_604),
+  buyerIds: z.array(uuidSchema).optional(),
+  closeAuctions: z.boolean().default(true),
+});
+
 export const adminFiltersSchema = z
   .object({
     status: optionalAdminStatusSchema,
@@ -118,3 +134,4 @@ export const adminFiltersSchema = z
   });
 
 export type AdminFilters = z.infer<typeof adminFiltersSchema>;
+export type SimulatorInput = z.infer<typeof simulatorInputSchema>;

@@ -22,22 +22,26 @@ Routes:
 
 ## Scripts
 
-| Script                                              | Purpose                                                        |
-| --------------------------------------------------- | -------------------------------------------------------------- |
-| `pnpm dev`                                          | Run the TanStack Start app                                     |
-| `pnpm build`                                        | Build the app                                                  |
-| `pnpm lint`                                         | Run oxlint                                                     |
-| `pnpm format`                                       | Format with oxfmt                                              |
-| `pnpm format:check`                                 | Check formatting                                               |
-| `pnpm test`                                         | Run Vitest                                                     |
-| `pnpm db:generate`                                  | Generate Drizzle migrations                                    |
-| `pnpm db:migrate`                                   | Apply migrations                                               |
-| `pnpm db:seed`                                      | Seed deterministic demo users, fish, auctions, bids, and sales |
-| `pnpm db:studio`                                    | Open Drizzle Studio                                            |
-| `pnpm simulate -- --bid-count 5 --interval-ms 1000` | Submit bids through the simulator API against a running app    |
+| Script                                                                | Purpose                                                          |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `pnpm dev`                                                            | Run the TanStack Start app                                       |
+| `pnpm build`                                                          | Build the app                                                    |
+| `pnpm lint`                                                           | Run oxlint                                                       |
+| `pnpm format`                                                         | Format with oxfmt                                                |
+| `pnpm format:check`                                                   | Check formatting                                                 |
+| `pnpm test`                                                           | Run Vitest                                                       |
+| `pnpm db:generate`                                                    | Generate Drizzle migrations                                      |
+| `pnpm db:migrate`                                                     | Apply migrations                                                 |
+| `pnpm db:seed`                                                        | Seed deterministic demo users, fish, auctions, bids, and sales   |
+| `pnpm db:studio`                                                      | Open Drizzle Studio                                              |
+| `pnpm simulate -- --auction-count 2 --bid-count 5 --interval-ms 1000` | Create demo auctions, bid, close them, and report metrics deltas |
 
 ## Observability
 
 The `/metrics` route exposes Prometheus text metrics for accepted/rejected bids, auction and sale lifecycle counters, validation and close failures, simulator requests, request latency buckets, and bid mutation duration buckets.
 
 OpenTelemetry spans are emitted with the `fish-auction` tracer around bid mutations. Configure your Node OpenTelemetry provider/exporter with standard environment variables such as `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and `OTEL_TRACES_EXPORTER` when running the app under an SDK-enabled runtime.
+
+## Simulator
+
+Run `pnpm simulate` against a running app to create fish inventory and auctions through the same service path as the UI, place accepted and intentionally rejected bids, close the created auctions, and print metrics deltas. Useful options are `--auction-count`, `--bid-count`, `--interval-ms`, `--duration-minutes`, `--rejection-rate`, `--buyer-mix all|oslo|bergen`, `--seed`, and `--no-close`.

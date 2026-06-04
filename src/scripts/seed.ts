@@ -109,6 +109,30 @@ async function main() {
       status: "withdrawn",
       description: "Withdrawn during quality inspection before auction.",
     },
+    {
+      id: DEMO_FISH.mackerel,
+      species: "mackerel",
+      displayName: "Mackerel shore seine batch",
+      weightGrams: 64000,
+      catchRegion: "Rogaland",
+      grade: "B+",
+      startingPriceCents: 80000,
+      sellerId: DEMO_USERS.sellerNorth,
+      status: "listed",
+      description: "Extra listed inventory for simulator and admin demo flows.",
+    },
+    {
+      id: DEMO_FISH.halibut,
+      species: "halibut",
+      displayName: "Halibut chef selection",
+      weightGrams: 42000,
+      catchRegion: "Helgeland",
+      grade: "A",
+      startingPriceCents: 260000,
+      sellerId: DEMO_USERS.sellerFjord,
+      status: "listed",
+      description: "Premium listed fish ready for auction creation demos.",
+    },
   ]);
 
   await db.insert(auctions).values([
