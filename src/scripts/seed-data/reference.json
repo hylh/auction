@@ -1,0 +1,146 @@
+{
+  "catchRegions": [
+    "Lofoten",
+    "Vestfjorden",
+    "Helgeland",
+    "Møre",
+    "Hardanger",
+    "Rogaland",
+    "Finnmark",
+    "Troms",
+    "Nordland",
+    "Trøndelag",
+    "Sognefjord",
+    "Boknafjord"
+  ],
+  "sellerNamePrefixes": [
+    "Northern Nets",
+    "Fjordline Catch",
+    "Lofoten Coastal",
+    "Bergen Bay",
+    "Arctic Harbour",
+    "Helgeland Fisheries",
+    "Vestfjord Landing",
+    "Boknafjord Seine",
+    "Troms Trawlers",
+    "Finnmark Frost",
+    "Hardanger Hook",
+    "Sognefjord Skipper",
+    "Nordland Nets",
+    "Trøndelag Tide",
+    "Rogaland Reel",
+    "Polar Pier",
+    "Kystfanget",
+    "Havbris",
+    "Saltstraum",
+    "Midnight Sun"
+  ],
+  "sellerNameSuffixes": ["AS", "Co", "ANS", "Sjømat", "Seafood", "Fisk"],
+  "buyerCities": [
+    "Oslo",
+    "Bergen",
+    "Trondheim",
+    "Stavanger",
+    "Tromsø",
+    "Bodø",
+    "Ålesund",
+    "Kristiansand",
+    "Drammen",
+    "Hamburg",
+    "Rotterdam",
+    "Copenhagen",
+    "Gothenburg",
+    "Reykjavík",
+    "Tokyo",
+    "Hull"
+  ],
+  "buyerKinds": [
+    "Market Buyer",
+    "Seafood Imports",
+    "Restaurant Group",
+    "Export Partners",
+    "Wholesale Fish",
+    "Fish Market",
+    "Sushi Supply",
+    "Catering Co"
+  ],
+  "speciesProfiles": {
+    "salmon": {
+      "weightGramsRange": [20000, 60000],
+      "startingPriceCentsRange": [120000, 280000],
+      "grades": ["A+", "A", "Sashimi"],
+      "displayNames": [
+        "Lofoten premium salmon crate",
+        "Fjord-raised salmon lot",
+        "Line-caught salmon batch",
+        "Cold-water salmon selection"
+      ]
+    },
+    "cod": {
+      "weightGramsRange": [40000, 90000],
+      "startingPriceCentsRange": [100000, 200000],
+      "grades": ["A+", "A", "B+"],
+      "displayNames": [
+        "Skrei cod morning landing",
+        "Vestfjorden cod crate",
+        "Day-boat cod batch",
+        "Winter skrei selection"
+      ]
+    },
+    "tuna": {
+      "weightGramsRange": [25000, 70000],
+      "startingPriceCentsRange": [300000, 620000],
+      "grades": ["Sashimi", "A+", "A"],
+      "displayNames": [
+        "Bluefin tuna loin set",
+        "Sashimi-grade tuna lot",
+        "North Sea tuna selection",
+        "Auction-grade tuna crate"
+      ]
+    },
+    "halibut": {
+      "weightGramsRange": [30000, 80000],
+      "startingPriceCentsRange": [200000, 380000],
+      "grades": ["A+", "A", "B+"],
+      "displayNames": [
+        "Halibut chef selection",
+        "Helgeland halibut crate",
+        "Deep-water halibut lot",
+        "Flatfish halibut batch"
+      ]
+    },
+    "mackerel": {
+      "weightGramsRange": [40000, 110000],
+      "startingPriceCentsRange": [60000, 130000],
+      "grades": ["A", "B+", "B"],
+      "displayNames": [
+        "Mackerel shore seine batch",
+        "Autumn mackerel crate",
+        "Oily mackerel lot",
+        "Coastal mackerel selection"
+      ]
+    },
+    "trout": {
+      "weightGramsRange": [20000, 50000],
+      "startingPriceCentsRange": [90000, 180000],
+      "grades": ["A+", "A", "B+"],
+      "displayNames": [
+        "Mountain trout batch",
+        "Hardanger trout crate",
+        "Fjord trout selection",
+        "Rainbow trout lot"
+      ]
+    },
+    "herring": {
+      "weightGramsRange": [60000, 140000],
+      "startingPriceCentsRange": [50000, 110000],
+      "grades": ["A", "B+", "B"],
+      "displayNames": [
+        "Herring bulk crate",
+        "Silver herring lot",
+        "North Sea herring batch",
+        "Winter herring selection"
+      ]
+    }
+  }
+}

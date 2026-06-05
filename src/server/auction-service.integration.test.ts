@@ -7,6 +7,7 @@ import {
   bids,
   fishItems,
   inventoryStatusChanges,
+  rejectedBids,
   sales,
   users,
 } from "../db/schema";
@@ -17,6 +18,7 @@ import {
   createAuction,
   createFishItem,
   getAdminData,
+  getBidSubmissionContext,
   placeBid,
   withdrawAuction,
   withdrawFishItem,
@@ -33,6 +35,7 @@ describe("auction bidding integration", () => {
 
     for (const auctionId of createdAuctionIds) {
       await db.delete(sales).where(eq(sales.auctionId, auctionId));
+      await db.delete(rejectedBids).where(eq(rejectedBids.auctionId, auctionId));
       await db.delete(bids).where(eq(bids.auctionId, auctionId));
       await db.delete(adminActions).where(eq(adminActions.auctionId, auctionId));
       await db
@@ -241,6 +244,72 @@ describe("auction bidding integration", () => {
     expect(sale).toBeUndefined();
     expect(fish?.status).toBe("listed");
     expect(events.map((event) => event.type)).toEqual(["auction.closed"]);
+  });
+
+  it("escalates bids across rounds while alternating buyers in multi-round mode", async () => {
+    await ensureDemoUsers();
+
+    const result = await runSimulation({
+      auctionCount: 1,
+      bidCount: 0,
+      bidRounds: 3,
+      intervalMs: 0,
+      durationMinutes: 30,
+      rejectionRate: 0,
+      seed: 40_002,
+      buyerIds: undefined,
+      auctionIds: undefined,
+      closeAuctions: false,
+    });
+
+    for (const auction of result.createdAuctions) {
+      createdAuctionIds.add(auction.id);
+    }
+    for (const fish of result.createdFish) {
+      createdFishItemIds.add(fish.id);
+    }
+
+    expect(result.totals.acceptedBids).toBe(3);
+    expect(result.totals.rejectedBids).toBe(0);
+
+    const acceptedAmounts = result.bids
+      .filter((bid) => bid.result.ok)
+      .map((bid) => bid.amountCents);
+    for (let index = 1; index < acceptedAmounts.length; index += 1) {
+      expect(acceptedAmounts[index]).toBeGreaterThan(acceptedAmounts[index - 1]);
+    }
+
+    const bidders = result.bids.map((bid) => bid.bidderId);
+    expect(bidders[0]).not.toBe(bidders[1]);
+    expect(bidders[1]).not.toBe(bidders[2]);
+  });
+
+  it("exposes a submission-ready bid context that tracks the current highest bid", async () => {
+    const { auction, buyerOneId } = await createActiveTestAuction("Bid context cod");
+
+    const initialContext = await getBidSubmissionContext(auction.id);
+    expect(initialContext).toMatchObject({
+      auctionId: auction.id,
+      auctionStatus: "active",
+      currentHighestBid: null,
+      expectedHighestBidCents: null,
+      nextMinimumBidCents: initialContext.startingPriceCents,
+    });
+
+    const bidResult = await placeBid({
+      auctionId: auction.id,
+      bidderId: buyerOneId,
+      amountCents: initialContext.nextMinimumBidCents,
+      expectedHighestBidCents: initialContext.expectedHighestBidCents,
+    });
+    expect(bidResult.ok).toBe(true);
+
+    const nextContext = await getBidSubmissionContext(auction.id);
+    expect(nextContext.expectedHighestBidCents).toBe(initialContext.nextMinimumBidCents);
+    expect(nextContext.nextMinimumBidCents).toBe(
+      initialContext.nextMinimumBidCents + auction.minimumIncrementCents,
+    );
+    expect(nextContext.currentHighestBid?.amountCents).toBe(initialContext.nextMinimumBidCents);
   });
 
   it("requires admin users for auction and inventory admin commands", async () => {

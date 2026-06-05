@@ -65,48 +65,48 @@ function renderMetricsPage(
   const cards = [
     {
       label: "Accepted bids",
-      value: snapshot.counters.acceptedBids.toLocaleString("en-GB"),
-      hint: "Committed bids broadcast to live auction listeners.",
+      value: databaseMetrics.history.acceptedBids.toLocaleString("en-GB"),
+      hint: "All-time committed bids recorded in PostgreSQL, including seeded history.",
     },
     {
       label: "Rejected bids",
-      value: snapshot.counters.rejectedBids.toLocaleString("en-GB"),
-      hint: "Business-rule rejections such as stale or insufficient bids.",
+      value: databaseMetrics.history.rejectedBids.toLocaleString("en-GB"),
+      hint: "All-time business-rule rejections such as stale or insufficient bids.",
     },
     {
       label: "Auctions created",
-      value: snapshot.counters.auctionsCreated.toLocaleString("en-GB"),
-      hint: "Auctions created through the application service path.",
+      value: databaseMetrics.history.auctionsCreated.toLocaleString("en-GB"),
+      hint: "All-time auctions recorded in PostgreSQL.",
     },
     {
       label: "Auctions closed",
-      value: snapshot.counters.auctionsClosed.toLocaleString("en-GB"),
-      hint: "Manual or lifecycle-driven auction closures.",
+      value: databaseMetrics.history.auctionsClosed.toLocaleString("en-GB"),
+      hint: "All-time closed and unsold auctions.",
     },
     {
       label: "Completed sales",
-      value: snapshot.counters.salesCompleted.toLocaleString("en-GB"),
-      hint: "Closed auctions with a winning bid and sale record.",
+      value: databaseMetrics.history.salesCompleted.toLocaleString("en-GB"),
+      hint: "All-time closed auctions with a winning bid and sale record.",
     },
     {
       label: "Total sale value",
-      value: formatMoney(snapshot.counters.totalSaleValueCents),
-      hint: "Cumulative completed sale value.",
+      value: formatMoney(databaseMetrics.history.totalSaleValueCents),
+      hint: "All-time cumulative completed sale value.",
     },
     {
       label: "Validation failures",
       value: snapshot.counters.validationFailures.toLocaleString("en-GB"),
-      hint: "Zod input validation failures.",
+      hint: "Zod input validation failures since this server started.",
     },
     {
       label: "Close failures",
       value: snapshot.counters.closeFailures.toLocaleString("en-GB"),
-      hint: "Failed close attempts that surfaced as errors.",
+      hint: "Failed close attempts since this server started.",
     },
     {
       label: "Simulator requests",
       value: snapshot.counters.simulatorRequests.toLocaleString("en-GB"),
-      hint: "Requests made to the simulator API.",
+      hint: "Requests made to the simulator API since this server started.",
     },
   ];
   const databaseCards = [
@@ -204,7 +204,7 @@ function renderMetricsPage(
         color: var(--muted); font-size: 1rem; padding: 0.35rem 0.6rem; cursor: pointer;
       }
       .theme-btn:hover { color: var(--accent); border-color: var(--accent-border); }
-      .page { width: min(1240px, calc(100vw - 2rem)); margin: 0 auto; padding: 1.75rem 0 4rem; }
+      .page { width: min(1240px, calc(100% - 2rem)); margin: 0 auto; padding: 1.75rem 0 4rem; }
       .hero {
         display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem; margin-bottom: 1.5rem;
       }
@@ -239,6 +239,29 @@ function renderMetricsPage(
         text-decoration: none; font-size: 0.95rem;
       }
       .button:hover { border-color: var(--accent-border); color: var(--accent); }
+      .bottom-nav { display: none; }
+      @media (max-width: 640px) {
+        .topbar .nav { display: none; }
+        .topbar { padding-top: 0.6rem; padding-bottom: 0.6rem; }
+        .bottom-nav {
+          display: flex; justify-content: space-around; align-items: stretch;
+          position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+          background: var(--topbar-bg); backdrop-filter: var(--topbar-backdrop);
+          border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
+        }
+        .bottom-nav a {
+          flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 0.2rem; min-height: 52px; padding: 0.4rem 0.25rem; text-decoration: none;
+          color: var(--muted); font-size: 0.72rem; font-weight: 600;
+          border-top: 2px solid transparent; white-space: nowrap;
+        }
+        .bottom-nav a span[aria-hidden] { font-size: 1.25rem; line-height: 1; }
+        .bottom-nav a:hover { color: var(--text); }
+        .bottom-nav a.active {
+          color: var(--nav-active-color); border-top-color: var(--accent); background: var(--accent-soft);
+        }
+        .page { padding-bottom: 5rem; }
+      }
     </style>
   </head>
   <body>
@@ -285,6 +308,12 @@ function renderMetricsPage(
         ${snapshot.histograms.map(renderHistogramCard).join("")}
       </section>
     </main>
+    <nav class="bottom-nav" aria-label="Primary navigation">
+      <a href="/"><span aria-hidden="true">🏠</span>Dashboard</a>
+      <a href="/inventory/new"><span aria-hidden="true">🐟</span>Add fish</a>
+      <a href="/admin"><span aria-hidden="true">📋</span>Admin</a>
+      <a href="/metrics" class="active"><span aria-hidden="true">📊</span>Metrics</a>
+    </nav>
   </body>
 </html>`;
 }

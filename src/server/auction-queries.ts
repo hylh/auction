@@ -2,6 +2,7 @@ import { aliasedTable } from "drizzle-orm/alias";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db, sqlClient } from "../db/client";
 import { auctions, bids, fishItems, sales, users } from "../db/schema";
+import { nextMinimumBidCents } from "../domain/bid-builder";
 import type { BidSnapshot } from "../domain/events";
 import type { AdminFilters } from "../domain/validation";
 import { toBidSnapshot, toFishSummary, toUserSummary } from "./auction-mappers";
@@ -13,7 +14,13 @@ import {
   fishMatchesFilters,
   saleQueryConditions,
 } from "./auction-query-filters";
-import type { AuctionDetail, DashboardData, DemoUser, TickerEntry } from "./auction-types";
+import type {
+  AuctionDetail,
+  BidSubmissionContext,
+  DashboardData,
+  DemoUser,
+  TickerEntry,
+} from "./auction-types";
 
 export async function listDemoUsers(): Promise<Array<DemoUser>> {
   return db
@@ -166,6 +173,25 @@ export async function getAuctionDetail(auctionId: string): Promise<AuctionDetail
     seller: toUserSummary(auction.fishItem.seller),
     currentHighestBid: bidSnapshots[0] ?? null,
     bids: bidSnapshots,
+  };
+}
+
+export async function getBidSubmissionContext(auctionId: string): Promise<BidSubmissionContext> {
+  const detail = await getAuctionDetail(auctionId);
+  const currentHighestBidCents = detail.currentHighestBid?.amountCents ?? null;
+
+  return {
+    auctionId: detail.id,
+    auctionStatus: detail.status,
+    startingPriceCents: detail.fish.startingPriceCents,
+    minimumIncrementCents: detail.minimumIncrementCents,
+    currentHighestBid: detail.currentHighestBid,
+    expectedHighestBidCents: currentHighestBidCents,
+    nextMinimumBidCents: nextMinimumBidCents({
+      currentHighestBidCents,
+      startingPriceCents: detail.fish.startingPriceCents,
+      minimumIncrementCents: detail.minimumIncrementCents,
+    }),
   };
 }
 

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatTime } from "../domain/datetime";
 import { centsFromMajor, formatMoney } from "../domain/money";
 import { formatKilograms } from "../domain/weight";
@@ -31,6 +31,24 @@ function AuctionDetailPage() {
   const [amountMajor, setAmountMajor] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
+  const pageRef = useRef<HTMLElement>(null);
+  const bidBarRef = useRef<HTMLElement>(null);
+
+  // On phones the place-bid card is fixed to the bottom of the viewport. Measure
+  // its height into --bid-bar-h so the page reserves exactly enough bottom space
+  // instead of relying on a magic padding value that can clip the form.
+  useEffect(() => {
+    const page = pageRef.current;
+    const bar = bidBarRef.current;
+    if (!page || !bar || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver((entries) => {
+      const height = entries[0]?.contentRect.height ?? bar.offsetHeight;
+      page.style.setProperty("--bid-bar-h", `${Math.ceil(height)}px`);
+    });
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, []);
 
   const suggestedAmountMajor = useMemo(() => {
     if (!auction.data) return "";
@@ -170,7 +188,7 @@ function AuctionDetailPage() {
       : detail.currentHighestBid.amountCents + detail.minimumIncrementCents;
 
   return (
-    <main className="page auction-detail-page">
+    <main className="page auction-detail-page" ref={pageRef}>
       <section className="hero">
         <div>
           <span className={`pill`}>{detail.status}</span>
@@ -183,7 +201,7 @@ function AuctionDetailPage() {
       </section>
 
       <section className="grid">
-        <article className="card c-teal bid-bar-card">
+        <article className="card c-teal bid-bar-card" ref={bidBarRef}>
           <h2>Place bid</h2>
           <p className="metric">
             {detail.currentHighestBid

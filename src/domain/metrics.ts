@@ -1,15 +1,6 @@
 import { renderPrometheusText, type MetricFamily } from "./metric-exposition";
 
-type MetricName =
-  | "acceptedBids"
-  | "rejectedBids"
-  | "auctionsCreated"
-  | "auctionsClosed"
-  | "salesCompleted"
-  | "totalSaleValueCents"
-  | "validationFailures"
-  | "closeFailures"
-  | "simulatorRequests";
+type MetricName = "validationFailures" | "closeFailures" | "simulatorRequests";
 
 export type MetricsSnapshot = {
   counters: Record<MetricName, number>;
@@ -27,12 +18,6 @@ export type MetricsSnapshot = {
 };
 
 const counters: Record<MetricName, number> = {
-  acceptedBids: 0,
-  rejectedBids: 0,
-  auctionsCreated: 0,
-  auctionsClosed: 0,
-  salesCompleted: 0,
-  totalSaleValueCents: 0,
   validationFailures: 0,
   closeFailures: 0,
   simulatorRequests: 0,
@@ -77,20 +62,6 @@ export function metricsText() {
 
 function metricsFamilies(): Array<MetricFamily> {
   return [
-    counterFamily("auction_accepted_bids_total", "Accepted bid count", counters.acceptedBids),
-    counterFamily("auction_rejected_bids_total", "Rejected bid count", counters.rejectedBids),
-    counterFamily(
-      "auction_auctions_created_total",
-      "Created auction count",
-      counters.auctionsCreated,
-    ),
-    counterFamily("auction_auctions_closed_total", "Closed auction count", counters.auctionsClosed),
-    counterFamily("auction_sales_completed_total", "Completed sale count", counters.salesCompleted),
-    counterFamily(
-      "auction_total_sale_value_cents",
-      "Total completed sale value in cents",
-      counters.totalSaleValueCents,
-    ),
     counterFamily(
       "auction_validation_failures_total",
       "Zod validation failure count",

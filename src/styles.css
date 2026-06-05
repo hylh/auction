@@ -8,6 +8,29 @@
   color: var(--text);
   background: var(--body-bg);
   background-attachment: fixed;
+
+  /* ─── Fluid type scale ──────────────────────────────────────────────────────
+     clamp(min, preferred, max). Mins/maxes are in rem so OS text-scaling still
+     applies. Body stays at the 16px default so form inputs never trigger iOS
+     auto-zoom (inputs use `font: inherit`). */
+  --fs-2xs: clamp(0.7rem, 0.66rem + 0.18vw, 0.78rem);
+  --fs-xs: clamp(0.78rem, 0.73rem + 0.22vw, 0.85rem);
+  --fs-sm: clamp(0.85rem, 0.8rem + 0.25vw, 0.95rem);
+  --fs-base: clamp(0.95rem, 0.92rem + 0.2vw, 1.05rem);
+  --fs-md: clamp(1.05rem, 0.98rem + 0.4vw, 1.25rem);
+  --fs-lg: clamp(1.2rem, 1.05rem + 0.7vw, 1.5rem);
+  --fs-xl: clamp(1.4rem, 1.15rem + 1.1vw, 1.75rem);
+  --fs-2xl: clamp(1.6rem, 1.25rem + 1.6vw, 2rem);
+  --fs-3xl: clamp(1.8rem, 1.2rem + 3vw, 2.8rem);
+
+  /* ─── Fluid spacing scale ───────────────────────────────────────────────────
+     Used for container/card padding, gaps and section rhythm. */
+  --space-1: clamp(0.4rem, 0.35rem + 0.25vw, 0.6rem);
+  --space-2: clamp(0.6rem, 0.5rem + 0.4vw, 0.85rem);
+  --space-3: clamp(0.85rem, 0.7rem + 0.6vw, 1.2rem);
+  --space-4: clamp(1.1rem, 0.9rem + 0.9vw, 1.6rem);
+  --space-5: clamp(1.5rem, 1.2rem + 1.4vw, 2.4rem);
+  --space-6: clamp(2rem, 1.5rem + 2.4vw, 3.5rem);
 }
 
 * {
@@ -20,6 +43,12 @@ body {
 
 a {
   color: inherit;
+}
+
+/* Responsive-image safety net: external fish images never overflow their box. */
+img {
+  max-width: 100%;
+  height: auto;
 }
 
 button,
@@ -36,6 +65,7 @@ button {
 /* ─── Shell ─────────────────────────────────────────────────────────────────── */
 .shell {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ─── Topbar ─────────────────────────────────────────────────────────────────── */
@@ -64,7 +94,7 @@ button {
   font-weight: 800;
   letter-spacing: -0.03em;
   text-decoration: none;
-  font-size: 1.05rem;
+  font-size: var(--fs-base);
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -97,7 +127,7 @@ button {
   padding: 0.4rem 0.8rem;
   text-decoration: none;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -213,9 +243,9 @@ button {
 
 /* ─── Page container ─────────────────────────────────────────────────────────── */
 .page {
-  width: min(1240px, calc(100vw - 2rem));
+  width: min(1240px, calc(100% - 2rem));
   margin: 0 auto;
-  padding: 1.75rem 0 4rem;
+  padding: var(--space-5) 0 var(--space-6);
 }
 
 /* ─── Hero ───────────────────────────────────────────────────────────────────── */
@@ -230,7 +260,7 @@ button {
 
 .hero h1 {
   margin: 0.4rem 0 0;
-  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-size: var(--fs-3xl);
   letter-spacing: -0.04em;
   color: var(--text);
 }
@@ -250,7 +280,7 @@ button {
   padding: 0.25rem 0.7rem;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 0.8rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -276,7 +306,7 @@ button {
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 1.05rem 1.2rem;
+  padding: var(--space-3) var(--space-4);
   box-shadow: var(--shadow);
 }
 
@@ -289,13 +319,13 @@ button {
 
 .stat .label {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--fs-2xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
 .stat .value {
-  font-size: 1.75rem;
+  font-size: var(--fs-xl);
   font-weight: 800;
   letter-spacing: -0.03em;
   margin-top: 0.3rem;
@@ -303,7 +333,7 @@ button {
 }
 
 .stat .delta {
-  font-size: 0.85rem;
+  font-size: var(--fs-xs);
   margin-top: 0.15rem;
   font-weight: 600;
 }
@@ -399,7 +429,7 @@ button {
   color: var(--muted);
   padding: 0.55rem 0.95rem;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   margin-bottom: -1px;
 }
 
@@ -421,7 +451,7 @@ button {
 
 .tab-count {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 0.05rem 0.4rem;
   border-radius: 999px;
@@ -441,7 +471,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--panel);
-  padding: 1.1rem 1.2rem;
+  padding: var(--space-3) var(--space-4);
   box-shadow: var(--shadow);
 }
 
@@ -472,7 +502,7 @@ button {
 
 .card h2 {
   margin: 0.15rem 0 0.85rem;
-  font-size: 0.95rem;
+  font-size: var(--fs-sm);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
@@ -495,7 +525,7 @@ button {
 
 /* ─── Metric ─────────────────────────────────────────────────────────────────── */
 .metric {
-  font-size: 2rem;
+  font-size: var(--fs-2xl);
   font-weight: 800;
   letter-spacing: -0.04em;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
@@ -509,7 +539,7 @@ button {
 
 /* ─── Badge ──────────────────────────────────────────────────────────────────── */
 .badge {
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   padding: 0.18rem 0.55rem;
   border-radius: 999px;
   font-weight: 700;
@@ -558,7 +588,7 @@ button {
 
 .sub {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: var(--fs-xs);
   margin-top: 0.15rem;
 }
 
@@ -604,7 +634,7 @@ button {
 
 /* ─── Tag ────────────────────────────────────────────────────────────────────── */
 .tag {
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 0.12rem 0.5rem;
@@ -672,7 +702,7 @@ button {
 .field span {
   color: var(--muted);
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
 }
 
 .field input,
@@ -819,11 +849,13 @@ button {
 
 /* ════════════════════════════════════════════════════════════════════════════
    MOBILE FOUNDATION (Stage 0)
-   Breakpoint reference (media queries need literal px, these document intent):
-     --bp-sm: 640px;   large phone / small tablet
-     --bp-md: 768px;   tablet
-     --bp-lg: 1024px;  desktop
-   Base styles are desktop-sized; tune downward at the breakpoints below.
+   Canonical breakpoints (media queries need literal px; these document intent
+   and must be used consistently — pair max-width:N with min-width:N+1):
+     --bp-sm: 640px;   large phone / small tablet   (phone layout <= 640)
+     --bp-md: 768px;   tablet                        (compact layout <= 768)
+     --bp-lg: 1024px;  desktop                       (roomy layout  >= 1024)
+   Base styles are desktop-sized; tune downward at the breakpoints below, and
+   add roomier desktop enhancements at the lg tier.
 
    Per-slice CSS blocks live at the bottom of this file. Each parallel slice
    appends ONLY to its own labelled block to avoid merge conflicts:
@@ -833,6 +865,19 @@ button {
      "mobile: dashboard"      (Slice D)
      "mobile: inventory"      (Slice E)
    ════════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Desktop (lg) enhancements: ≥1024px ─────────────────────────────────────── */
+@media (min-width: 1024px) {
+  /* Roomier container on large screens. */
+  .page {
+    width: min(1320px, calc(100% - 3rem));
+  }
+
+  /* Let the dashboard stat strip pack more, denser columns. */
+  .stat-strip {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
 
 /* ─── Shared: dense-row truncation + wrap ────────────────────────────────────── */
 /* Let the label block shrink/truncate instead of forcing horizontal overflow. */
@@ -847,8 +892,23 @@ button {
   white-space: nowrap;
 }
 
+/* Dense lists adapt to the width of the column they sit in (container query),
+   not just the viewport — so rows wrap when a dashboard card is narrow even on
+   a wide screen. Falls back to the viewport rule below where unsupported. */
+.list {
+  container-type: inline-size;
+  container-name: dense-list;
+}
+
+@container dense-list (max-width: 340px) {
+  /* Allow the amount to drop to its own line when the column gets tight. */
+  .row {
+    flex-wrap: wrap;
+  }
+}
+
 @media (max-width: 640px) {
-  /* Allow the amount to drop to its own line when the row gets tight. */
+  /* Viewport fallback for engines without container-query support. */
   .row {
     flex-wrap: wrap;
   }
@@ -876,7 +936,7 @@ button {
 /* Reduce side padding and reserve bottom space for the mobile nav bar. */
 @media (max-width: 640px) {
   .page {
-    width: calc(100vw - 1.5rem);
+    width: calc(100% - 1.5rem);
     padding: 1.25rem 0 5rem;
   }
 }
@@ -956,22 +1016,29 @@ button {
 
 /* mobile: admin */
 
-/* ─── Tab strip: horizontally scrollable on phones ──────────────────────────── */
+/* ─── Tab strip: 2×2 grid on phones so all sections are visible at once ──────── */
 @media (max-width: 640px) {
   .tabs {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; /* Firefox */
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    border-bottom: 0;
+    margin: 1.25rem 0 0.5rem;
   }
 
-  .tabs::-webkit-scrollbar {
-    display: none; /* Chrome / Safari */
-  }
-
-  /* Prevent individual tabs from shrinking below their natural width */
+  /* Each tab becomes a self-contained card button rather than a strip tab. */
   .tab {
-    flex-shrink: 0;
+    justify-content: space-between;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 0;
+    background: var(--panel);
+  }
+
+  .tab.active {
+    border-color: var(--accent-border);
+    background: var(--accent-soft);
+    color: var(--text);
   }
 }
 
@@ -1019,8 +1086,14 @@ button {
     display: none;
   }
 
-  /* Override the browser UA stylesheet that hides <details> children when
-     the element lacks the `open` attribute — keeps filters always visible. */
+  /* Newer engines wrap closed <details> content in a ::details-content
+     pseudo-element hidden via content-visibility — force it visible. */
+  .admin-filters-details::details-content {
+    content-visibility: visible;
+  }
+
+  /* Older engines hide <details> children via display:none when the element
+     lacks the `open` attribute — override that to keep filters visible. */
   .admin-filters-details > :not(summary) {
     display: block;
   }
@@ -1043,18 +1116,21 @@ button {
     border-bottom: none;
     box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
     max-height: 60vh;
+    max-height: 60dvh;
     overflow-y: auto;
   }
 
   /* Clamp the live bid chain so the page doesn't grow unbounded */
   .bid-chain-list {
     max-height: 45vh;
+    max-height: 45dvh;
     overflow-y: auto;
   }
 
-  /* Ensure page content isn't hidden behind the fixed bid bar (~300 px tall) */
+  /* Reserve space for the fixed bid bar. Height is measured into --bid-bar-h by
+     the component; the rem fallback covers first paint / no-JS. */
   .auction-detail-page {
-    padding-bottom: 20rem;
+    padding-bottom: calc(var(--bid-bar-h, 18rem) + 1.5rem);
   }
 
   /* Full-width, ≥44 px tap targets for buyer select and bid amount input */
@@ -1071,6 +1147,11 @@ button {
 @media (max-width: 640px) {
   .bid-bar-card {
     bottom: calc(52px + env(safe-area-inset-bottom));
+  }
+
+  /* The bar now sits above the bottom nav, so reserve its height plus the nav. */
+  .auction-detail-page {
+    padding-bottom: calc(var(--bid-bar-h, 18rem) + 52px + env(safe-area-inset-bottom) + 1.5rem);
   }
 }
 
@@ -1204,4 +1285,57 @@ button {
     flex: 0 0 auto;
     margin-right: auto;
   }
+}
+
+/* ─── Not found (404) ────────────────────────────────────────────────────────── */
+.not-found {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 2rem clamp(1rem, 5vw, 3rem) 5rem;
+}
+
+.not-found-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  max-width: 28rem;
+  padding: 2.5rem 2rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+}
+
+.not-found-mark {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.not-found-card h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+.not-found-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.not-found-link {
+  margin-top: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--nav-active-color);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: 0.6rem;
+}
+
+.not-found-link:hover {
+  color: var(--accent);
 }

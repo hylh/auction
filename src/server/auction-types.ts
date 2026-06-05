@@ -105,6 +105,16 @@ export type AuctionDetail = AuctionSummary & {
   bids: Array<BidSnapshot>;
 };
 
+export type BidSubmissionContext = {
+  auctionId: string;
+  auctionStatus: string;
+  startingPriceCents: number;
+  minimumIncrementCents: number;
+  currentHighestBid: BidSnapshot | null;
+  expectedHighestBidCents: number | null;
+  nextMinimumBidCents: number;
+};
+
 export type AdminData = {
   demoUsers: Array<DemoUser>;
   completedSales: Array<SaleSummary>;

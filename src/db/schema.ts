@@ -95,6 +95,29 @@ export const bids = pgTable(
   ],
 );
 
+export const rejectedBids = pgTable(
+  "rejected_bids",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    auctionId: uuid("auction_id")
+      .notNull()
+      .references(() => auctions.id),
+    bidderId: uuid("bidder_id")
+      .notNull()
+      .references(() => users.id),
+    amountCents: integer("amount_cents").notNull(),
+    code: text("code").notNull(),
+    reason: text("reason").notNull(),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("rejected_bids_auction_idx").on(table.auctionId),
+    index("rejected_bids_bidder_idx").on(table.bidderId),
+    index("rejected_bids_rejected_at_idx").on(table.rejectedAt),
+    index("rejected_bids_code_idx").on(table.code),
+  ],
+);
+
 export const sales = pgTable(
   "sales",
   {
@@ -171,6 +194,7 @@ export const adminActions = pgTable(
 export const usersRelations = relations(users, ({ many }) => ({
   fishItems: many(fishItems),
   bids: many(bids),
+  rejectedBids: many(rejectedBids),
   changedInventoryStatuses: many(inventoryStatusChanges),
   adminActions: many(adminActions),
 }));
@@ -192,6 +216,7 @@ export const auctionsRelations = relations(auctions, ({ one, many }) => ({
     references: [fishItems.id],
   }),
   bids: many(bids),
+  rejectedBids: many(rejectedBids),
   sales: many(sales),
   inventoryStatusChanges: many(inventoryStatusChanges),
   adminActions: many(adminActions),
@@ -204,6 +229,17 @@ export const bidsRelations = relations(bids, ({ one }) => ({
   }),
   bidder: one(users, {
     fields: [bids.bidderId],
+    references: [users.id],
+  }),
+}));
+
+export const rejectedBidsRelations = relations(rejectedBids, ({ one }) => ({
+  auction: one(auctions, {
+    fields: [rejectedBids.auctionId],
+    references: [auctions.id],
+  }),
+  bidder: one(users, {
+    fields: [rejectedBids.bidderId],
     references: [users.id],
   }),
 }));

@@ -1,3 +1,5 @@
+import { nextMinimumBidCents } from "./bid-builder";
+
 export type BidErrorCode =
   | "STALE_BID"
   | "AUCTION_NOT_ACTIVE"
@@ -53,10 +55,7 @@ export function evaluateBid(input: BidRuleInput): BidRuleResult {
     );
   }
 
-  const floor =
-    input.currentHighestBidCents === null
-      ? input.startingPriceCents
-      : input.currentHighestBidCents + input.minimumIncrementCents;
+  const floor = nextMinimumBidCents(input);
 
   if (input.amountCents < floor) {
     return reject("INSUFFICIENT_INCREMENT", `Bid must be at least ${floor} cents`, input);

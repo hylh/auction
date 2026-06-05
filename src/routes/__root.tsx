@@ -37,7 +37,25 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     return { theme };
   },
   component: RootComponent,
+  notFoundComponent: NotFoundComponent,
 });
+
+function NotFoundComponent() {
+  return (
+    <main className="not-found">
+      <div className="not-found-card">
+        <span className="not-found-mark" aria-hidden="true">
+          🐟
+        </span>
+        <h1>Page not found</h1>
+        <p>The auction, fish, or page you were looking for has slipped the net.</p>
+        <Link to="/" className="not-found-link">
+          Back to dashboard
+        </Link>
+      </div>
+    </main>
+  );
+}
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();

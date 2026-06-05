@@ -8,7 +8,6 @@ import {
   type SaleCompletedEvent,
 } from "../domain/events";
 import { logInfo } from "../domain/logger";
-import { incrementMetric } from "../domain/metrics";
 import { recordAdminAction, recordInventoryStatusChange, type Transaction } from "./auction-audit";
 import type {
   AuctionLifecycleStatus,
@@ -110,12 +109,9 @@ export function publishCloseResult(result: CloseAuctionResult) {
     return;
   }
 
-  incrementMetric("auctionsClosed");
   publishAuctionEvent(result.closedEvent);
 
   if (result.saleEvent) {
-    incrementMetric("salesCompleted");
-    incrementMetric("totalSaleValueCents", result.saleEvent.amountCents);
     publishAuctionEvent(result.saleEvent);
   }
 

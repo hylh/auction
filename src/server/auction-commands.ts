@@ -1,11 +1,11 @@
 import { trace } from "@opentelemetry/api";
 import { desc, eq, sql } from "drizzle-orm";
 import { db } from "../db/client";
-import { auctions, bids, fishItems, users } from "../db/schema";
+import { auctions, bids, fishItems, rejectedBids, users } from "../db/schema";
 import { evaluateBid } from "../domain/bid-rules";
 import { publishAuctionEvent, type BidRejectedEvent, type BidSnapshot } from "../domain/events";
 import { logInfo, logWarn } from "../domain/logger";
-import { incrementMetric, observeBidMutationDuration } from "../domain/metrics";
+import { observeBidMutationDuration } from "../domain/metrics";
 import { centsFromMajor } from "../domain/money";
 import {
   auctionInputSchema,
@@ -138,7 +138,6 @@ export async function createAuction(input: unknown): Promise<AuctionSummary> {
     };
   });
 
-  incrementMetric("auctionsCreated");
   logInfo("auction.created", {
     auctionId: createdAuction.id,
     fishItemId: data.fishItemId,
@@ -185,6 +184,14 @@ export async function placeBid(input: unknown): Promise<PlaceBidResult> {
           orderBy: [desc(bids.amountCents), desc(bids.acceptedAt)],
         });
 
+        const bidder = await tx.query.users.findFirst({
+          where: eq(users.id, data.bidderId),
+        });
+
+        if (!bidder) {
+          throw new Error(`Bidder ${data.bidderId} was not found`);
+        }
+
         const bidDecision = evaluateBid({
           amountCents: data.amountCents,
           expectedHighestBidCents: data.expectedHighestBidCents,
@@ -200,6 +207,14 @@ export async function placeBid(input: unknown): Promise<PlaceBidResult> {
         });
 
         if (!bidDecision.ok) {
+          await tx.insert(rejectedBids).values({
+            auctionId: data.auctionId,
+            bidderId: data.bidderId,
+            amountCents: data.amountCents,
+            code: bidDecision.code,
+            reason: bidDecision.message,
+          });
+
           return {
             ok: false as const,
             code: bidDecision.code,
@@ -216,14 +231,6 @@ export async function placeBid(input: unknown): Promise<PlaceBidResult> {
             amountCents: data.amountCents,
           })
           .returning();
-
-        const bidder = await tx.query.users.findFirst({
-          where: eq(users.id, data.bidderId),
-        });
-
-        if (!bidder) {
-          throw new Error(`Bidder ${data.bidderId} was not found`);
-        }
 
         const snapshot: BidSnapshot = {
           bidId: insertedBid.id,
@@ -250,7 +257,6 @@ export async function placeBid(input: unknown): Promise<PlaceBidResult> {
   observeBidMutationDuration(performance.now() - started);
 
   if (result.ok) {
-    incrementMetric("acceptedBids");
     publishAuctionEvent(result.event);
     logInfo("bid.accepted", {
       auctionId: result.event.auctionId,
@@ -258,7 +264,6 @@ export async function placeBid(input: unknown): Promise<PlaceBidResult> {
       amountCents: result.event.bid.amountCents,
     });
   } else {
-    incrementMetric("rejectedBids");
     const event: BidRejectedEvent = {
       type: "bid.rejected",
       auctionId: data.auctionId,

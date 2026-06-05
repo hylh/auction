@@ -15,6 +15,13 @@
       "when": 1780490717828,
       "tag": "0001_shocking_randall_flagg",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780655779224,
+      "tag": "0002_opposite_karnak",
+      "breakpoints": true
     }
   ]
 }

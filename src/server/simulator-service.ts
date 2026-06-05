@@ -1,4 +1,6 @@
 import { DEMO_USERS, FISH_SPECIES } from "../domain/constants";
+import { buildValidBidInput, nextMinimumBidCents } from "../domain/bid-builder";
+import type { BidSnapshot } from "../domain/events";
 import { incrementMetric } from "../domain/metrics";
 import type { SimulatorInput } from "../domain/validation";
 import {
@@ -14,6 +16,13 @@ import {
   type FishSummary,
   type PlaceBidResult,
 } from "./auction-service";
+
+type SimulatedAuctionState = {
+  id: string;
+  minimumIncrementCents: number;
+  fish: { startingPriceCents: number };
+  currentHighestBid: BidSnapshot | null;
+};
 
 export type SimulatedBid = {
   auctionId: string;
@@ -87,39 +96,25 @@ export async function runSimulation(input: SimulatorInput): Promise<SimulatorSum
   const activeAuctions = await loadSimulatedAuctions(input.auctionIds, createdAuctions);
   const bids: Array<SimulatedBid> = [];
 
-  for (let index = 0; index < input.bidCount; index += 1) {
-    const auction = activeAuctions[index % activeAuctions.length];
-    const buyer = buyers[index % buyers.length];
-    if (!auction || !buyer) break;
+  if (activeAuctions.length > 0 && buyers.length > 0) {
+    const rounds = input.bidRounds ?? 0;
 
-    const currentHighestBidCents = auction.currentHighestBid?.amountCents ?? null;
-    const nextMinimum =
-      currentHighestBidCents === null
-        ? auction.fish.startingPriceCents
-        : currentHighestBidCents + auction.minimumIncrementCents;
-    const shouldReject = input.rejectionRate > 0 && random() < input.rejectionRate;
-    const amountCents = shouldReject
-      ? Math.max(1, nextMinimum - 1)
-      : nextMinimum + Math.floor(random() * 3) * auction.minimumIncrementCents;
-
-    const result = await placeBid({
-      auctionId: auction.id,
-      bidderId: buyer.id,
-      amountCents,
-      expectedHighestBidCents: currentHighestBidCents,
-    });
-
-    if (result.ok) {
-      auction.currentHighestBid = result.event.currentHighestBid;
+    if (rounds > 0) {
+      for (let round = 0; round < rounds; round += 1) {
+        for (let auctionIndex = 0; auctionIndex < activeAuctions.length; auctionIndex += 1) {
+          const auction = activeAuctions[auctionIndex];
+          const buyer = buyers[(round + auctionIndex) % buyers.length];
+          await placeSimulatedBid(auction, buyer.id, random, input, bids);
+        }
+      }
+    } else {
+      for (let index = 0; index < input.bidCount; index += 1) {
+        const auction = activeAuctions[index % activeAuctions.length];
+        const buyer = buyers[index % buyers.length];
+        if (!auction || !buyer) break;
+        await placeSimulatedBid(auction, buyer.id, random, input, bids);
+      }
     }
-
-    bids.push({
-      auctionId: auction.id,
-      bidderId: buyer.id,
-      amountCents,
-      intendedOutcome: shouldReject ? "rejected" : "accepted",
-      result,
-    });
   }
 
   const closeAuctionIds = [
@@ -143,6 +138,50 @@ export async function runSimulation(input: SimulatorInput): Promise<SimulatorSum
       completedSales: closedAuctions.filter((result) => result.saleEvent !== null).length,
     },
   };
+}
+
+async function placeSimulatedBid(
+  auction: SimulatedAuctionState,
+  bidderId: string,
+  random: () => number,
+  input: SimulatorInput,
+  bids: Array<SimulatedBid>,
+) {
+  const currentHighestBidCents = auction.currentHighestBid?.amountCents ?? null;
+  const floorParams = {
+    currentHighestBidCents,
+    startingPriceCents: auction.fish.startingPriceCents,
+    minimumIncrementCents: auction.minimumIncrementCents,
+  };
+  const shouldReject = input.rejectionRate > 0 && random() < input.rejectionRate;
+
+  const bidInput = shouldReject
+    ? {
+        auctionId: auction.id,
+        bidderId,
+        amountCents: Math.max(1, nextMinimumBidCents(floorParams) - 1),
+        expectedHighestBidCents: currentHighestBidCents,
+      }
+    : buildValidBidInput({
+        ...floorParams,
+        auctionId: auction.id,
+        bidderId,
+        incrementSteps: Math.floor(random() * 3),
+      });
+
+  const result = await placeBid(bidInput);
+
+  if (result.ok) {
+    auction.currentHighestBid = result.event.currentHighestBid;
+  }
+
+  bids.push({
+    auctionId: auction.id,
+    bidderId,
+    amountCents: bidInput.amountCents,
+    intendedOutcome: shouldReject ? "rejected" : "accepted",
+    result,
+  });
 }
 
 async function loadSimulatedAuctions(

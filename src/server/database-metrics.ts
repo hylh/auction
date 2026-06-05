@@ -3,6 +3,14 @@ import { renderPrometheusText, type MetricFamily } from "../domain/metric-exposi
 
 export type DatabaseMetrics = {
   databaseSizeBytes: number;
+  history: {
+    acceptedBids: number;
+    rejectedBids: number;
+    auctionsCreated: number;
+    auctionsClosed: number;
+    salesCompleted: number;
+    totalSaleValueCents: number;
+  };
   connections: {
     applicationName: string;
     total: number;
@@ -43,6 +51,7 @@ const trackedTables = [
   "fish_items",
   "auctions",
   "bids",
+  "rejected_bids",
   "sales",
   "inventory_status_changes",
   "admin_actions",
@@ -58,9 +67,28 @@ export async function loadDatabaseMetrics(): Promise<DatabaseMetrics> {
       union all select 'fish_items', count(*)::text from fish_items
       union all select 'auctions', count(*)::text from auctions
       union all select 'bids', count(*)::text from bids
+      union all select 'rejected_bids', count(*)::text from rejected_bids
       union all select 'sales', count(*)::text from sales
       union all select 'inventory_status_changes', count(*)::text from inventory_status_changes
       union all select 'admin_actions', count(*)::text from admin_actions
+    `;
+    const historyRows = await sql<
+      {
+        accepted_bids: string;
+        rejected_bids: string;
+        auctions_created: string;
+        auctions_closed: string;
+        sales_completed: string;
+        total_sale_value_cents: string | null;
+      }[]
+    >`
+      select
+        (select count(*) from bids)::text as accepted_bids,
+        (select count(*) from rejected_bids)::text as rejected_bids,
+        (select count(*) from auctions)::text as auctions_created,
+        (select count(*) from auctions where status in ('closed', 'unsold'))::text as auctions_closed,
+        (select count(*) from sales)::text as sales_completed,
+        (select coalesce(sum(amount_cents), 0)::text from sales) as total_sale_value_cents
     `;
     const tableSizes = await sql<
       {
@@ -151,9 +179,18 @@ export async function loadDatabaseMetrics(): Promise<DatabaseMetrics> {
     const sizeByTable = new Map(tableSizes.map((row) => [row.table_name, row]));
     const connections = connectionRows[0];
     const load = loadRows[0];
+    const history = historyRows[0];
 
     return {
       databaseSizeBytes: parseNumber(databaseSize[0]?.database_size_bytes),
+      history: {
+        acceptedBids: parseNumber(history?.accepted_bids),
+        rejectedBids: parseNumber(history?.rejected_bids),
+        auctionsCreated: parseNumber(history?.auctions_created),
+        auctionsClosed: parseNumber(history?.auctions_closed),
+        salesCompleted: parseNumber(history?.sales_completed),
+        totalSaleValueCents: parseNumber(history?.total_sale_value_cents),
+      },
       connections: {
         applicationName: databaseApplicationName,
         total: parseNumber(connections?.total_connections),
@@ -203,6 +240,32 @@ export function databaseMetricsText(metrics: DatabaseMetrics) {
 
 function databaseMetricsFamilies(metrics: DatabaseMetrics): Array<MetricFamily> {
   return [
+    gaugeFamily("auction_history_accepted_bids", "All-time accepted bid count from PostgreSQL", [
+      { value: metrics.history.acceptedBids },
+    ]),
+    gaugeFamily("auction_history_rejected_bids", "All-time rejected bid count from PostgreSQL", [
+      { value: metrics.history.rejectedBids },
+    ]),
+    gaugeFamily(
+      "auction_history_auctions_created",
+      "All-time auction count from PostgreSQL",
+      [{ value: metrics.history.auctionsCreated }],
+    ),
+    gaugeFamily(
+      "auction_history_auctions_closed",
+      "All-time closed and unsold auction count from PostgreSQL",
+      [{ value: metrics.history.auctionsClosed }],
+    ),
+    gaugeFamily(
+      "auction_history_sales_completed",
+      "All-time completed sale count from PostgreSQL",
+      [{ value: metrics.history.salesCompleted }],
+    ),
+    gaugeFamily(
+      "auction_history_total_sale_value_cents",
+      "All-time completed sale value in cents from PostgreSQL",
+      [{ value: metrics.history.totalSaleValueCents }],
+    ),
     gaugeFamily("auction_database_size_bytes", "PostgreSQL database size in bytes", [
       { value: metrics.databaseSizeBytes },
     ]),

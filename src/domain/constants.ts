@@ -36,18 +36,6 @@ export const DEMO_USERS = {
   admin: "00000000-0000-4000-8000-000000000005",
 } as const;
 
-export const DEMO_AUCTIONS = {
-  salmon: "10000000-0000-4000-8000-000000000001",
-  cod: "10000000-0000-4000-8000-000000000002",
-  tuna: "10000000-0000-4000-8000-000000000003",
-} as const;
+export const SEED_SCENARIOS = ["default", "busy-auction", "all-expired", "no-bids"] as const;
 
-export const DEMO_FISH = {
-  salmon: "20000000-0000-4000-8000-000000000001",
-  cod: "20000000-0000-4000-8000-000000000002",
-  tuna: "20000000-0000-4000-8000-000000000003",
-  herring: "20000000-0000-4000-8000-000000000004",
-  trout: "20000000-0000-4000-8000-000000000005",
-  mackerel: "20000000-0000-4000-8000-000000000006",
-  halibut: "20000000-0000-4000-8000-000000000007",
-} as const;
+export type SeedScenario = (typeof SEED_SCENARIOS)[number];

@@ -11,12 +11,17 @@ const auctionIntervalMs =
 const bidIntervalMs =
   numberArg("--bid-interval-ms", "--interval-ms") ?? Number(process.env.BID_INTERVAL_MS ?? "1000");
 
+const existingAuctionIds = listArg("--auction-ids", "--auctionIds");
+const explicitAuctionCount = numberArg("--auction-count", "--auctions");
+const bidRounds = numberArg("--bid-rounds");
+
 const options = {
   runSeconds,
   auctionIntervalMs,
   bidIntervalMs,
   maxAuctions:
-    numberArg("--auction-count", "--auctions") ?? auctionsForRun(runSeconds, auctionIntervalMs),
+    explicitAuctionCount ??
+    (existingAuctionIds.length > 0 ? 0 : auctionsForRun(runSeconds, auctionIntervalMs)),
   maxBids:
     numberArg("--bid-count", "--bids") ??
     Number(process.env.BID_COUNT ?? bidsForRun(runSeconds, bidIntervalMs).toString()),
@@ -25,12 +30,19 @@ const options = {
   seed: numberArg("--seed") ?? Number(process.env.SIMULATOR_SEED ?? "20260604"),
   buyerIds: buyerIdsFromMix(getArg("--buyer-mix") ?? "all"),
   closeAuctions: hasFlag("--close"),
+  existingAuctionIds,
+  bidRounds,
 };
 
 async function main() {
+  if (options.bidRounds !== undefined) {
+    await runBatchMode();
+    return;
+  }
+
   const beforeMetrics = await fetchMetrics();
   const summary = emptySummary(options.seed);
-  const auctionIds: Array<string> = [];
+  const auctionIds: Array<string> = [...options.existingAuctionIds];
   const startedAt = Date.now();
   const endsAt = startedAt + options.runSeconds * 1000;
   let nextAuctionAt = startedAt;
@@ -137,6 +149,43 @@ async function main() {
   );
 }
 
+async function runBatchMode() {
+  const beforeMetrics = await fetchMetrics();
+  // runSeconds-derived auction counts are meaningless in batch mode, so default to a
+  // small explicit count and keep it within the /api/simulate schema cap.
+  const batchAuctionCount = Math.min(
+    10,
+    explicitAuctionCount ?? (options.existingAuctionIds.length > 0 ? 0 : 1),
+  );
+  const summary = await postSimulation({
+    auctionCount: batchAuctionCount,
+    bidCount: 0,
+    bidRounds: options.bidRounds,
+    durationMinutes: options.auctionDurationMinutes,
+    rejectionRate: options.rejectionRate,
+    seed: options.seed,
+    buyerIds: options.buyerIds,
+    auctionIds: options.existingAuctionIds.length > 0 ? options.existingAuctionIds : undefined,
+    closeAuctions: options.closeAuctions,
+  });
+  const afterMetrics = await fetchMetrics();
+
+  console.info(
+    JSON.stringify(
+      {
+        mode: "batch",
+        bidRounds: options.bidRounds,
+        targetedAuctionIds: options.existingAuctionIds,
+        createdAuctions: batchAuctionCount,
+        simulator: summary,
+        metricsDelta: diffMetrics(beforeMetrics, afterMetrics),
+      },
+      null,
+      2,
+    ),
+  );
+}
+
 async function postSimulation(payload: Record<string, unknown>) {
   const response = await fetch(`${appOrigin}/api/simulate`, {
     method: "POST",
@@ -204,6 +253,17 @@ function hasFlag(name: string) {
 function numberArg(...names: Array<string>) {
   const value = getArg(...names);
   return value === undefined ? undefined : Number(value);
+}
+
+function listArg(...names: Array<string>) {
+  const value = getArg(...names);
+  if (value === undefined) {
+    return [];
+  }
+  return value
+    .split(/[\s,]+/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 }
 
 function buyerIdsFromMix(value: string) {
