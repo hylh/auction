@@ -1,5 +1,12 @@
 # Copilot instructions for the auction project
 
+## Chat output preferences
+
+- Keep chat responses minimal. Do not echo file contents, created files, or command output back into the conversation.
+- When creating or editing files, just confirm the action briefly (e.g., "Done" or "Created X") without including the file content in the chat.
+- When running commands, only surface errors or unexpected results. Suppress successful output from chat responses.
+- Focus chat messages on decisions, questions, and next steps rather than showing work already visible in the editor or terminal.
+
 This repository is a greenfield fullstack TypeScript showcase for a fish auction house. Build it as a production-minded demo: clear domain modeling, type-safe client/server boundaries, real-time bid updates, observability, repeatable local setup, and tests for the important business rules.
 
 For a fuller decision log, see `documentation/auction-project-decisions.html`.
