@@ -6,3 +6,6 @@ node_modules
 dist
 coverage
 src/routeTree.gen.ts
+test-results/
+playwright-report/
+.playwright/

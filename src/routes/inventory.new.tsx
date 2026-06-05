@@ -13,7 +13,7 @@ import {
   canAdvance,
   clampStep,
   validateStep,
-} from "./inventory-new-stepper";
+} from "./-inventory-new-stepper";
 
 type InventoryFormState = {
   species: (typeof FISH_SPECIES)[number];

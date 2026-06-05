@@ -6,7 +6,7 @@ import {
   clampStep,
   validateStep,
   type StepValues,
-} from "./inventory-new-stepper";
+} from "./-inventory-new-stepper";
 
 /** Minimal valid values for all form fields. */
 const validValues: StepValues = {

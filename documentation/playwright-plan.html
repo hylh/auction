@@ -22,35 +22,31 @@
 <body>
 
 <h1>Playwright Implementation Plan</h1>
-<p><strong>Status:</strong> Planned — awaiting removal of "no Playwright" constraint<br />
+<p><strong>Status:</strong> In progress — Phase 1 setup underway (no CI in scope)<br />
 <strong>Created:</strong> 2026-06-05<br />
 <strong>Scope:</strong> End-to-end browser testing for the auction house application</p>
-
-<div class="note">
-  <strong>Note:</strong> The project currently has an explicit constraint against adding Playwright. This document captures the plan so it can be implemented once that constraint is lifted.
-</div>
 
 <h2>Goals</h2>
 <ul>
   <li>Validate critical user journeys end-to-end in a real browser.</li>
   <li>Cover flows that unit/integration tests cannot: real-time SSE updates in the browser, form interactions, navigation.</li>
-  <li>Run in CI alongside existing Vitest tests.</li>
+  <li>Enable reliable local E2E execution during development.</li>
   <li>Keep tests fast and focused — no redundant coverage of business logic already covered by Vitest.</li>
 </ul>
 
 <h2>Installation</h2>
 <pre>pnpm add -D @playwright/test
 pnpm exec playwright install --with-deps chromium</pre>
-<p>Add <code>playwright.config.ts</code> at the project root. Use Chromium only initially to keep CI fast; add Firefox/WebKit later if needed.</p>
+<p>Add <code>playwright.config.ts</code> at the project root. Use Chromium only initially to keep setup focused; add Firefox/WebKit later if needed.</p>
 
 <h2>Configuration</h2>
 <pre>// playwright.config.ts
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './e2e',
+  testDir: './e2e/tests',
   timeout: 30_000,
-  retries: process.env.CI ? 2 : 0,
+  retries: 0,
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
@@ -59,8 +55,9 @@ export default defineConfig({
   webServer: {
     command: 'pnpm dev',
     url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
   },
+  projects: [{ name: 'chromium' }],
 });
 </pre>
 
@@ -147,20 +144,12 @@ export const test = base.extend({
 </table>
 
 <h2>CI Integration</h2>
-<p>Add a step to the existing GitHub Actions workflow after Vitest tests pass:</p>
-<pre>- name: Install Playwright browsers
-  run: pnpm exec playwright install --with-deps chromium
-
-- name: Run Playwright E2E tests
-  run: pnpm test:e2e
-  env:
-    DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
-</pre>
+<p>Out of scope for this implementation phase. No GitHub Actions or other CI wiring will be added in this plan revision.</p>
 
 <h2>Implementation Phases</h2>
 
 <div class="phase">
-  <strong>Phase 1 — Setup (unblocked once constraint lifted)</strong><br />
+  <strong>Phase 1 — Setup (current)</strong><br />
   Install Playwright, add config, scaffold <code>e2e/</code> directory, add pnpm scripts, update <code>.gitignore</code> for Playwright artifacts.
 </div>
 
@@ -180,19 +169,14 @@ export const test = base.extend({
 </div>
 
 <div class="phase">
-  <strong>Phase 5 — CI</strong><br />
-  Wire into GitHub Actions, add trace/screenshot artifact uploads on failure.
-</div>
-
 <h2>Files to Add/Modify</h2>
 <table>
   <thead><tr><th>File</th><th>Change</th></tr></thead>
   <tbody>
     <tr><td><code>playwright.config.ts</code></td><td>Create</td></tr>
-    <tr><td><code>e2e/**</code></td><td>Create directory and all test files</td></tr>
+    <tr><td><code>e2e/**</code></td><td>Scaffold directory only in setup phase; tests added in later phases</td></tr>
     <tr><td><code>package.json</code></td><td>Add <code>test:e2e</code> scripts</td></tr>
-    <tr><td><code>.gitignore</code></td><td>Add <code>test-results/</code>, <code>playwright-report/</code></td></tr>
-    <tr><td><code>.github/workflows/*.yml</code></td><td>Add Playwright CI step</td></tr>
+    <tr><td><code>.gitignore</code></td><td>Add <code>test-results/</code>, <code>playwright-report/</code>, <code>.playwright/</code></td></tr>
   </tbody>
 </table>
 
