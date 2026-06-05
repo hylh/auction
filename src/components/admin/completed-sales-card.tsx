@@ -1,3 +1,4 @@
+import { formatDate } from "../../domain/datetime";
 import { formatMoney } from "../../domain/money";
 import { speciesColorToken } from "../../domain/species-color";
 import type { AdminData } from "../../server/auction-service";
@@ -22,7 +23,7 @@ export function CompletedSalesCard({ sales }: CompletedSalesCardProps) {
               <div>
                 <strong>{sale.fishDisplayName}</strong>
                 <div className="sub">
-                  {sale.buyerDisplayName} · {new Date(sale.completedAt).toLocaleDateString()}
+                  {sale.buyerDisplayName} · {formatDate(sale.completedAt)}
                 </div>
               </div>
             </div>

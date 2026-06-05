@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { speciesColorToken } from "../domain/species-color";
-import { formatMoney } from "../domain/money";
+import { formatTime } from "../domain/datetime";
+import { formatMoney, formatMoneyWhole } from "../domain/money";
 import { formatKilograms } from "../domain/weight";
 import { getDashboardFn } from "../server/functions";
 import type { TickerEntry } from "../server/auction-types";
@@ -127,12 +128,12 @@ function Dashboard() {
         <section className="stat-strip">
           <div className="stat teal">
             <div className="label">Total sales today</div>
-            <div className="value">{formatMoney(stats.totalSalesTodayCents)}</div>
+            <div className="value">{formatMoneyWhole(stats.totalSalesTodayCents)}</div>
             <div className="delta">▲ from completed auctions</div>
           </div>
           <div className="stat blue">
             <div className="label">Average bid</div>
-            <div className="value">{formatMoney(stats.averageBidCents)}</div>
+            <div className="value">{formatMoneyWhole(stats.averageBidCents)}</div>
             <div className="delta">all accepted bids</div>
           </div>
           <div className="stat amber">
@@ -205,7 +206,7 @@ function Dashboard() {
                     <div>
                       <strong>{bid.bidderDisplayName}</strong>
                       <div className="sub">
-                        {bid.fishDisplayName} · {new Date(bid.acceptedAt).toLocaleTimeString()}
+                        {bid.fishDisplayName} · {formatTime(bid.acceptedAt)}
                       </div>
                     </div>
                   </div>

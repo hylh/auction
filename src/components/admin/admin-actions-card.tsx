@@ -1,3 +1,4 @@
+import { formatDate } from "../../domain/datetime";
 import type { AdminData } from "../../server/auction-service";
 
 type AdminActionsCardProps = {
@@ -19,7 +20,7 @@ export function AdminActionsCard({ actions }: AdminActionsCardProps) {
               </div>
             </div>
             <span className="muted" style={{ fontSize: "0.82rem", whiteSpace: "nowrap" }}>
-              {new Date(action.createdAt).toLocaleDateString()}
+              {formatDate(action.createdAt)}
             </span>
           </div>
         ))}

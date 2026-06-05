@@ -226,6 +226,7 @@
           <li>Sticky bid bar</li>
           <li>Inventory wizard</li>
           <li>Admin tabs polish</li>
+          <li>Parallel vertical slices</li>
         </ul>
       </header>
 
@@ -237,7 +238,8 @@
         <ul>
           <li>
             The only <code>@media</code> rule in <code>src/styles.css</code> is
-            <code>prefers-reduced-motion</code>. There are <strong>no width breakpoints at all</strong>.
+            <code>prefers-reduced-motion</code>. There are
+            <strong>no width breakpoints at all</strong>.
           </li>
           <li>
             Layout survives narrow screens only because of fluid primitives:
@@ -247,14 +249,15 @@
             <code>hero h1 { clamp(1.8rem, 4vw, 2.8rem) }</code>.
           </li>
           <li>
-            So columns <em>do</em> collapse to a single column on a phone, but nothing else is tuned:
-            the top bar, dense <code>.row</code> items, long forms, and tap targets are all still
-            sized for a mouse and a wide viewport.
+            So columns <em>do</em> collapse to a single column on a phone, but nothing else is
+            tuned: the top bar, dense <code>.row</code> items, long forms, and tap targets are all
+            still sized for a mouse and a wide viewport.
           </li>
         </ul>
         <p>
-          The viewport meta tag is already present in <code>src/routes/__root.tsx</code>
-          (<code>width=device-width, initial-scale=1</code>), so we have a correct foundation.
+          The viewport meta tag is already present in <code>src/routes/__root.tsx</code> (<code
+            >width=device-width, initial-scale=1</code
+          >), so we have a correct foundation.
         </p>
 
         <h3>Per-page review</h3>
@@ -273,7 +276,8 @@
               <td>
                 <code>.topbar</code> is a single flex row: brand + 4 nav links + theme toggle.
                 <code>justify-content: space-between</code> plus <code>flex-wrap</code> on
-                <code>.nav</code> makes links crowd and wrap awkwardly. No hamburger / app-style nav.
+                <code>.nav</code> makes links crowd and wrap awkwardly. No hamburger / app-style
+                nav.
               </td>
             </tr>
             <tr>
@@ -306,7 +310,8 @@
               <td><code>src/routes/admin.tsx</code></td>
               <td>
                 Now <strong>tabbed</strong> (recently added), which already removes the long scroll.
-                Remaining issue: <code>AdminFilters</code> block and the tab strip need mobile tuning.
+                Remaining issue: <code>AdminFilters</code> block and the tab strip need mobile
+                tuning.
               </td>
             </tr>
           </tbody>
@@ -324,14 +329,16 @@
             <strong>Reachability</strong> — primary navigation and the primary action on each page
             should be reachable with a thumb.
           </li>
-          <li><strong>Touch targets &ge; 44&times;44px</strong> — nav links, tabs, row links, buttons.</li>
+          <li>
+            <strong>Touch targets &ge; 44&times;44px</strong> — nav links, tabs, row links, buttons.
+          </li>
           <li>
             <strong>No horizontal scrolling</strong> of page content (the ticker marquee is the only
             intentional exception).
           </li>
           <li>
-            <strong>CSS-first, minimal JS</strong> — prefer responsive CSS over JS layout switching to
-            keep risk low (no Playwright in this project; see &sect;6).
+            <strong>CSS-first, minimal JS</strong> — prefer responsive CSS over JS layout switching
+            to keep risk low (no Playwright in this project; see &sect;6).
           </li>
         </ol>
 
@@ -358,13 +365,15 @@
           <tbody>
             <tr>
               <td><code>/inventory/new</code></td>
-              <td><strong>Yes — split into a 3-step flow.</strong> Highest-value split. See &sect;4.4.</td>
+              <td>
+                <strong>Yes — split into a 3-step flow.</strong> Highest-value split. See &sect;4.4.
+              </td>
             </tr>
             <tr>
               <td><code>/admin</code></td>
               <td>
-                <strong>No split needed — tabs already solve it.</strong> Keep the single route; just
-                make the tab strip horizontally scrollable and collapse filters on mobile.
+                <strong>No split needed — tabs already solve it.</strong> Keep the single route;
+                just make the tab strip horizontally scrollable and collapse filters on mobile.
               </td>
             </tr>
             <tr>
@@ -389,13 +398,17 @@
       <section class="card">
         <h2>4. Detailed work plan, page by page</h2>
 
-        <h3>4.1 Shared shell &amp; navigation (<code>__root.tsx</code>, <code>styles.css</code>)</h3>
+        <h3>
+          4.1 Shared shell &amp; navigation (<code>__root.tsx</code>, <code>styles.css</code>)
+        </h3>
         <ul>
           <li>
             Convert <code>.topbar</code> for phones: keep brand + theme toggle on the top row, move
-            the 4 primary links into either a <strong>(recommended) fixed bottom tab bar</strong>
-            (<code>Dashboard / Add fish / Admin / Metrics</code>) for an app-like, thumb-reachable
-            feel, <strong>or</strong> a hamburger menu that toggles a dropdown panel.
+            the 4 primary links into either a
+            <strong>(recommended) fixed bottom tab bar</strong> (<code
+              >Dashboard / Add fish / Admin / Metrics</code
+            >) for an app-like, thumb-reachable feel, <strong>or</strong> a hamburger menu that
+            toggles a dropdown panel.
           </li>
           <li>
             If bottom nav: add <code>padding-bottom</code> to <code>.page</code> equal to the bar
@@ -403,34 +416,39 @@
             notched phones.
           </li>
           <li>
-            Increase nav link padding to hit 44px tap height; mark the current route with the existing
+            Increase nav link padding to hit 44px tap height; mark the current route with the
+            existing
             <code>.active</code> style.
           </li>
-          <li>Make <code>.topbar</code> non-sticky or shorter on phones to reclaim vertical space.</li>
+          <li>
+            Make <code>.topbar</code> non-sticky or shorter on phones to reclaim vertical space.
+          </li>
         </ul>
 
         <h3>4.2 Dashboard (<code>index.tsx</code>)</h3>
         <ul>
           <li>
-            <code>.stat-strip</code>: drop to 2 columns at &le;640px, 1 column at &le;400px (override
-            the <code>minmax(190px,...)</code> so tiles don't get too tight).
+            <code>.stat-strip</code>: drop to 2 columns at &le;640px, 1 column at &le;400px
+            (override the <code>minmax(190px,...)</code> so tiles don't get too tight).
           </li>
           <li>
             <strong><code>.row</code> density fix (shared win across all pages):</strong> allow the
             label block to shrink and truncate, and let the amount drop to its own line if needed:
             <code>.name-wrap { min-width: 0 }</code> +
-            <code>overflow: hidden; text-overflow: ellipsis</code> on the name/sub; at &le;640px allow
-            <code>.row { flex-wrap: wrap }</code>.
+            <code>overflow: hidden; text-overflow: ellipsis</code> on the name/sub; at &le;640px
+            allow <code>.row { flex-wrap: wrap }</code>.
           </li>
-          <li>Ticker: confirm the play/pause toggle tap target is &ge;44px; otherwise unchanged.</li>
+          <li>
+            Ticker: confirm the play/pause toggle tap target is &ge;44px; otherwise unchanged.
+          </li>
           <li>Optional: add a "View all" link per card to future index routes.</li>
         </ul>
 
         <h3>4.3 Auction detail (<code>auctions.$auctionId.tsx</code>)</h3>
         <ul>
           <li>
-            Keep the two-card stack, but on &le;768px turn the <strong>Place bid</strong> card into a
-            <strong>sticky bottom action bar</strong> (current price + amount input + Submit) so a
+            Keep the two-card stack, but on &le;768px turn the <strong>Place bid</strong> card into
+            a <strong>sticky bottom action bar</strong> (current price + amount input + Submit) so a
             buyer can bid without scrolling past the live chain.
           </li>
           <li>
@@ -438,8 +456,8 @@
             scroll on mobile so the page doesn't grow unbounded and the sticky bar stays useful.
           </li>
           <li>
-            Ensure the buyer <code>&lt;select&gt;</code> and amount <code>&lt;input&gt;</code> are full
-            width with &ge;44px height (mostly true already via <code>.field input</code>).
+            Ensure the buyer <code>&lt;select&gt;</code> and amount <code>&lt;input&gt;</code> are
+            full width with &ge;44px height (mostly true already via <code>.field input</code>).
           </li>
           <li>Keep the SSE/refresh logic unchanged — this is a pure layout change.</li>
         </ul>
@@ -452,9 +470,10 @@
         <ul>
           <li>
             <strong>(Recommended) In-route stepper:</strong> keep the single
-            <code>/inventory/new</code> route, add a step state (1&rarr;3) with Back/Next, validating
-            each step before advancing. Lower routing complexity, preserves form state easily, and the
-            existing Zod validation in <code>validateForm</code> can be applied per-step.
+            <code>/inventory/new</code> route, add a step state (1&rarr;3) with Back/Next,
+            validating each step before advancing. Lower routing complexity, preserves form state
+            easily, and the existing Zod validation in <code>validateForm</code> can be applied
+            per-step.
           </li>
           <li>
             <strong>Route-segment subpages:</strong> <code>/inventory/new/details</code>,
@@ -465,8 +484,14 @@
         </ul>
         <p>Suggested step grouping:</p>
         <ol>
-          <li><strong>Fish</strong> — species, display name, weight (kg), catch region, freshness/grade.</li>
-          <li><strong>Pricing &amp; seller</strong> — starting price, seller, description, image URL + preview.</li>
+          <li>
+            <strong>Fish</strong> — species, display name, weight (kg), catch region,
+            freshness/grade.
+          </li>
+          <li>
+            <strong>Pricing &amp; seller</strong> — starting price, seller, description, image URL +
+            preview.
+          </li>
           <li>
             <strong>Auction (optional)</strong> — the existing <code>createAuction</code> toggle +
             starts/ends/minimum increment.
@@ -482,8 +507,8 @@
         <ul>
           <li>
             Make the <code>.tabs</code> strip <strong>horizontally scrollable</strong> on narrow
-            screens (<code>overflow-x: auto; flex-wrap: nowrap</code>) so 4+ tabs never wrap into two
-            rows; add momentum scrolling and hide the scrollbar.
+            screens (<code>overflow-x: auto; flex-wrap: nowrap</code>) so 4+ tabs never wrap into
+            two rows; add momentum scrolling and hide the scrollbar.
           </li>
           <li>
             Collapse <code>AdminFilters</code> into a single <strong>"Filters" disclosure</strong>
@@ -491,9 +516,9 @@
             <code>filter-fields.tsx</code> grid stacks to one column.
           </li>
           <li>
-            Active tab panels already render only 1&ndash;2 cards, which expand to full width — good on
-            mobile. Verify card <code>.row</code> action buttons (Close/Withdraw/Start auction) wrap
-            and keep &ge;44px height.
+            Active tab panels already render only 1&ndash;2 cards, which expand to full width — good
+            on mobile. Verify card <code>.row</code> action buttons (Close/Withdraw/Start auction)
+            wrap and keep &ge;44px height.
           </li>
         </ul>
       </section>
@@ -507,7 +532,10 @@
             <code>.page</code> padding reduced at &le;640px (e.g.
             <code>padding: 1.25rem 0 5rem</code> to leave room for bottom nav).
           </li>
-          <li>Tap-target minimums for <code>.nav a</code>, <code>.tab</code>, <code>.button</code>, <code>.row a</code>.</li>
+          <li>
+            Tap-target minimums for <code>.nav a</code>, <code>.tab</code>, <code>.button</code>,
+            <code>.row a</code>.
+          </li>
           <li>Tab strip horizontal scroll.</li>
           <li>Stat strip column overrides at phone widths.</li>
         </ul>
@@ -520,52 +548,132 @@
         </p>
         <ul>
           <li>
-            Manual device-emulation pass (Chrome DevTools) at 360, 390, 414, 768px for each route: nav
-            reachable, no horizontal scroll, bid bar sticky, wizard steps validate.
+            Manual device-emulation pass (Chrome DevTools) at 360, 390, 414, 768px for each route:
+            nav reachable, no horizontal scroll, bid bar sticky, wizard steps validate.
           </li>
           <li>
             Add Vitest component tests for any <strong>new logic</strong> (e.g., the inventory
             stepper's per-step validation and step navigation) — logic only, not pixels.
           </li>
           <li>
-            Keep changes CSS-first so the existing unit/integration tests continue to cover the domain
-            behavior unchanged.
+            Keep changes CSS-first so the existing unit/integration tests continue to cover the
+            domain behavior unchanged.
           </li>
         </ul>
       </section>
 
       <section class="card">
-        <h2>7. Suggested implementation order (phased)</h2>
+        <h2>7. Implementation order — built for parallel work</h2>
+        <p>
+          The work is structured as <strong>one small serial foundation</strong> followed by
+          <strong>independent vertical slices</strong>. After the foundation lands, every slice can
+          be picked up by a different developer (or agent) at the same time, because each slice owns
+          its own route/component files and is verifiable end-to-end on its own.
+        </p>
+
+        <h3>Stage 0 — Foundation (serial prerequisite, keep it tiny)</h3>
+        <p>
+          The only true shared dependency. Land this first and fast so it unblocks every parallel
+          slice. Scope it deliberately small to minimise the window where others rebase on it.
+        </p>
         <div class="phase-grid">
           <div class="phase">
-            <strong>Phase 1 — Shared CSS foundation</strong>
-            Breakpoints, <code>.row</code> truncation/wrap, tap targets, <code>.page</code> padding.
-            Low risk, broad benefit.
-          </div>
-          <div class="phase">
-            <strong>Phase 2 — Navigation</strong>
-            Mobile bottom nav / hamburger in <code>__root.tsx</code>.
-          </div>
-          <div class="phase">
-            <strong>Phase 3 — Admin polish</strong>
-            Scrollable tab strip + collapsible filters.
-          </div>
-          <div class="phase">
-            <strong>Phase 4 — Auction detail</strong>
-            Sticky mobile bid bar + scrollable chain.
-          </div>
-          <div class="phase">
-            <strong>Phase 5 — Dashboard</strong>
-            Stat-strip columns + optional "view all" links.
-          </div>
-          <div class="phase">
-            <strong>Phase 6 — Inventory wizard</strong>
-            In-route 3-step flow (largest change, do last).
+            <strong>Stage 0 — Shared CSS foundation</strong>
+            In <code>src/styles.css</code>: breakpoint tokens (&sect;2), the shared
+            <code>.row</code> truncation/wrap utility, tap-target minimums, and
+            <code>.page</code> padding (room for bottom nav). Add page-specific overrides under
+            clearly labelled, per-route comment blocks (e.g. <code>/* mobile: dashboard */</code>)
+            so later slices append instead of colliding. Low risk, broad benefit, no behaviour
+            change.
           </div>
         </div>
+
+        <h3>
+          Stage 1 — Parallel vertical slices (all independent, do in any order / concurrently)
+        </h3>
+        <p>
+          Each slice is a complete, shippable mobile improvement for one surface: markup change +
+          its scoped CSS block + any logic tests. File ownership is disjoint, so these can run
+          simultaneously with minimal merge risk (see ownership map below).
+        </p>
+        <div class="phase-grid">
+          <div class="phase">
+            <strong>Slice A — Navigation</strong>
+            Mobile bottom nav / hamburger. Owns <code>__root.tsx</code> + its
+            <code>/* mobile: nav */</code> CSS block. Verifiable alone: nav reachable, active route
+            marked, content not occluded.
+          </div>
+          <div class="phase">
+            <strong>Slice B — Admin polish</strong>
+            Scrollable tab strip + collapsible filters. Owns <code>admin.tsx</code>,
+            <code>admin-filters.tsx</code>, <code>filter-fields.tsx</code> +
+            <code>/* mobile: admin */</code>.
+          </div>
+          <div class="phase">
+            <strong>Slice C — Auction detail</strong>
+            Sticky mobile bid bar + scrollable live chain. Owns
+            <code>auctions.$auctionId.tsx</code> + <code>/* mobile: auction-detail */</code>. SSE
+            logic unchanged.
+          </div>
+          <div class="phase">
+            <strong>Slice D — Dashboard</strong>
+            Stat-strip column overrides + optional "view all" links. Owns <code>index.tsx</code> +
+            <code>/* mobile: dashboard */</code>.
+          </div>
+          <div class="phase">
+            <strong>Slice E — Inventory wizard</strong>
+            In-route 3-step flow (largest change). Owns <code>inventory.new.tsx</code> + new stepper
+            component + <code>/* mobile: inventory */</code> + Vitest tests for per-step validation.
+            Self-contained; does not block the others.
+          </div>
+        </div>
+
+        <h3>File-ownership map (how the slices stay conflict-free)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Slice</th>
+              <th>Primary files owned</th>
+              <th>Shared file touched</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>A — Navigation</td>
+              <td><code>src/routes/__root.tsx</code></td>
+              <td><code>styles.css</code> → <code>/* mobile: nav */</code> only</td>
+            </tr>
+            <tr>
+              <td>B — Admin</td>
+              <td>
+                <code>admin.tsx</code>, <code>admin-filters.tsx</code>,
+                <code>filter-fields.tsx</code>
+              </td>
+              <td><code>styles.css</code> → <code>/* mobile: admin */</code> only</td>
+            </tr>
+            <tr>
+              <td>C — Auction detail</td>
+              <td><code>auctions.$auctionId.tsx</code></td>
+              <td><code>styles.css</code> → <code>/* mobile: auction-detail */</code> only</td>
+            </tr>
+            <tr>
+              <td>D — Dashboard</td>
+              <td><code>index.tsx</code></td>
+              <td><code>styles.css</code> → <code>/* mobile: dashboard */</code> only</td>
+            </tr>
+            <tr>
+              <td>E — Inventory wizard</td>
+              <td><code>inventory.new.tsx</code> + new stepper component/tests</td>
+              <td><code>styles.css</code> → <code>/* mobile: inventory */</code> only</td>
+            </tr>
+          </tbody>
+        </table>
         <p class="callout">
-          Phases 1&ndash;4 deliver most of the mobile usability win with minimal structural change;
-          phase 6 is the only one that meaningfully restructures a page.
+          Only Stage 0 is sequential, and it is intentionally tiny. Because each Stage 1 slice owns
+          disjoint route/component files and appends to its own labelled CSS block, slices A&ndash;E
+          can be developed in parallel and merged independently. Slices A&ndash;D each land most of
+          the mobile win on their own surface; Slice E is the only one that restructures a page, but
+          it is still independent and can run concurrently with the rest.
         </p>
       </section>
     </main>

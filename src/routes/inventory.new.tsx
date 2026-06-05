@@ -6,6 +6,14 @@ import { centsFromMajor, formatMoney } from "../domain/money";
 import { auctionInputSchema, fishInputSchema } from "../domain/validation";
 import { formatKilograms, gramsFromKilograms } from "../domain/weight";
 import { createAuctionFn, createFishItemFn, getDemoUsersFn } from "../server/functions";
+import {
+  type Step,
+  STEP_LABELS,
+  TOTAL_STEPS,
+  canAdvance,
+  clampStep,
+  validateStep,
+} from "./inventory-new-stepper";
 
 type InventoryFormState = {
   species: (typeof FISH_SPECIES)[number];
@@ -38,7 +46,36 @@ function NewInventoryPage() {
   const [values, setValues] = useState<InventoryFormState>(() => initialFormState());
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [step, setStep] = useState<Step>(1);
   const previews = useMemo(() => buildPreviews(values), [values]);
+
+  useEffect(() => {
+    if (!values.sellerId && sellers[0]) {
+      setValues((current) => ({ ...current, sellerId: sellers[0].id }));
+    }
+  }, [sellers, values.sellerId]);
+
+  useEffect(() => {
+    setValues((current) => {
+      if (current.startsAt || current.endsAt) {
+        return current;
+      }
+      const window = defaultAuctionWindow();
+      return { ...current, startsAt: window.startsAt, endsAt: window.endsAt };
+    });
+  }, []);
+
+  const handleNext = () => {
+    const stepErrors = validateStep(step, values);
+    setFieldErrors((prev) => ({ ...prev, ...stepErrors }));
+    if (canAdvance(step, stepErrors)) {
+      setStep(clampStep(step + 1));
+    }
+  };
+
+  const handleBack = () => {
+    setStep(clampStep(step - 1));
+  };
 
   useEffect(() => {
     if (!values.sellerId && sellers[0]) {
@@ -99,191 +136,255 @@ function NewInventoryPage() {
             mutation.mutate();
           }}
         >
-          <label className="field">
-            <span>Species</span>
-            <select
-              name="species"
-              value={values.species}
-              onChange={(event) => updateField(setValues, "species", event.currentTarget.value)}
-            >
-              {FISH_SPECIES.map((species) => (
-                <option key={species} value={species}>
-                  {species}
-                </option>
+          {/* Step progress indicator — hidden on desktop via CSS */}
+          <div className="wizard-step-indicator" aria-live="polite">
+            <div className="wizard-dots" role="list" aria-label="Steps">
+              {([1, 2, 3] as Step[]).map((s) => (
+                <span
+                  key={s}
+                  role="listitem"
+                  aria-label={`Step ${s}: ${STEP_LABELS[s]}${s === step ? " (current)" : s < step ? " (complete)" : ""}`}
+                  className={`wizard-dot${s === step ? " active" : s < step ? " done" : ""}`}
+                />
               ))}
-            </select>
-            <FieldError message={fieldErrors.species} />
-          </label>
+            </div>
+            <span className="wizard-step-label">
+              Step {step} of {TOTAL_STEPS} — {STEP_LABELS[step]}
+            </span>
+          </div>
 
-          <label className="field">
-            <span>Display name</span>
-            <input
-              name="displayName"
-              value={values.displayName}
-              onChange={(event) => updateField(setValues, "displayName", event.currentTarget.value)}
-            />
-            <FieldError message={fieldErrors.displayName} />
-          </label>
+          {/* All field panels. On desktop (≥768px) wizard-panels/wizard-panel become
+              display:contents so every field is a direct grid item of .form — identical
+              to the pre-wizard layout. On mobile (<768px) CSS shows only the active panel. */}
+          <div className="wizard-panels" data-step={step}>
+            {/* Step 1 — Fish details */}
+            <div className="wizard-panel" data-panel="1">
+              <label className="field">
+                <span>Species</span>
+                <select
+                  name="species"
+                  value={values.species}
+                  onChange={(event) => updateField(setValues, "species", event.currentTarget.value)}
+                >
+                  {FISH_SPECIES.map((species) => (
+                    <option key={species} value={species}>
+                      {species}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={fieldErrors.species} />
+              </label>
 
-          <label className="field">
-            <span>Weight (kg)</span>
-            <input
-              name="weightKilograms"
-              inputMode="decimal"
-              value={values.weightKilograms}
-              onChange={(event) =>
-                updateField(setValues, "weightKilograms", event.currentTarget.value)
-              }
-            />
-            <FieldHint preview={previews.weight} />
-            <FieldError message={fieldErrors.weightKilograms ?? previews.weightError} />
-          </label>
+              <label className="field">
+                <span>Display name</span>
+                <input
+                  name="displayName"
+                  value={values.displayName}
+                  onChange={(event) =>
+                    updateField(setValues, "displayName", event.currentTarget.value)
+                  }
+                />
+                <FieldError message={fieldErrors.displayName} />
+              </label>
 
-          <label className="field">
-            <span>Catch region</span>
-            <input
-              name="catchRegion"
-              value={values.catchRegion}
-              onChange={(event) => updateField(setValues, "catchRegion", event.currentTarget.value)}
-            />
-            <FieldError message={fieldErrors.catchRegion} />
-          </label>
+              <label className="field">
+                <span>Weight (kg)</span>
+                <input
+                  name="weightKilograms"
+                  inputMode="decimal"
+                  value={values.weightKilograms}
+                  onChange={(event) =>
+                    updateField(setValues, "weightKilograms", event.currentTarget.value)
+                  }
+                />
+                <FieldHint preview={previews.weight} />
+                <FieldError message={fieldErrors.weightKilograms ?? previews.weightError} />
+              </label>
 
-          <label className="field">
-            <span>Freshness / grade</span>
-            <input
-              name="grade"
-              value={values.grade}
-              onChange={(event) => updateField(setValues, "grade", event.currentTarget.value)}
-            />
-            <FieldError message={fieldErrors.grade} />
-          </label>
+              <label className="field">
+                <span>Catch region</span>
+                <input
+                  name="catchRegion"
+                  value={values.catchRegion}
+                  onChange={(event) =>
+                    updateField(setValues, "catchRegion", event.currentTarget.value)
+                  }
+                />
+                <FieldError message={fieldErrors.catchRegion} />
+              </label>
 
-          <label className="field">
-            <span>Starting price (NOK)</span>
-            <input
-              name="startingPriceMajor"
-              inputMode="decimal"
-              value={values.startingPriceMajor}
-              onChange={(event) =>
-                updateField(setValues, "startingPriceMajor", event.currentTarget.value)
-              }
-            />
-            <FieldHint preview={previews.startingPrice} />
-            <FieldError message={fieldErrors.startingPriceMajor ?? previews.startingPriceError} />
-          </label>
+              <label className="field">
+                <span>Freshness / grade</span>
+                <input
+                  name="grade"
+                  value={values.grade}
+                  onChange={(event) => updateField(setValues, "grade", event.currentTarget.value)}
+                />
+                <FieldError message={fieldErrors.grade} />
+              </label>
+            </div>
 
-          <label className="field">
-            <span>Seller</span>
-            <select
-              name="sellerId"
-              value={values.sellerId}
-              onChange={(event) => updateField(setValues, "sellerId", event.currentTarget.value)}
-            >
-              <option value="">Choose seller</option>
-              {sellers.map((seller) => (
-                <option key={seller.id} value={seller.id}>
-                  {seller.displayName}
-                </option>
-              ))}
-            </select>
-            <FieldError message={fieldErrors.sellerId} />
-          </label>
+            {/* Step 2 — Pricing & seller */}
+            <div className="wizard-panel" data-panel="2">
+              <label className="field">
+                <span>Starting price (NOK)</span>
+                <input
+                  name="startingPriceMajor"
+                  inputMode="numeric"
+                  value={values.startingPriceMajor}
+                  onChange={(event) =>
+                    updateField(setValues, "startingPriceMajor", event.currentTarget.value)
+                  }
+                />
+                <FieldHint preview={previews.startingPrice} />
+                <FieldError
+                  message={fieldErrors.startingPriceMajor ?? previews.startingPriceError}
+                />
+              </label>
 
-          <label className="field">
-            <span>Description</span>
-            <textarea
-              name="description"
-              value={values.description}
-              onChange={(event) => updateField(setValues, "description", event.currentTarget.value)}
-            />
-            <FieldError message={fieldErrors.description} />
-          </label>
+              <label className="field">
+                <span>Seller</span>
+                <select
+                  name="sellerId"
+                  value={values.sellerId}
+                  onChange={(event) =>
+                    updateField(setValues, "sellerId", event.currentTarget.value)
+                  }
+                >
+                  <option value="">Choose seller</option>
+                  {sellers.map((seller) => (
+                    <option key={seller.id} value={seller.id}>
+                      {seller.displayName}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={fieldErrors.sellerId} />
+              </label>
 
-          <label className="field">
-            <span>External image URL</span>
-            <input
-              name="imageUrl"
-              placeholder="https://example.com/fish.jpg"
-              value={values.imageUrl}
-              onChange={(event) => updateField(setValues, "imageUrl", event.currentTarget.value)}
-            />
-            <FieldError message={fieldErrors.imageUrl ?? previews.imageError} />
-            {previews.imageUrl && (
-              <img
-                alt={`${values.displayName} preview`}
-                className="preview-image"
-                src={previews.imageUrl}
-              />
-            )}
-          </label>
+              <label className="field">
+                <span>Description</span>
+                <textarea
+                  name="description"
+                  value={values.description}
+                  onChange={(event) =>
+                    updateField(setValues, "description", event.currentTarget.value)
+                  }
+                />
+                <FieldError message={fieldErrors.description} />
+              </label>
 
-          <section className="card nested-card">
-            <label className="checkbox-field">
-              <input
-                checked={values.createAuction}
-                name="createAuction"
-                onChange={(event) =>
-                  updateField(setValues, "createAuction", event.currentTarget.checked)
-                }
-                type="checkbox"
-              />
-              <span>Create an auction from this inventory after listing it</span>
-            </label>
+              <label className="field">
+                <span>External image URL</span>
+                <input
+                  name="imageUrl"
+                  placeholder="https://example.com/fish.jpg"
+                  value={values.imageUrl}
+                  onChange={(event) =>
+                    updateField(setValues, "imageUrl", event.currentTarget.value)
+                  }
+                />
+                <FieldError message={fieldErrors.imageUrl ?? previews.imageError} />
+                {previews.imageUrl && (
+                  <img
+                    alt={`${values.displayName} preview`}
+                    className="preview-image"
+                    src={previews.imageUrl}
+                  />
+                )}
+              </label>
+            </div>
 
-            {values.createAuction && (
-              <div className="grid">
-                <label className="field">
-                  <span>Starts at</span>
+            {/* Step 3 — Auction (optional) */}
+            <div className="wizard-panel" data-panel="3">
+              <section className="card nested-card">
+                <label className="checkbox-field">
                   <input
-                    name="startsAt"
-                    type="datetime-local"
-                    value={values.startsAt}
+                    checked={values.createAuction}
+                    name="createAuction"
                     onChange={(event) =>
-                      updateField(setValues, "startsAt", event.currentTarget.value)
+                      updateField(setValues, "createAuction", event.currentTarget.checked)
                     }
+                    type="checkbox"
                   />
-                  <FieldHint preview="Use now or earlier for an active auction; use a future time to schedule." />
-                  <FieldError message={fieldErrors.startsAt} />
+                  <span>Create an auction from this inventory after listing it</span>
                 </label>
-                <label className="field">
-                  <span>Ends at</span>
-                  <input
-                    name="endsAt"
-                    type="datetime-local"
-                    value={values.endsAt}
-                    onChange={(event) =>
-                      updateField(setValues, "endsAt", event.currentTarget.value)
-                    }
-                  />
-                  <FieldError message={fieldErrors.endsAt} />
-                </label>
-                <label className="field">
-                  <span>Minimum increment (NOK)</span>
-                  <input
-                    name="minimumIncrementMajor"
-                    inputMode="decimal"
-                    value={values.minimumIncrementMajor}
-                    onChange={(event) =>
-                      updateField(setValues, "minimumIncrementMajor", event.currentTarget.value)
-                    }
-                  />
-                  <FieldHint preview={previews.minimumIncrement} />
-                  <FieldError
-                    message={fieldErrors.minimumIncrementMajor ?? previews.minimumIncrementError}
-                  />
-                </label>
-              </div>
-            )}
-          </section>
 
-          <button className="button" disabled={mutation.isPending || users.isLoading} type="submit">
+                {values.createAuction && (
+                  <div className="grid">
+                    <label className="field">
+                      <span>Starts at</span>
+                      <input
+                        name="startsAt"
+                        type="datetime-local"
+                        value={values.startsAt}
+                        onChange={(event) =>
+                          updateField(setValues, "startsAt", event.currentTarget.value)
+                        }
+                      />
+                      <FieldHint preview="Use now or earlier for an active auction; use a future time to schedule." />
+                      <FieldError message={fieldErrors.startsAt} />
+                    </label>
+                    <label className="field">
+                      <span>Ends at</span>
+                      <input
+                        name="endsAt"
+                        type="datetime-local"
+                        value={values.endsAt}
+                        onChange={(event) =>
+                          updateField(setValues, "endsAt", event.currentTarget.value)
+                        }
+                      />
+                      <FieldError message={fieldErrors.endsAt} />
+                    </label>
+                    <label className="field">
+                      <span>Minimum increment (NOK)</span>
+                      <input
+                        name="minimumIncrementMajor"
+                        inputMode="numeric"
+                        value={values.minimumIncrementMajor}
+                        onChange={(event) =>
+                          updateField(setValues, "minimumIncrementMajor", event.currentTarget.value)
+                        }
+                      />
+                      <FieldHint preview={previews.minimumIncrement} />
+                      <FieldError
+                        message={
+                          fieldErrors.minimumIncrementMajor ?? previews.minimumIncrementError
+                        }
+                      />
+                    </label>
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+
+          {/* Submit — always visible on desktop; on mobile only visible on step 3 (CSS). */}
+          <button
+            className="button wizard-submit"
+            disabled={mutation.isPending || users.isLoading}
+            type="submit"
+          >
             {mutation.isPending
               ? "Adding fish..."
               : values.createAuction
                 ? "Add fish and create auction"
                 : "Add fish"}
           </button>
+
+          {/* Back / Next navigation — mobile only (hidden on desktop via CSS). */}
+          <div className="wizard-nav">
+            {step > 1 && (
+              <button type="button" className="button secondary" onClick={handleBack}>
+                ← Back
+              </button>
+            )}
+            {step < TOTAL_STEPS && (
+              <button type="button" className="button" onClick={handleNext}>
+                Next →
+              </button>
+            )}
+          </div>
         </form>
         {message && <p className={message.type}>{message.text}</p>}
       </article>
@@ -401,11 +502,11 @@ function buildPreviews(values: InventoryFormState) {
   });
   const startingPrice = safePreview(values.startingPriceMajor, (value) => {
     const cents = centsFromMajor(value);
-    return `Will store ${cents.toLocaleString("en-GB")} cents (${formatMoney(cents)}).`;
+    return `Starting price: ${formatMoney(cents)}.`;
   });
   const minimumIncrement = safePreview(values.minimumIncrementMajor, (value) => {
     const cents = centsFromMajor(value);
-    return `Increment stores as ${cents.toLocaleString("en-GB")} cents (${formatMoney(cents)}).`;
+    return `Minimum increment: ${formatMoney(cents)}.`;
   });
 
   return {
@@ -457,9 +558,6 @@ function FieldHint({ preview }: { preview?: string | null }) {
 }
 
 function initialFormState(): InventoryFormState {
-  const startsAt = new Date();
-  const endsAt = new Date(startsAt.getTime() + 30 * 60_000);
-
   return {
     species: "salmon",
     displayName: "Morning catch salmon crate",
@@ -471,9 +569,18 @@ function initialFormState(): InventoryFormState {
     description: "Packed in ice and ready for same-day auction.",
     imageUrl: "",
     createAuction: true,
+    startsAt: "",
+    endsAt: "",
+    minimumIncrementMajor: "100",
+  };
+}
+
+function defaultAuctionWindow() {
+  const startsAt = new Date();
+  const endsAt = new Date(startsAt.getTime() + 30 * 60_000);
+  return {
     startsAt: toLocalDateTimeInput(startsAt),
     endsAt: toLocalDateTimeInput(endsAt),
-    minimumIncrementMajor: "100",
   };
 }
 

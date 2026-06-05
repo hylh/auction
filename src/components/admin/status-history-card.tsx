@@ -1,3 +1,4 @@
+import { formatDate } from "../../domain/datetime";
 import { speciesColorToken } from "../../domain/species-color";
 import type { AdminData } from "../../server/auction-service";
 
@@ -26,7 +27,7 @@ export function StatusHistoryCard({ changes }: StatusHistoryCardProps) {
               </div>
             </div>
             <span className="muted" style={{ fontSize: "0.82rem", whiteSpace: "nowrap" }}>
-              {new Date(change.createdAt).toLocaleDateString()}
+              {formatDate(change.createdAt)}
             </span>
           </div>
         ))}

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { formatTime } from "../domain/datetime";
 import { centsFromMajor, formatMoney } from "../domain/money";
 import { formatKilograms } from "../domain/weight";
 import { speciesColorToken } from "../domain/species-color";
@@ -38,7 +39,7 @@ function AuctionDetailPage() {
         ? auction.data.fish.startingPriceCents
         : auction.data.currentHighestBid.amountCents + auction.data.minimumIncrementCents;
 
-    return (nextMinimum / 100).toFixed(2);
+    return String(nextMinimum / 100);
   }, [auction.data]);
 
   useEffect(() => {
@@ -169,7 +170,7 @@ function AuctionDetailPage() {
       : detail.currentHighestBid.amountCents + detail.minimumIncrementCents;
 
   return (
-    <main className="page">
+    <main className="page auction-detail-page">
       <section className="hero">
         <div>
           <span className={`pill`}>{detail.status}</span>
@@ -182,7 +183,7 @@ function AuctionDetailPage() {
       </section>
 
       <section className="grid">
-        <article className="card c-teal">
+        <article className="card c-teal bid-bar-card">
           <h2>Place bid</h2>
           <p className="metric">
             {detail.currentHighestBid
@@ -215,10 +216,10 @@ function AuctionDetailPage() {
             <label className="field">
               <span>Bid amount ({detail.fish.currency})</span>
               <input
-                inputMode="decimal"
+                inputMode="numeric"
                 value={amountMajor}
                 onChange={(event) => setAmountMajor(event.currentTarget.value)}
-                placeholder={(nextMinimum / 100).toFixed(2)}
+                placeholder={String(nextMinimum / 100)}
               />
             </label>
             <button className="button" disabled={bidMutation.isPending} type="submit">
@@ -237,7 +238,7 @@ function AuctionDetailPage() {
             Live bid chain{" "}
             {detail.status === "active" && <span className="badge stream">STREAMING</span>}
           </h2>
-          <div className="list">
+          <div className="list bid-chain-list">
             {detail.bids.map((bid) => (
               <div className="row" key={bid.bidId}>
                 <div className="name-wrap">
@@ -248,7 +249,7 @@ function AuctionDetailPage() {
                   />
                   <div>
                     <strong>{bid.bidderDisplayName}</strong>
-                    <div className="sub">{new Date(bid.acceptedAt).toLocaleTimeString()}</div>
+                    <div className="sub">{formatTime(bid.acceptedAt)}</div>
                   </div>
                 </div>
                 <span className="amount">{formatMoney(bid.amountCents)}</span>

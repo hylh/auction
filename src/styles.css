@@ -816,3 +816,392 @@ button {
 .section {
   margin-top: 1rem;
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MOBILE FOUNDATION (Stage 0)
+   Breakpoint reference (media queries need literal px, these document intent):
+     --bp-sm: 640px;   large phone / small tablet
+     --bp-md: 768px;   tablet
+     --bp-lg: 1024px;  desktop
+   Base styles are desktop-sized; tune downward at the breakpoints below.
+
+   Per-slice CSS blocks live at the bottom of this file. Each parallel slice
+   appends ONLY to its own labelled block to avoid merge conflicts:
+     "mobile: nav"            (Slice A)
+     "mobile: admin"          (Slice B)
+     "mobile: auction-detail" (Slice C)
+     "mobile: dashboard"      (Slice D)
+     "mobile: inventory"      (Slice E)
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Shared: dense-row truncation + wrap ────────────────────────────────────── */
+/* Let the label block shrink/truncate instead of forcing horizontal overflow. */
+.name-wrap {
+  min-width: 0;
+}
+
+.name-wrap a,
+.row .sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  /* Allow the amount to drop to its own line when the row gets tight. */
+  .row {
+    flex-wrap: wrap;
+  }
+}
+
+/* ─── Shared: tap-target minimums (≥44×44px) ─────────────────────────────────── */
+@media (max-width: 768px) {
+  .nav a,
+  .tab,
+  .button,
+  .row a,
+  .theme-toggle {
+    min-height: 44px;
+  }
+
+  .nav a,
+  .tab,
+  .button {
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+/* ─── Shared: page container spacing on phones ───────────────────────────────── */
+/* Reduce side padding and reserve bottom space for the mobile nav bar. */
+@media (max-width: 640px) {
+  .page {
+    width: calc(100vw - 1.5rem);
+    padding: 1.25rem 0 5rem;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PER-SLICE BLOCKS — each owned by exactly one parallel slice.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* mobile: nav */
+
+/* Bottom tab bar — hidden on desktop, shown on phones */
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  /* Collapse the top-bar nav links; they move to the bottom bar */
+  .topbar .nav {
+    display: none;
+  }
+
+  /* Reduce top-bar padding to reclaim vertical space */
+  .topbar {
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+  }
+
+  /* Fixed bottom tab bar */
+  .bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: stretch;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: var(--topbar-bg);
+    backdrop-filter: var(--topbar-backdrop);
+    border-top: 1px solid var(--line);
+    /* Clear the home indicator on notched phones */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .bottom-nav a {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    min-height: 52px;
+    padding: 0.4rem 0.25rem;
+    text-decoration: none;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-top: 2px solid transparent;
+    white-space: nowrap;
+  }
+
+  .bottom-nav a span[aria-hidden] {
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  .bottom-nav a:hover {
+    color: var(--text);
+  }
+
+  .bottom-nav a.active {
+    color: var(--nav-active-color);
+    border-top-color: var(--accent);
+    background: var(--accent-soft);
+  }
+}
+
+/* mobile: admin */
+
+/* ─── Tab strip: horizontally scrollable on phones ──────────────────────────── */
+@media (max-width: 640px) {
+  .tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none; /* Chrome / Safari */
+  }
+
+  /* Prevent individual tabs from shrinking below their natural width */
+  .tab {
+    flex-shrink: 0;
+  }
+}
+
+/* ─── AdminFilters disclosure ────────────────────────────────────────────────── */
+
+/* Mobile (≤640px): show the <summary> toggle; content hidden until opened */
+@media (max-width: 640px) {
+  .admin-filters-details > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    list-style: none; /* remove default triangle on some browsers */
+    padding: 0;
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+
+  /* Custom disclosure indicator */
+  .admin-filters-details > summary::after {
+    content: "▼";
+    font-size: 0.75em;
+    color: var(--muted);
+    transition: transform 0.15s ease;
+  }
+
+  .admin-filters-details[open] > summary::after {
+    transform: rotate(180deg);
+  }
+
+  /* Remove ::-webkit-details-marker in Chrome */
+  .admin-filters-details > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* Collapse the filter grid to one column */
+  .admin-filters-details .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Desktop (>640px): always show content; hide the summary toggle */
+@media (min-width: 641px) {
+  .admin-filters-details > summary {
+    display: none;
+  }
+
+  /* Override the browser UA stylesheet that hides <details> children when
+     the element lacks the `open` attribute — keeps filters always visible. */
+  .admin-filters-details > :not(summary) {
+    display: block;
+  }
+}
+
+/* mobile: auction-detail */
+
+/* ≤768px: Place-bid card becomes a fixed bottom action bar; bid chain scrolls */
+@media (max-width: 768px) {
+  /* Fix the bid card to the bottom of the viewport */
+  .bid-bar-card {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 15;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
+  /* Clamp the live bid chain so the page doesn't grow unbounded */
+  .bid-chain-list {
+    max-height: 45vh;
+    overflow-y: auto;
+  }
+
+  /* Ensure page content isn't hidden behind the fixed bid bar (~300 px tall) */
+  .auction-detail-page {
+    padding-bottom: 20rem;
+  }
+
+  /* Full-width, ≥44 px tap targets for buyer select and bid amount input */
+  .bid-bar-card .field select,
+  .bid-bar-card .field input {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+/* ≤640px: bottom nav is visible — offset the bid bar above it.
+   The nav links have min-height 44 px inside a bar with padding-bottom for safe-area,
+   so use 52 px (the nav link min-height as set by Slice A) + safe-area inset. */
+@media (max-width: 640px) {
+  .bid-bar-card {
+    bottom: calc(52px + env(safe-area-inset-bottom));
+  }
+}
+
+/* mobile: dashboard */
+
+/* Stat strip: 2 cols on phones, 1 col on very small screens */
+@media (max-width: 640px) {
+  .stat-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 400px) {
+  .stat-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ticker play/pause: ensure ≥44 × 44px touch target on touch viewports only
+   (kept off desktop so the ticker bar height is unchanged there) */
+@media (max-width: 768px) {
+  .ticker-toggle {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* mobile: inventory */
+
+/* ── Wizard chrome ── hidden on desktop by default; enabled on mobile below ──── */
+.wizard-step-indicator,
+.wizard-nav {
+  display: none;
+}
+
+/* Desktop (≥768px): wizard wrappers become transparent so the form's
+   display:grid gap applies directly to the contained fields — identical
+   to the pre-wizard single-form layout. */
+@media (min-width: 768px) {
+  .wizard-panels,
+  .wizard-panel {
+    display: contents;
+  }
+}
+
+/* Mobile (<768px): 3-step stepper UI */
+@media (max-width: 767px) {
+  /* Step progress indicator */
+  .wizard-step-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .wizard-dots {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+  }
+
+  .wizard-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--line);
+    transition:
+      background 0.2s ease,
+      transform 0.15s ease;
+  }
+
+  .wizard-dot.done {
+    background: var(--accent);
+    opacity: 0.55;
+  }
+
+  .wizard-dot.active {
+    background: var(--accent);
+    transform: scale(1.35);
+  }
+
+  .wizard-step-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* Hide every panel; the active one is shown below */
+  .wizard-panel {
+    display: none;
+  }
+
+  /* Show only the panel matching the current step */
+  .wizard-panels[data-step="1"] .wizard-panel[data-panel="1"],
+  .wizard-panels[data-step="2"] .wizard-panel[data-panel="2"],
+  .wizard-panels[data-step="3"] .wizard-panel[data-panel="3"] {
+    display: grid;
+    gap: 1rem;
+  }
+
+  /* Hide submit on steps 1–2; visible on step 3 (the final step) */
+  .wizard-panels:not([data-step="3"]) ~ .wizard-submit {
+    display: none;
+  }
+
+  /* Back / Next navigation row */
+  .wizard-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 0.25rem;
+    /* Keep nav above the fixed bottom-nav bar added by Slice A */
+    padding-bottom: calc(0.25rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .wizard-nav .button {
+    flex: 1;
+  }
+
+  /* Single button in nav: Next-only goes right, Back-only goes left */
+  .wizard-nav .button:not(.secondary):only-child {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  .wizard-nav .button.secondary:only-child {
+    flex: 0 0 auto;
+    margin-right: auto;
+  }
+}

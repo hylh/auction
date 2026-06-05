@@ -68,6 +68,24 @@ function RootComponent() {
               <ThemeToggle />
             </div>
           </header>
+          <nav className="bottom-nav" aria-label="Primary navigation">
+            <Link to="/" activeProps={{ className: "active" }} activeOptions={{ exact: true }}>
+              <span aria-hidden="true">🏠</span>
+              Dashboard
+            </Link>
+            <Link to="/inventory/new" activeProps={{ className: "active" }}>
+              <span aria-hidden="true">🐟</span>
+              Add fish
+            </Link>
+            <Link to="/admin" activeProps={{ className: "active" }}>
+              <span aria-hidden="true">📋</span>
+              Admin
+            </Link>
+            <a href="/metrics">
+              <span aria-hidden="true">📊</span>
+              Metrics
+            </a>
+          </nav>
           <Outlet />
         </div>
       </QueryClientProvider>

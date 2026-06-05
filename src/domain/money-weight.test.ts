@@ -3,17 +3,22 @@ import { centsFromMajor } from "./money";
 import { gramsFromKilograms } from "./weight";
 
 describe("money helpers", () => {
-  it("stores money as integer cents", () => {
-    expect(centsFromMajor("123.45")).toBe(12345);
-    expect(centsFromMajor("123")).toBe(12300);
-    expect(centsFromMajor("123,45")).toBe(12345);
+  it("converts whole NOK amounts to cents", () => {
+    expect(centsFromMajor("1800")).toBe(180000);
+    expect(centsFromMajor("100")).toBe(10000);
+    expect(centsFromMajor(500)).toBe(50000);
   });
 
-  it("rejects values with more than two decimals", () => {
-    expect(() => centsFromMajor("10.999")).toThrow(
-      "Money values must use at most two decimal places",
+  it("rejects decimal values", () => {
+    expect(() => centsFromMajor("123.45")).toThrow(
+      "Money values must be whole numbers (no decimals or cents)",
     );
-    expect(() => centsFromMajor("")).toThrow("Money values must use at most two decimal places");
+    expect(() => centsFromMajor("100.50")).toThrow(
+      "Money values must be whole numbers (no decimals or cents)",
+    );
+    expect(() => centsFromMajor("")).toThrow(
+      "Money values must be whole numbers (no decimals or cents)",
+    );
   });
 });
 

@@ -1,4 +1,4 @@
-import { formatMoney } from "../../domain/money";
+import { formatMoney, formatMoneyWhole } from "../../domain/money";
 import { speciesColorToken } from "../../domain/species-color";
 import type { AdminData } from "../../server/auction-service";
 
@@ -11,12 +11,12 @@ export function SummaryCards({ statistics }: SummaryCardsProps) {
     <section className="stat-strip" style={{ marginBottom: "1rem" }}>
       <div className="stat teal">
         <div className="label">Total sales</div>
-        <div className="value">{formatMoney(statistics.totalSalesCents)}</div>
+        <div className="value">{formatMoneyWhole(statistics.totalSalesCents)}</div>
         <div className="delta">all time</div>
       </div>
       <div className="stat blue">
         <div className="label">Average bid</div>
-        <div className="value">{formatMoney(statistics.averageBidCents)}</div>
+        <div className="value">{formatMoneyWhole(statistics.averageBidCents)}</div>
         <div className="delta">accepted bids</div>
       </div>
       <div className="stat violet">
