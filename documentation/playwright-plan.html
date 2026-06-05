@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Playwright Implementation Plan – Auction</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1.5rem; color: #1a1a1a; line-height: 1.6; }
+    h1 { border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+    h2 { margin-top: 2rem; color: #2563eb; }
+    h3 { margin-top: 1.5rem; }
+    code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; }
+    pre { background: #f3f4f6; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #e5e7eb; padding: 0.5rem 0.75rem; text-align: left; }
+    th { background: #f9fafb; font-weight: 600; }
+    .phase { background: #eff6ff; border-left: 4px solid #2563eb; padding: 0.75rem 1rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+    .note { background: #fefce8; border-left: 4px solid #ca8a04; padding: 0.75rem 1rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+    ul li { margin: 0.4rem 0; }
+  </style>
+</head>
+<body>
+
+<h1>Playwright Implementation Plan</h1>
+<p><strong>Status:</strong> Planned — awaiting removal of "no Playwright" constraint<br />
+<strong>Created:</strong> 2026-06-05<br />
+<strong>Scope:</strong> End-to-end browser testing for the auction house application</p>
+
+<div class="note">
+  <strong>Note:</strong> The project currently has an explicit constraint against adding Playwright. This document captures the plan so it can be implemented once that constraint is lifted.
+</div>
+
+<h2>Goals</h2>
+<ul>
+  <li>Validate critical user journeys end-to-end in a real browser.</li>
+  <li>Cover flows that unit/integration tests cannot: real-time SSE updates in the browser, form interactions, navigation.</li>
+  <li>Run in CI alongside existing Vitest tests.</li>
+  <li>Keep tests fast and focused — no redundant coverage of business logic already covered by Vitest.</li>
+</ul>
+
+<h2>Installation</h2>
+<pre>pnpm add -D @playwright/test
+pnpm exec playwright install --with-deps chromium</pre>
+<p>Add <code>playwright.config.ts</code> at the project root. Use Chromium only initially to keep CI fast; add Firefox/WebKit later if needed.</p>
+
+<h2>Configuration</h2>
+<pre>// playwright.config.ts
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e',
+  timeout: 30_000,
+  retries: process.env.CI ? 2 : 0,
+  use: {
+    baseURL: 'http://localhost:3000',
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+  },
+  webServer: {
+    command: 'pnpm dev',
+    url: 'http://localhost:3000',
+    reuseExistingServer: !process.env.CI,
+  },
+});
+</pre>
+
+<h2>Directory Structure</h2>
+<pre>e2e/
+  fixtures/
+    db.ts          # reset/seed DB before tests
+    auth.ts        # set up demo user context
+  pages/
+    dashboard.ts   # Page Object for live dashboard
+    auction.ts     # Page Object for auction detail
+    inventory.ts   # Page Object for inventory form
+    admin.ts       # Page Object for admin dashboard
+  tests/
+    dashboard.spec.ts
+    auction-bidding.spec.ts
+    inventory.spec.ts
+    admin.spec.ts
+    realtime.spec.ts
+</pre>
+
+<h2>Test Suites</h2>
+
+<h3>1. Live Dashboard (<code>dashboard.spec.ts</code>)</h3>
+<ul>
+  <li>Loads and displays active auctions.</li>
+  <li>Shows latest bids and recent sales.</li>
+  <li>Links to auction detail pages.</li>
+</ul>
+
+<h3>2. Auction Bidding (<code>auction-bidding.spec.ts</code>)</h3>
+<ul>
+  <li>Navigate to an active auction detail page.</li>
+  <li>Place a valid bid — confirm it appears in the bid history.</li>
+  <li>Attempt a bid below the minimum increment — confirm rejection message.</li>
+  <li>Attempt a bid on own auction as seller — confirm rejection.</li>
+  <li>Auction closes — confirm UI reflects closed state.</li>
+</ul>
+
+<h3>3. Real-time Updates (<code>realtime.spec.ts</code>)</h3>
+<ul>
+  <li>Open auction detail in two browser contexts (two users).</li>
+  <li>User A places a bid — confirm User B's page updates in real-time via SSE without reload.</li>
+  <li>Confirm bid amount and bidder name update correctly in both views.</li>
+</ul>
+
+<h3>4. Inventory (<code>inventory.spec.ts</code>)</h3>
+<ul>
+  <li>Fill in the add fish inventory form with valid data — confirm item appears in inventory list.</li>
+  <li>Submit with missing required fields — confirm validation errors.</li>
+  <li>Submit with invalid weight (non-numeric) — confirm error.</li>
+</ul>
+
+<h3>5. Admin Dashboard (<code>admin.spec.ts</code>)</h3>
+<ul>
+  <li>Admin user loads the admin dashboard.</li>
+  <li>Completed auctions and sales history are visible.</li>
+  <li>Statistics (total sales, average bid, popular species) render correctly.</li>
+  <li>Admin can close an active auction manually.</li>
+</ul>
+
+<h2>Database Fixtures</h2>
+<p>Before each test suite, reset and re-seed the database using a dedicated test seed. Use a Playwright fixture that calls the existing <code>db:seed</code> script or a lightweight programmatic seed via Drizzle.</p>
+<pre>// e2e/fixtures/db.ts
+import { test as base } from '@playwright/test';
+
+export const test = base.extend({
+  seedDb: [async ({}, use) => {
+    await execSync('pnpm db:seed:test', { stdio: 'inherit' });
+    await use(undefined);
+  }, { scope: 'worker', auto: true }],
+});
+</pre>
+
+<h2>pnpm Scripts</h2>
+<table>
+  <thead><tr><th>Script</th><th>Command</th></tr></thead>
+  <tbody>
+    <tr><td><code>test:e2e</code></td><td><code>playwright test</code></td></tr>
+    <tr><td><code>test:e2e:ui</code></td><td><code>playwright test --ui</code></td></tr>
+    <tr><td><code>test:e2e:headed</code></td><td><code>playwright test --headed</code></td></tr>
+    <tr><td><code>test:e2e:debug</code></td><td><code>playwright test --debug</code></td></tr>
+  </tbody>
+</table>
+
+<h2>CI Integration</h2>
+<p>Add a step to the existing GitHub Actions workflow after Vitest tests pass:</p>
+<pre>- name: Install Playwright browsers
+  run: pnpm exec playwright install --with-deps chromium
+
+- name: Run Playwright E2E tests
+  run: pnpm test:e2e
+  env:
+    DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+</pre>
+
+<h2>Implementation Phases</h2>
+
+<div class="phase">
+  <strong>Phase 1 — Setup (unblocked once constraint lifted)</strong><br />
+  Install Playwright, add config, scaffold <code>e2e/</code> directory, add pnpm scripts, update <code>.gitignore</code> for Playwright artifacts.
+</div>
+
+<div class="phase">
+  <strong>Phase 2 — Page Objects</strong><br />
+  Implement page object models for dashboard, auction detail, inventory form, and admin dashboard.
+</div>
+
+<div class="phase">
+  <strong>Phase 3 — Core Test Suites</strong><br />
+  Implement dashboard, bidding, inventory, and admin test suites. These can be developed in parallel.
+</div>
+
+<div class="phase">
+  <strong>Phase 4 — Real-time Tests</strong><br />
+  Implement multi-context SSE real-time update tests. These require two browser contexts and careful timing with <code>expect.poll</code> or event-driven assertions.
+</div>
+
+<div class="phase">
+  <strong>Phase 5 — CI</strong><br />
+  Wire into GitHub Actions, add trace/screenshot artifact uploads on failure.
+</div>
+
+<h2>Files to Add/Modify</h2>
+<table>
+  <thead><tr><th>File</th><th>Change</th></tr></thead>
+  <tbody>
+    <tr><td><code>playwright.config.ts</code></td><td>Create</td></tr>
+    <tr><td><code>e2e/**</code></td><td>Create directory and all test files</td></tr>
+    <tr><td><code>package.json</code></td><td>Add <code>test:e2e</code> scripts</td></tr>
+    <tr><td><code>.gitignore</code></td><td>Add <code>test-results/</code>, <code>playwright-report/</code></td></tr>
+    <tr><td><code>.github/workflows/*.yml</code></td><td>Add Playwright CI step</td></tr>
+  </tbody>
+</table>
+
+</body>
+</html>
