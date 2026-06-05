@@ -25,6 +25,10 @@ export class InventoryPage {
 
   async goto() {
     await this.page.goto("/inventory/new");
+    // Wait for the route's client bundle to finish loading so the form's
+    // onSubmit handler is hydrated before we interact — otherwise a fast click
+    // triggers a native form submission and the client validation never runs.
+    await this.page.waitForLoadState("networkidle");
   }
 
   async createActiveAuctionItem(input: FishItemInput) {

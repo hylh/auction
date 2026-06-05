@@ -7,6 +7,9 @@ export class AdminPage {
   readonly salesTab: Locator;
   readonly listedInventoryHeading: Locator;
   readonly auctionsHeading: Locator;
+  readonly filtersSummary: Locator;
+  readonly statusFilter: Locator;
+  readonly speciesFilter: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -15,6 +18,9 @@ export class AdminPage {
     this.salesTab = page.getByRole("tab", { name: /Sales & bids/i });
     this.listedInventoryHeading = page.getByRole("heading", { name: "Listed inventory" });
     this.auctionsHeading = page.getByRole("heading", { name: "Auctions" });
+    this.filtersSummary = page.locator(".admin-filters-details > summary");
+    this.statusFilter = page.locator("label.field", { hasText: "Status" }).locator("select");
+    this.speciesFilter = page.locator("label.field", { hasText: "Species" }).locator("select");
   }
 
   async goto() {
