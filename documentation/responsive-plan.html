@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fish Auction Full-Responsiveness Plan</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f6f8fb;
+        --card: #ffffff;
+        --text: #172033;
+        --muted: #58677a;
+        --border: #d9e1ed;
+        --accent: #0f766e;
+        --accent-soft: #dff7f3;
+        --warning: #92400e;
+        --warning-soft: #fff7ed;
+        --danger: #b91c1c;
+        --danger-soft: #fef2f2;
+        --ok: #047857;
+        --ok-soft: #ecfdf5;
+        --code: #eef2f7;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #101623;
+          --card: #172033;
+          --text: #edf2f7;
+          --muted: #adbacb;
+          --border: #2d394c;
+          --accent: #5eead4;
+          --accent-soft: #123f3a;
+          --warning: #fdba74;
+          --warning-soft: #422006;
+          --danger: #fca5a5;
+          --danger-soft: #3f1d1d;
+          --ok: #6ee7b7;
+          --ok-soft: #052e2b;
+          --code: #202b3b;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.6;
+      }
+
+      main {
+        width: min(1120px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 48px 0;
+      }
+
+      header,
+      section {
+        margin-bottom: 24px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.15;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2.3rem, 6vw, 4.25rem);
+        letter-spacing: -0.06em;
+      }
+
+      h2 {
+        margin: 0 0 14px;
+        font-size: clamp(1.5rem, 3.4vw, 2.1rem);
+        letter-spacing: -0.03em;
+      }
+
+      h3 {
+        margin: 22px 0 8px;
+      }
+
+      p {
+        margin: 0 0 14px;
+      }
+
+      ul,
+      ol {
+        margin: 0 0 16px 1.25rem;
+        padding: 0;
+      }
+
+      li {
+        margin: 6px 0;
+      }
+
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: var(--code);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.92em;
+      }
+
+      pre {
+        margin: 12px 0;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: var(--code);
+        overflow-x: auto;
+      }
+
+      pre code {
+        padding: 0;
+        background: none;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0;
+        font-size: 0.95rem;
+      }
+
+      th,
+      td {
+        padding: 10px;
+        border: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: color-mix(in srgb, var(--card) 86%, var(--accent-soft));
+      }
+
+      .hero,
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--card);
+        box-shadow: 0 12px 34px rgb(15 23 42 / 8%);
+      }
+
+      .hero {
+        padding: clamp(24px, 5vw, 48px);
+        background:
+          radial-gradient(
+            circle at top right,
+            color-mix(in srgb, var(--accent) 24%, transparent),
+            transparent 38%
+          ),
+          var(--card);
+      }
+
+      .card {
+        padding: clamp(18px, 3vw, 28px);
+        margin-bottom: 20px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .pill-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 18px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .pill-list li {
+        margin: 0;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 650;
+        font-size: 0.9rem;
+      }
+
+      .phase-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+      }
+
+      .phase {
+        padding: 18px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: color-mix(in srgb, var(--card) 92%, var(--accent-soft));
+      }
+
+      .phase strong {
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      .callout {
+        padding: 16px;
+        border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
+        border-radius: 16px;
+        background: var(--warning-soft);
+      }
+
+      .sev {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .sev.fixed {
+        color: var(--ok);
+        background: var(--ok-soft);
+      }
+
+      .sev.high {
+        color: var(--danger);
+        background: var(--danger-soft);
+      }
+
+      .sev.med {
+        color: var(--warning);
+        background: var(--warning-soft);
+      }
+
+      .sev.low {
+        color: var(--muted);
+        background: var(--code);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <p class="muted">Saved June 5, 2026</p>
+        <h1>Full-Responsiveness Plan</h1>
+        <p>
+          A review of the current mobile-layout implementation plus a phased plan to make the
+          <em>entire</em> site responsive — not just reflow at phone width, but scale fluidly across
+          phone, tablet, and desktop. The headline gap today is typography: almost every font size is
+          a fixed <code>rem</code> value, so text never adapts between breakpoints.
+        </p>
+        <ul class="pill-list" aria-label="Plan themes">
+          <li>Fluid typography</li>
+          <li>Breakpoint &amp; spacing tokens</li>
+          <li>Container queries</li>
+          <li>Layout robustness</li>
+          <li>Consolidation</li>
+          <li>QA matrix</li>
+        </ul>
+      </header>
+
+      <section class="card">
+        <h2>What was just fixed</h2>
+        <p>
+          <span class="sev fixed">FIXED</span> &nbsp;<strong>Admin filters invisible on desktop.</strong>
+          The admin filter panel uses a <code>&lt;details&gt;</code> element that is collapsible on
+          phones and meant to be always-open on desktop. The desktop rule relied on
+          <code>.admin-filters-details &gt; :not(summary) { display: block }</code> to override the
+          old browser behaviour of hiding closed-<code>details</code> children with
+          <code>display: none</code>.
+        </p>
+        <p>
+          Modern Chromium (and the spec) no longer hide that content with <code>display</code>.
+          Instead the children are wrapped in a <code>::details-content</code> pseudo-element that is
+          hidden via <code>content-visibility: hidden</code> while closed. The old
+          <code>display</code> override therefore had no effect and the filters vanished on desktop.
+          The fix forces the pseudo-element visible at the desktop breakpoint, keeping the legacy
+          <code>display</code> override for engines that don't yet implement
+          <code>::details-content</code>:
+        </p>
+        <pre><code>@media (min-width: 641px) {
+  .admin-filters-details &gt; summary { display: none; }
+
+  /* Newer engines: closed content hidden via ::details-content */
+  .admin-filters-details::details-content { content-visibility: visible; }
+
+  /* Older engines: closed children hidden via display:none */
+  .admin-filters-details &gt; :not(summary) { display: block; }
+}</code></pre>
+        <p class="muted">
+          Follow-up worth considering: the always-open-desktop / collapsible-mobile pattern built on
+          a single <code>&lt;details&gt;</code> is inherently fragile (it fights the element's own
+          state machine). A cleaner long-term approach is a small React component that renders a
+          plain always-visible panel on desktop and a real toggle on mobile, driven by a media query
+          hook — removing the CSS override entirely. Captured in Phase 3 below.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Review of the mobile-layout implementation</h2>
+        <p>
+          The existing mobile work (see <code>documentation/mobile-plan.html</code>) is solid in its
+          structural choices: a bottom tab bar on phones, a sticky bid bar on the auction page, a
+          3-step inventory wizard, dense-row truncation, and ≥44&nbsp;px tap targets. The code is
+          organised into clearly-labelled per-slice blocks at the bottom of
+          <code>src/styles.css</code>. The gaps below are mostly about <em>fluidity</em> and
+          <em>robustness</em>, not missing features.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Finding</th>
+              <th>Severity</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Typography is not fluid</td>
+              <td><span class="sev high">HIGH</span></td>
+              <td>
+                Only <code>.hero h1</code> uses <code>clamp()</code>. Everything else is a fixed
+                <code>rem</code>: <code>.brand</code> 1.05, <code>.nav a</code> 0.9,
+                <code>.stat .value</code> 1.75, <code>.metric</code> 2, <code>.card h2</code> 0.95,
+                <code>.tab</code> 0.9, <code>.sub</code> 0.82, badges/tags 0.7–0.72. Text looks
+                oversized on small phones and undersized on large desktops, and there's no scale
+                between the two.
+              </td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>Inconsistent breakpoints</td>
+              <td><span class="sev med">MED</span></td>
+              <td>
+                The file mixes <code>640</code>, <code>641</code>, <code>767</code>,
+                <code>768</code>. Nav/page/dashboard use 640; tap targets and the bid bar use 768;
+                the wizard uses 767/768. No single documented scale, so boundaries are easy to get
+                wrong (the admin-filters bug lived exactly at one of these seams).
+              </td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Magic-number coupling on auction detail</td>
+              <td><span class="sev med">MED</span></td>
+              <td>
+                The fixed bid bar reserves space with <code>padding-bottom: 20rem</code> on
+                <code>.auction-detail-page</code> and is offset above the nav with
+                <code>bottom: calc(52px + safe-area)</code>. These constants are guesses; if the bid
+                card grows (validation errors, long buyer names) content can be obscured. Better to
+                measure the bar height into a CSS variable, or use <code>position: sticky</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td><code>100vw</code> can cause horizontal scroll</td>
+              <td><span class="sev med">MED</span></td>
+              <td>
+                <code>.page</code> uses <code>min(1240px, calc(100vw - 2rem))</code> and the phone
+                override uses <code>calc(100vw - 1.5rem)</code>. <code>100vw</code> includes the
+                vertical scrollbar width on desktop, so on scrollbar-ful platforms the page is
+                slightly wider than the content area, producing a faint horizontal scrollbar. Prefer
+                <code>100%</code> / <code>100dvw</code> with a max-width.
+              </td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td><code>100vh</code> on mobile browser chrome</td>
+              <td><span class="sev low">LOW</span></td>
+              <td>
+                <code>.shell { min-height: 100vh }</code> and the bid-bar <code>max-height: 60vh</code>
+                ignore the dynamic mobile toolbar. Use <code>100dvh</code>/<code>60dvh</code> with a
+                <code>vh</code> fallback.
+              </td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td>Spacing is fixed, not fluid</td>
+              <td><span class="sev low">LOW</span></td>
+              <td>
+                Card padding (1.1rem), page padding, grid gaps, and section margins are constant.
+                They're in <code>rem</code> so they're not broken, but a fluid spacing scale would
+                make large screens feel less cramped and small screens less wasteful.
+              </td>
+            </tr>
+            <tr>
+              <td>7</td>
+              <td>Responsive images not guaranteed</td>
+              <td><span class="sev low">LOW</span></td>
+              <td>
+                Fish images come from arbitrary external URLs. <code>.preview-image</code> caps at
+                260px, but there is no global <code>img { max-width: 100%; height: auto }</code>
+                safety net for any image rendered elsewhere.
+              </td>
+            </tr>
+            <tr>
+              <td>8</td>
+              <td>Layout keys off viewport, not container</td>
+              <td><span class="sev low">LOW</span></td>
+              <td>
+                Card-dense components (dashboard lists, admin cards) reflow only at global
+                breakpoints. Container queries would let a card adapt to the column it actually sits
+                in, which matters once the dashboard grid varies between 1–3 columns.
+              </td>
+            </tr>
+            <tr>
+              <td>9</td>
+              <td>Scattered, duplicated media queries</td>
+              <td><span class="sev low">LOW</span></td>
+              <td>
+                The per-slice architecture (good for parallel work) left ~8 separate
+                <code>@media (max-width: 640px)</code>/<code>768px</code> blocks. Now that the slices
+                have landed, these can be consolidated for readability without changing behaviour.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          <strong>Good and intentionally kept:</strong> the admin views use card lists, not
+          <code>&lt;table&gt;</code>, so there is no wide-table overflow problem on phones. Tap
+          targets, reduced-motion handling on the ticker, and safe-area insets on the bottom nav are
+          already in place. The plan below builds on these rather than replacing them.
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>The plan</h2>
+        <p>
+          Five phases, ordered by user-visible impact. Phase 1 (fluid type) addresses the explicit
+          request and is the highest-leverage change. Each phase is independently shippable.
+        </p>
+
+        <h3>Phase 1 — Fluid typography system <span class="sev high">biggest win</span></h3>
+        <ul>
+          <li>
+            Add a modular, viewport-fluid type scale as CSS custom properties on
+            <code>:root</code> in <code>src/styles.css</code>, e.g.
+            <code>--fs-xs … --fs-3xl</code>, each a <code>clamp(min, preferred + vw, max)</code>.
+            Example: <code>--fs-xl: clamp(1.35rem, 1.1rem + 1.4vw, 1.75rem);</code>
+          </li>
+          <li>
+            Replace fixed <code>font-size</code> values with the tokens across the components flagged
+            in finding&nbsp;1: <code>.hero h1/p</code>, <code>.stat .value/.label/.delta</code>,
+            <code>.metric</code>, <code>.card h2/h3</code>, <code>.brand</code>, <code>.nav a</code>,
+            <code>.tab</code>, <code>.amount</code>, <code>.sub</code>, badges and tags.
+          </li>
+          <li>
+            Set an explicit base: keep the body at 16px (don't shrink form inputs below 16px — that
+            triggers iOS auto-zoom). Verify inputs/selects/textarea stay ≥16px.
+          </li>
+          <li>
+            Respect user zoom and accessibility: use <code>rem</code> in the clamp min/max (not
+            <code>px</code>) so OS text-scaling still works.
+          </li>
+          <li>Verify in both themes and at 320px, 768px, 1440px widths.</li>
+        </ul>
+
+        <h3>Phase 2 — Breakpoint &amp; spacing tokens</h3>
+        <ul>
+          <li>
+            Document one canonical breakpoint set in the Stage-0 header comment and use it
+            everywhere: <code>sm 640</code>, <code>md 768</code>, <code>lg 1024</code>. Resolve the
+            641/767/768 seams so each boundary is owned by exactly one rule (the admin-filters fix is
+            the template: pair <code>max-width: 640px</code> with <code>min-width: 641px</code>).
+          </li>
+          <li>
+            Add a fluid spacing scale (<code>--space-1 … --space-6</code> using
+            <code>clamp()</code>) and apply to <code>.page</code> padding, <code>.card</code>
+            padding, grid <code>gap</code>s, and section margins so density tracks viewport.
+          </li>
+          <li>
+            Introduce an <code>lg</code> (1024px+) tier the site currently lacks: widen the page
+            container, allow the dashboard grid a denser 3–4 column layout, and let stats grow.
+          </li>
+        </ul>
+
+        <h3>Phase 3 — Layout robustness</h3>
+        <ul>
+          <li>
+            <strong>Auction detail bid bar:</strong> replace the <code>20rem</code> /
+            <code>52px</code> magic numbers. Either (a) switch the bar to
+            <code>position: sticky; bottom: 0</code> inside a scroll container, or (b) measure its
+            height in a small effect and expose it as <code>--bid-bar-h</code>, then use
+            <code>padding-bottom: var(--bid-bar-h)</code>.
+          </li>
+          <li>
+            <strong>Admin filters component:</strong> retire the CSS <code>::details-content</code>
+            workaround by rendering a media-query-driven component — always-open panel on desktop, a
+            real toggle button + state on mobile. Removes the fragile dual-mode
+            <code>&lt;details&gt;</code>.
+          </li>
+          <li>
+            Swap <code>100vw</code> → <code>100%</code>/<code>100dvw</code> and
+            <code>100vh</code> → <code>100dvh</code> (with fallbacks) to kill the horizontal-scroll
+            and mobile-toolbar issues (findings 4–5).
+          </li>
+          <li>
+            Add the global image safety net: <code>img { max-width: 100%; height: auto; }</code>.
+          </li>
+        </ul>
+
+        <h3>Phase 4 — Container queries for dense components</h3>
+        <ul>
+          <li>
+            Mark the dashboard/admin card grids as <code>container-type: inline-size</code> and move
+            the most layout-sensitive rules (row wrapping, two-line vs one-line bid rows) from
+            <code>@media</code> to <code>@container</code> so cards adapt to their column width.
+          </li>
+          <li>Scope to the components that benefit; don't blanket-convert working media queries.</li>
+        </ul>
+
+        <h3>Phase 5 — Consolidation &amp; QA</h3>
+        <ul>
+          <li>
+            Merge the scattered per-slice <code>@media</code> blocks now that parallel development is
+            done, keeping a short comment trail. No behavioural change — purely readability.
+          </li>
+          <li>
+            QA matrix: 320 / 375 / 414 / 768 / 1024 / 1440&nbsp;px × light/dark ×
+            <code>prefers-reduced-motion</code>. Verify the four routes plus the shell, no horizontal
+            scrollbars, tap targets, and that the bid bar never hides content.
+          </li>
+          <li>
+            <strong>Update the Playwright e2e suite</strong> (<code>e2e/tests/*</code>) to lock in
+            the responsive behaviour:
+            <ul>
+              <li>
+                Add a regression test for the admin-filters desktop fix — assert the filter fields
+                (Status / Species / Seller) are <em>visible</em> at a desktop viewport without
+                clicking the <code>Filters</code> summary, and that they are collapsed-by-default at
+                a phone viewport.
+              </li>
+              <li>
+                Add mobile-viewport projects in <code>playwright.config.ts</code> (e.g. a
+                <code>Pixel</code>/<code>iPhone</code> device descriptor) so the existing flows run at
+                phone width; assert the bottom tab bar is visible and the desktop top-nav links are
+                hidden.
+              </li>
+              <li>
+                Add a horizontal-scroll guard helper used across the four routes:
+                <code>scrollWidth &lt;= clientWidth</code> at 320px and 1440px.
+              </li>
+              <li>
+                Update the affected page objects (<code>e2e/pages/admin.ts</code>,
+                <code>auction.ts</code>) for any selector/visibility changes from Phase 3.
+              </li>
+            </ul>
+          </li>
+          <li>Run <code>pnpm lint</code>, <code>pnpm format:check</code>, and <code>pnpm test:e2e</code>; keep changes CSS-token-driven.</li>
+        </ul>
+
+        <div class="phase-grid" style="margin-top: 18px">
+          <div class="phase">
+            <strong>Phase 1 · Fluid type</strong>
+            Token scale + apply. High impact, low risk. ~½ day.
+          </div>
+          <div class="phase">
+            <strong>Phase 2 · Tokens</strong>
+            Breakpoints + fluid spacing + lg tier. ~½ day.
+          </div>
+          <div class="phase">
+            <strong>Phase 3 · Robustness</strong>
+            Bid bar, admin component, vw/vh, images. ~1 day.
+          </div>
+          <div class="phase">
+            <strong>Phase 4 · Container queries</strong>
+            Dense cards adapt to column. ~½ day.
+          </div>
+          <div class="phase">
+            <strong>Phase 5 · Consolidate + QA</strong>
+            Tidy + device matrix. ~½ day.
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Scope notes</h2>
+        <ul>
+          <li>Routes in scope: <code>/</code>, <code>/auctions/$auctionId</code>, <code>/inventory/new</code>, <code>/admin</code>, plus the shared shell.</li>
+          <li><code>/metrics</code> is a raw text exposition endpoint — out of scope.</li>
+          <li>All work stays in <code>src/styles.css</code> tokens plus targeted component tweaks; no design-system rewrite.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Seeded Data &amp; Bid Creation</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #1a1a1a; }
+    h1, h2, h3 { color: #0f3460; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem 0.75rem; text-align: left; }
+    th { background: #f0f4f8; }
+    code { background: #f4f4f4; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.9em; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+    .note { background: #fff8e1; border-left: 4px solid #ffc107; padding: 0.75rem 1rem; margin: 1rem 0; }
+    .improvement { background: #e8f5e9; border-left: 4px solid #4caf50; padding: 0.75rem 1rem; margin: 1rem 0; }
+    .improvement h3::before { content: "\2705  "; }
+  </style>
+</head>
+<body>
+
+<h1>Seeded Data &amp; Bid Creation Guide</h1>
+<p>This document describes the demo data seeded by <code>pnpm db:seed</code> and the mechanics of creating new bids in the auction system.</p>
+
+<hr>
+
+<h2>1. Seeded Data Overview</h2>
+<p>The seed script (<code>src/scripts/seed.ts</code>) creates a deterministic demo dataset. All timestamps are relative to the moment the script runs.</p>
+
+<h3>1.1 Users</h3>
+<table>
+  <thead><tr><th>Key</th><th>Display Name</th><th>Role</th><th>UUID</th></tr></thead>
+  <tbody>
+    <tr><td>sellerNorth</td><td>Northern Nets AS</td><td>seller</td><td><code>00000000-0000-4000-8000-000000000001</code></td></tr>
+    <tr><td>sellerFjord</td><td>Fjordline Catch Co</td><td>seller</td><td><code>00000000-0000-4000-8000-000000000002</code></td></tr>
+    <tr><td>buyerOslo</td><td>Oslo Market Buyer</td><td>buyer</td><td><code>00000000-0000-4000-8000-000000000003</code></td></tr>
+    <tr><td>buyerBergen</td><td>Bergen Seafood Buyer</td><td>buyer</td><td><code>00000000-0000-4000-8000-000000000004</code></td></tr>
+    <tr><td>admin</td><td>Auction Admin</td><td>admin</td><td><code>00000000-0000-4000-8000-000000000005</code></td></tr>
+  </tbody>
+</table>
+
+<h3>1.2 Fish Inventory</h3>
+<table>
+  <thead><tr><th>Species</th><th>Display Name</th><th>Weight (kg)</th><th>Region</th><th>Grade</th><th>Starting Price (NOK)</th><th>Seller</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>Salmon</td><td>Lofoten premium salmon crate</td><td>48.5</td><td>Lofoten</td><td>A</td><td>1 800</td><td>Northern Nets AS</td><td>in_auction</td></tr>
+    <tr><td>Cod</td><td>Skrei cod morning landing</td><td>72.5</td><td>Vestfjorden</td><td>A+</td><td>1 400</td><td>Fjordline Catch Co</td><td>in_auction</td></tr>
+    <tr><td>Tuna</td><td>Bluefin tuna loin set</td><td>31.5</td><td>North Sea</td><td>Sashimi</td><td>4 200</td><td>Northern Nets AS</td><td>sold</td></tr>
+    <tr><td>Herring</td><td>Herring bulk crate</td><td>110.0</td><td>Møre</td><td>B</td><td>900</td><td>Fjordline Catch Co</td><td>listed</td></tr>
+    <tr><td>Trout</td><td>Withdrawn mountain trout batch</td><td>28.5</td><td>Hardanger</td><td>A</td><td>1 250</td><td>Northern Nets AS</td><td>withdrawn</td></tr>
+    <tr><td>Mackerel</td><td>Mackerel shore seine batch</td><td>64.0</td><td>Rogaland</td><td>B+</td><td>800</td><td>Northern Nets AS</td><td>listed</td></tr>
+    <tr><td>Halibut</td><td>Halibut chef selection</td><td>42.0</td><td>Helgeland</td><td>A</td><td>2 600</td><td>Fjordline Catch Co</td><td>listed</td></tr>
+    <tr><td>Mackerel</td><td>Unfinished mackerel draft lot</td><td>38.0</td><td>Rogaland</td><td>B</td><td>700</td><td>Northern Nets AS</td><td>draft</td></tr>
+    <tr><td>Halibut</td><td>Lifecycle demo halibut</td><td>45.0</td><td>Helgeland</td><td>A</td><td>2 500</td><td>Fjordline Catch Co</td><td>sold</td></tr>
+  </tbody>
+</table>
+<p>The <code>default</code> scenario exercises every inventory status: <code>draft</code>, <code>listed</code>, <code>in_auction</code>, <code>sold</code>, and <code>withdrawn</code>. The "Lifecycle demo halibut" walks the full <code>draft → listed → in_auction → sold</code> path with matching inventory status changes and admin actions.</p>
+
+<h3>1.3 Auctions</h3>
+<table>
+  <thead><tr><th>Fish</th><th>Status</th><th>Starts</th><th>Ends</th><th>Min Increment (NOK)</th></tr></thead>
+  <tbody>
+    <tr><td>Salmon</td><td>active</td><td>now − 30 min</td><td>now + 90 min</td><td>50</td></tr>
+    <tr><td>Cod</td><td>active</td><td>now − 15 min</td><td>now + 120 min</td><td>25</td></tr>
+    <tr><td>Tuna</td><td>closed</td><td>now − 3 h</td><td>now − 1 h</td><td>100</td></tr>
+    <tr><td>Lifecycle halibut</td><td>closed</td><td>now − 4 h</td><td>now − 2 h</td><td>50</td></tr>
+  </tbody>
+</table>
+
+<h3>1.4 Seeded Bids</h3>
+<p>The <code>default</code> scenario seeds <strong>~32 accepted bids</strong> across its auctions using deterministic multi-round escalation that alternates buyers and ascends by the configured minimum increment:</p>
+<table>
+  <thead><tr><th>Auction</th><th>Bids</th><th>Buyers</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Salmon (active)</td><td>12</td><td>Oslo / Bergen alternating</td><td>Escalates from the 1 800 NOK starting price.</td></tr>
+    <tr><td>Cod (active)</td><td>10</td><td>Bergen / Oslo alternating</td><td>Escalates from the 1 400 NOK starting price.</td></tr>
+    <tr><td>Tuna (closed)</td><td>6</td><td>Oslo / Bergen alternating</td><td>Highest bid becomes the completed sale.</td></tr>
+    <tr><td>Lifecycle halibut (closed)</td><td>4</td><td>Oslo / Bergen alternating</td><td>Highest bid becomes the completed sale.</td></tr>
+  </tbody>
+</table>
+<p>Bids are inserted in chronological order, so the last bid on each auction is always the current highest. Closed-auction sales reference the actual highest seeded bid (id, amount, and buyer), keeping referential integrity intact.</p>
+
+<h3>1.5 Completed Sales</h3>
+<p>The <code>default</code> scenario records two completed sales, each tied to the highest bid on a closed auction: the bluefin tuna and the lifecycle demo halibut. Both sales reference the real winning bid id, amount, and buyer.</p>
+
+<h3>1.6 Additional Seeded Records</h3>
+<ul>
+  <li><strong>Inventory status changes</strong> &ndash; 10 records, including the full <code>draft → listed → in_auction → sold</code> lifecycle and a <code>null → draft</code> entry for the unfinished draft lot.</li>
+  <li><strong>Admin actions</strong> &ndash; 6 records: auction creations, auction closes, and an inventory withdrawal.</li>
+</ul>
+
+<h3>1.7 Seed Scenario Profiles</h3>
+<p>The seed script accepts a named scenario via <code>--scenario &lt;name&gt;</code> or the <code>SEED_SCENARIO</code> environment variable. Each scenario deletes existing data, reseeds the demo users, then builds its dataset:</p>
+<table>
+  <thead><tr><th>Scenario</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>default</code></td><td>Rich, audit-complete demo dataset (the data described above). Used when no scenario is given.</td></tr>
+    <tr><td><code>busy-auction</code></td><td>One hot active auction with ~24 competing bids for stress-testing the bid chain and dashboard.</td></tr>
+    <tr><td><code>all-expired</code></td><td>Active auctions whose end time has already passed (one with bids, one without) so the lifecycle closes them on next load.</td></tr>
+    <tr><td><code>no-bids</code></td><td>Active auctions ending in a few minutes with no bids placed yet.</td></tr>
+  </tbody>
+</table>
+<pre><code># Seed the default rich dataset:
+pnpm db:seed
+
+# Seed a specific scenario:
+pnpm db:seed --scenario busy-auction
+SEED_SCENARIO=no-bids pnpm db:seed</code></pre>
+
+<hr>
+
+<h2>2. How Bids Are Created</h2>
+
+<h3>2.1 Entry Points</h3>
+<ol>
+  <li><strong>UI form</strong> &ndash; The auction detail page calls the <code>placeBidFn</code> TanStack Start server function.</li>
+  <li><strong>Simulator</strong> &ndash; <code>pnpm simulate</code> drives <code>runSimulation()</code> which calls <code>placeBid()</code> programmatically.</li>
+</ol>
+
+<h3>2.2 Bid Input Schema</h3>
+<pre><code>{
+  auctionId: string (UUID),      // Target auction
+  bidderId: string (UUID),       // The buyer placing the bid
+  amountCents: number,           // Bid amount in integer cents (NOK øre)
+  expectedHighestBidCents: number | null  // Optimistic concurrency token
+}</code></pre>
+
+<h3>2.3 Bid Validation Rules (bid-rules.ts)</h3>
+<p>The <code>evaluateBid()</code> function enforces these rules in order:</p>
+<ol>
+  <li><strong>INVALID_AMOUNT</strong> &ndash; Amount must be a positive integer.</li>
+  <li><strong>AUCTION_NOT_ACTIVE</strong> &ndash; Auction status must be "active" and current time must be within <code>[startsAt, endsAt)</code>.</li>
+  <li><strong>SELLER_OWN_AUCTION</strong> &ndash; Sellers cannot bid on their own fish.</li>
+  <li><strong>STALE_BID</strong> &ndash; <code>expectedHighestBidCents</code> must match the committed highest bid (optimistic concurrency check).</li>
+  <li><strong>INSUFFICIENT_INCREMENT</strong> &ndash; Bid must be ≥ starting price (if first bid) or ≥ current highest + minimum increment.</li>
+</ol>
+
+<h3>2.4 Transaction Flow</h3>
+<ol>
+  <li>Zod validates the input shape.</li>
+  <li><code>advanceAuctionLifecycle()</code> expires any timed-out auctions.</li>
+  <li>A PostgreSQL transaction starts with a <code>SELECT ... FOR UPDATE</code> row lock on the auction.</li>
+  <li>The auction and its current highest bid are loaded.</li>
+  <li><code>evaluateBid()</code> applies business rules.</li>
+  <li>On success: bid is inserted, a <code>BidSnapshot</code> is assembled.</li>
+  <li>After commit: SSE event (<code>bid.accepted</code> or <code>bid.rejected</code>) is published, metrics are recorded.</li>
+</ol>
+
+<h3>2.5 Simulator Bid Creation</h3>
+<p>The simulator (<code>pnpm simulate</code>) creates bids by:</p>
+<ul>
+  <li>Optionally creating new fish + auctions first.</li>
+  <li>Computing a valid next bid amount with the shared <code>buildValidBidInput()</code> factory (see §3.5).</li>
+  <li>Applying a configurable <code>rejectionRate</code> (default 25%) to intentionally submit below-floor bids for testing rejection paths.</li>
+  <li>Calling the same <code>placeBid()</code> service function used by the UI.</li>
+  <li>Optionally closing created auctions and generating sales.</li>
+</ul>
+<p><strong>Multi-round escalation.</strong> Passing <code>bidRounds &gt; 0</code> switches the simulator into a competitive mode: for each round it walks every targeted auction and alternates buyers, so prices climb gradually across rounds. This exercises the increment and concurrency logic far more thoroughly than a single flat bid loop.</p>
+<p><strong>Multi-auction targeting.</strong> The <code>auctionIds</code> input now accepts several existing auctions (previously capped at one), so the simulator can drive realistic activity across all currently active seeded auctions without creating new ones.</p>
+
+<hr>
+
+<h2>3. Implemented Improvements in Data Creation</h2>
+<p>All of the improvements below have been implemented. Each block describes the original gap and how it was resolved.</p>
+
+<div class="improvement">
+<h3>3.1 Richer Bid Seeding</h3>
+<p><em>Resolved.</em> The <code>default</code> seed now creates roughly 32 accepted bids across four auctions using deterministic multi-round escalation (12 salmon, 10 cod, 6 tuna, 4 lifecycle halibut), instead of the previous 4 bids. This makes the default state immediately useful for dashboard and statistics work without running the simulator.</p>
+</div>
+
+<div class="improvement">
+<h3>3.2 Simulator Multi-Round Bid Escalation</h3>
+<p><em>Resolved.</em> The simulator accepts a <code>bidRounds</code> option. When set, it runs that many rounds across every targeted auction, alternating buyers each round so prices escalate gradually &mdash; modelling realistic competition and exercising the concurrency/increment logic. From the CLI, <code>--bid-rounds N</code> switches into a single batch request that drives this mode.</p>
+</div>
+
+<div class="improvement">
+<h3>3.3 Configurable Seed Scenario Profiles</h3>
+<p><em>Resolved.</em> The seed script supports named scenarios (<code>default</code>, <code>busy-auction</code>, <code>all-expired</code>, <code>no-bids</code>) via <code>--scenario</code> or <code>SEED_SCENARIO</code>. See §1.7. Developers and testers can reproduce specific UI states and edge cases without editing the seed script.</p>
+</div>
+
+<div class="improvement">
+<h3>3.4 Submission-Ready Bid Context Helper</h3>
+<p><em>Resolved.</em> <code>getBidSubmissionContext(auctionId)</code> (exported from <code>auction-service</code>) atomically reads the current highest bid and returns a payload ready for bid submission: <code>auctionId</code>, <code>auctionStatus</code>, <code>startingPriceCents</code>, <code>minimumIncrementCents</code>, <code>currentHighestBid</code>, <code>expectedHighestBidCents</code>, and the precomputed <code>nextMinimumBidCents</code>. Scripts, tests, and external integrations no longer have to compute the optimistic-concurrency token by hand.</p>
+</div>
+
+<div class="improvement">
+<h3>3.5 Shared Bid Factory Functions</h3>
+<p><em>Resolved.</em> <code>src/domain/bid-builder.ts</code> provides pure helpers <code>nextMinimumBidCents()</code> and <code>buildValidBidInput()</code>. The simulator and the bid-rules floor calculation both use them, eliminating duplicated, drift-prone logic. The builder computes the next valid amount (optionally raised by <code>incrementSteps</code>) and returns a ready-to-submit payload.</p>
+</div>
+
+<div class="improvement">
+<h3>3.6 Full Inventory Lifecycle in the Seed</h3>
+<p><em>Resolved.</em> The <code>default</code> seed now includes a <code>draft</code> fish item and a "Lifecycle demo halibut" that walks the complete <code>draft → listed → in_auction → sold</code> path with matching inventory status changes and admin actions. Every inventory status is represented end-to-end.</p>
+</div>
+
+<div class="improvement">
+<h3>3.7 Simulator Targets Multiple Existing Auctions</h3>
+<p><em>Resolved.</em> The <code>auctionIds</code> input is no longer capped at one auction, and the CLI parses <code>--auction-ids</code> (comma or space separated). Supplying existing auction ids defaults the created-auction count to zero, so the simulator drives activity across all targeted auctions without creating new inventory.</p>
+</div>
+
+<hr>
+
+<h2>4. Quick Reference: Creating a Bid</h2>
+
+<h3>Via the UI</h3>
+<ol>
+  <li>Navigate to an active auction detail page (<code>/auctions/$auctionId</code>).</li>
+  <li>Select a buyer from the user switcher.</li>
+  <li>Enter a bid amount ≥ current highest + minimum increment.</li>
+  <li>Submit. The bid is validated server-side and an SSE event confirms acceptance or rejection.</li>
+</ol>
+
+<h3>Via the Simulator CLI</h3>
+<pre><code># Create 1 new auction and place 1 bid on it, then close it:
+pnpm simulate
+
+# Multi-round competition across the two seeded active auctions (no new inventory):
+pnpm simulate --auction-ids 10000000-0000-4000-8000-000000000001,10000000-0000-4000-8000-000000000002 --bid-rounds 4
+
+# Place a few bids on a single existing auction without creating new ones:
+pnpm simulate --auction-ids 10000000-0000-4000-8000-000000000002 --bid-count 3</code></pre>
+<p>Supplying <code>--auction-ids</code> defaults the created-auction count to zero. Add <code>--close</code> to close the targeted auctions when finished.</p>
+
+<h3>Via Direct Server Function (tests/scripts)</h3>
+<pre><code>import { getBidSubmissionContext, placeBid } from "./server/auction-service";
+
+// Atomically fetch the submission-ready context (no manual token math):
+const context = await getBidSubmissionContext("10000000-0000-4000-8000-000000000001");
+
+const result = await placeBid({
+  auctionId: context.auctionId,
+  bidderId: "00000000-0000-4000-8000-000000000003",  // Oslo buyer
+  amountCents: context.nextMinimumBidCents,
+  expectedHighestBidCents: context.expectedHighestBidCents,
+});
+
+if (result.ok) {
+  console.log("Bid accepted:", result.event.bid);
+} else {
+  console.log("Bid rejected:", result.code, result.message);
+}</code></pre>
+
+</body>
+</html>
