@@ -32,7 +32,9 @@ test.describe("inventory form", () => {
     await page.getByRole("combobox", { name: "Seller" }).selectOption("");
     await inventory.submitButton.click();
 
-    await expect(page.getByText("Fix the highlighted fields before adding inventory.")).toBeVisible();
+    await expect(
+      page.getByText("Fix the highlighted fields before adding inventory."),
+    ).toBeVisible();
     await expect(page.locator(".field-error").first()).toBeVisible();
     await expect(page.getByText("was listed", { exact: false })).not.toBeVisible();
   });
