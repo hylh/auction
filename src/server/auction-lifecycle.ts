@@ -1,14 +1,11 @@
-import { and, asc, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
-import { db } from "../db/client";
-import { auctions, bids, fishItems, sales } from "../db/schema";
+import { eq } from "drizzle-orm";
+import { auctions, fishItems, sales } from "../db/schema";
 import { CURRENCY } from "../domain/constants";
-import {
-  publishAuctionEvent,
-  type AuctionClosedEvent,
-  type SaleCompletedEvent,
-} from "../domain/events";
+import { auctionClosedEvent, publishAuctionEvent, saleCompletedEvent } from "../domain/events";
 import { logInfo } from "../domain/logger";
 import { recordAdminAction, recordInventoryStatusChange, type Transaction } from "./auction-audit";
+import { findHighestBid } from "./bid-selection";
+import { lockAuctionRow } from "./row-locks";
 import type {
   AuctionLifecycleStatus,
   CloseAuctionResult,
@@ -40,50 +37,11 @@ type CloseAuctionInput = {
   reason: CloseReason;
 };
 
-export async function advanceAuctionLifecycle(now = new Date()) {
-  const activatedAuctions = await db
-    .update(auctions)
-    .set({ status: "active", updatedAt: now })
-    .where(
-      and(eq(auctions.status, "scheduled"), lte(auctions.startsAt, now), gt(auctions.endsAt, now)),
-    )
-    .returning({ id: auctions.id });
-
-  for (const auction of activatedAuctions) {
-    logInfo("auction.activated", { auctionId: auction.id });
-  }
-
-  const expiredAuctions = await db
-    .select({ id: auctions.id })
-    .from(auctions)
-    .where(and(inArray(auctions.status, ["active", "scheduled"]), lte(auctions.endsAt, now)))
-    .orderBy(asc(auctions.endsAt));
-
-  const closeResults: Array<CloseAuctionResult> = [];
-  for (const auction of expiredAuctions) {
-    const result = await db.transaction((tx) =>
-      closeAuctionInTransaction(tx, {
-        auctionId: auction.id,
-        adminUserId: null,
-        now,
-        reason: "expired",
-      }),
-    );
-    publishCloseResult(result);
-    closeResults.push(result);
-  }
-
-  return {
-    activatedCount: activatedAuctions.length,
-    closedCount: closeResults.filter((result) => result.changed).length,
-  };
-}
-
 export async function closeAuctionInTransaction(
   tx: Transaction,
   input: CloseAuctionInput,
 ): Promise<CloseAuctionResult> {
-  await tx.execute(sql`select id from auctions where id = ${input.auctionId} for update`);
+  await lockAuctionRow(tx, input.auctionId);
 
   const auction = await loadAuctionForClose(tx, input.auctionId);
   if (!auction) {
@@ -94,10 +52,7 @@ export async function closeAuctionInTransaction(
   }
 
   assertAuctionCanClose(auction, input);
-  const winningBid = await tx.query.bids.findFirst({
-    where: eq(bids.auctionId, input.auctionId),
-    orderBy: [desc(bids.amountCents), desc(bids.acceptedAt)],
-  });
+  const winningBid = await findHighestBid(tx, input.auctionId);
 
   return winningBid
     ? closeAuctionWithWinningBid(tx, input, auction, winningBid)
@@ -258,33 +213,5 @@ async function closeAuctionWithWinningBid(
     changed: true,
     closedEvent: auctionClosedEvent(input.auctionId, "closed", closedAt),
     saleEvent: saleCompletedEvent(input.auctionId, sale.id, sale.amountCents, sale.completedAt),
-  };
-}
-
-function auctionClosedEvent(
-  auctionId: string,
-  status: "closed" | "unsold",
-  closedAt: Date,
-): AuctionClosedEvent {
-  return {
-    type: "auction.closed",
-    auctionId,
-    status,
-    closedAt: closedAt.toISOString(),
-  };
-}
-
-function saleCompletedEvent(
-  auctionId: string,
-  saleId: string,
-  amountCents: number,
-  completedAt: Date,
-): SaleCompletedEvent {
-  return {
-    type: "sale.completed",
-    auctionId,
-    saleId,
-    amountCents,
-    completedAt: completedAt.toISOString(),
   };
 }

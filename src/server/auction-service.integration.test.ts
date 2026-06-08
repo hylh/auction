@@ -347,6 +347,30 @@ describe("auction bidding integration", () => {
       }),
     ).rejects.toThrow("Only admins can withdraw fish inventory");
   });
+
+  it("filters admin history at the database so other sellers' records never leak in", async () => {
+    const { adminId, sellerId } = await createTestUsers();
+    const { sellerId: otherSellerId } = await createTestUsers();
+
+    const fish = await createTestFish(sellerId, "Filter probe cod");
+    const otherFish = await createTestFish(otherSellerId, "Other seller cod");
+    const auction = await createTestAuction(fish.id, adminId);
+    const otherAuction = await createTestAuction(otherFish.id, adminId);
+
+    await withdrawAuction({ auctionId: auction.id, adminUserId: adminId });
+    await withdrawAuction({ auctionId: otherAuction.id, adminUserId: adminId });
+
+    const filtered = await getAdminData({ sellerId });
+
+    expect(filtered.inventoryStatusChanges.length).toBeGreaterThan(0);
+    expect(filtered.inventoryStatusChanges.every((change) => change.fishItemId === fish.id)).toBe(
+      true,
+    );
+    expect(filtered.adminActions.length).toBeGreaterThan(0);
+    expect(filtered.adminActions.every((action) => action.fishItemId === fish.id)).toBe(true);
+    expect(filtered.withdrawnInventory.map((item) => item.id)).toContain(fish.id);
+    expect(filtered.withdrawnInventory.map((item) => item.id)).not.toContain(otherFish.id);
+  });
 });
 
 async function ensureDemoUsers() {

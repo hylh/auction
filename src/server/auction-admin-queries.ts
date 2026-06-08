@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   adminActions,
@@ -7,17 +7,18 @@ import {
   fishItems,
   inventoryStatusChanges,
   sales,
+  users,
 } from "../db/schema";
 import { adminFiltersSchema, type AdminFilters } from "../domain/validation";
-import { advanceAuctionLifecycle } from "./auction-lifecycle";
+import { advanceAuctionLifecycle } from "./auction-clock";
 import { toFishSummary } from "./auction-mappers";
 import {
-  adminActionMatchesFilters,
+  adminActionQueryConditions,
   andAll,
   bidQueryConditions,
-  fishMatchesFilters,
+  fishQueryConditions,
   saleQueryConditions,
-  statusChangeMatchesFilters,
+  statusChangeQueryConditions,
 } from "./auction-query-filters";
 import {
   listDemoUsers,
@@ -155,62 +156,77 @@ async function loadPopularFishStatistics(filters: AdminFilters) {
 
 async function loadWithdrawnInventory(filters?: AdminFilters) {
   const fishRows = await db.query.fishItems.findMany({
-    where: eq(fishItems.status, "withdrawn"),
+    where: and(eq(fishItems.status, "withdrawn"), ...fishQueryConditions(filters)),
     orderBy: [desc(fishItems.updatedAt)],
     limit: 50,
   });
 
-  return fishRows.filter((fish) => fishMatchesFilters(fish, filters)).map(toFishSummary);
+  return fishRows.map(toFishSummary);
 }
 
 async function loadInventoryStatusChanges(
   filters?: AdminFilters,
 ): Promise<Array<InventoryStatusChangeSummary>> {
-  const changes = await db.query.inventoryStatusChanges.findMany({
-    with: {
-      fishItem: true,
-      changedBy: true,
-    },
-    orderBy: [desc(inventoryStatusChanges.createdAt)],
-    limit: 100,
-  });
+  const changes = await db
+    .select({
+      id: inventoryStatusChanges.id,
+      fishItemId: inventoryStatusChanges.fishItemId,
+      fishDisplayName: fishItems.displayName,
+      species: fishItems.species,
+      fromStatus: inventoryStatusChanges.fromStatus,
+      toStatus: inventoryStatusChanges.toStatus,
+      changedByDisplayName: users.displayName,
+      reason: inventoryStatusChanges.reason,
+      createdAt: inventoryStatusChanges.createdAt,
+    })
+    .from(inventoryStatusChanges)
+    .innerJoin(fishItems, eq(inventoryStatusChanges.fishItemId, fishItems.id))
+    .leftJoin(users, eq(inventoryStatusChanges.changedByUserId, users.id))
+    .where(andAll(statusChangeQueryConditions(filters)))
+    .orderBy(desc(inventoryStatusChanges.createdAt))
+    .limit(100);
 
-  return changes
-    .filter((change) => statusChangeMatchesFilters(change, filters))
-    .map((change) => ({
-      id: change.id,
-      fishItemId: change.fishItemId,
-      fishDisplayName: change.fishItem.displayName,
-      species: change.fishItem.species,
-      fromStatus: change.fromStatus,
-      toStatus: change.toStatus,
-      changedByDisplayName: change.changedBy?.displayName ?? null,
-      reason: change.reason,
-      createdAt: change.createdAt.toISOString(),
-    }));
+  return changes.map((change) => ({
+    id: change.id,
+    fishItemId: change.fishItemId,
+    fishDisplayName: change.fishDisplayName,
+    species: change.species,
+    fromStatus: change.fromStatus,
+    toStatus: change.toStatus,
+    changedByDisplayName: change.changedByDisplayName ?? null,
+    reason: change.reason,
+    createdAt: change.createdAt.toISOString(),
+  }));
 }
 
 async function loadAdminActions(filters?: AdminFilters): Promise<Array<AdminActionSummary>> {
-  const actions = await db.query.adminActions.findMany({
-    with: {
-      admin: true,
-      auction: true,
-      fishItem: true,
-    },
-    orderBy: [desc(adminActions.createdAt)],
-    limit: 100,
-  });
+  const actions = await db
+    .select({
+      id: adminActions.id,
+      adminDisplayName: users.displayName,
+      action: adminActions.action,
+      auctionId: adminActions.auctionId,
+      fishItemId: adminActions.fishItemId,
+      fishDisplayName: fishItems.displayName,
+      reason: adminActions.reason,
+      createdAt: adminActions.createdAt,
+    })
+    .from(adminActions)
+    .innerJoin(users, eq(adminActions.adminUserId, users.id))
+    .leftJoin(auctions, eq(adminActions.auctionId, auctions.id))
+    .leftJoin(fishItems, eq(adminActions.fishItemId, fishItems.id))
+    .where(andAll(adminActionQueryConditions(filters)))
+    .orderBy(desc(adminActions.createdAt))
+    .limit(100);
 
-  return actions
-    .filter((action) => adminActionMatchesFilters(action, filters))
-    .map((action) => ({
-      id: action.id,
-      adminDisplayName: action.admin.displayName,
-      action: action.action,
-      auctionId: action.auctionId,
-      fishItemId: action.fishItemId,
-      fishDisplayName: action.fishItem?.displayName ?? null,
-      reason: action.reason,
-      createdAt: action.createdAt.toISOString(),
-    }));
+  return actions.map((action) => ({
+    id: action.id,
+    adminDisplayName: action.adminDisplayName,
+    action: action.action,
+    auctionId: action.auctionId,
+    fishItemId: action.fishItemId,
+    fishDisplayName: action.fishDisplayName ?? null,
+    reason: action.reason,
+    createdAt: action.createdAt.toISOString(),
+  }));
 }

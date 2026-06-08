@@ -425,9 +425,7 @@ function renderBucket(
   const label =
     labelKind === "status" || typeof bucket.le === "string"
       ? String(bucket.le)
-      : bucket.le === "+Inf"
-        ? "+Inf"
-        : formatSeconds(Number(bucket.le));
+      : formatSeconds(Number(bucket.le));
   const prefix = labelKind === "seconds" && typeof bucket.le !== "string" ? "&le; " : "";
 
   return `<div class="bar-row">

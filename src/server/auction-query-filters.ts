@@ -1,13 +1,20 @@
 import { and, sql, type SQL } from "drizzle-orm";
-import { auctions, bids, fishItems, sales } from "../db/schema";
-import { AUCTION_STATUSES } from "../domain/constants";
+import {
+  adminActions,
+  auctions,
+  bids,
+  fishItems,
+  inventoryStatusChanges,
+  sales,
+} from "../db/schema";
+import { AUCTION_STATUSES, INVENTORY_STATUSES } from "../domain/constants";
 import type { AdminFilters } from "../domain/validation";
 
 export function auctionQueryConditions(status?: "active", filters?: AdminFilters) {
   const conditions: Array<SQL> = [];
 
   if (status) {
-    conditions.push(sql`${auctions.status} = ${status}`);
+    conditions.push(sql`${auctions.status}::text = ${status}`);
   }
   if (!filters) {
     return conditions;
@@ -64,59 +71,53 @@ export function saleQueryConditions(filters?: AdminFilters) {
   return conditions;
 }
 
+export function fishQueryConditions(filters?: AdminFilters) {
+  const conditions: Array<SQL> = [];
+
+  if (!filters) {
+    return conditions;
+  }
+  if (filters.buyerId) {
+    conditions.push(sql`false`);
+  }
+  addInventoryStatusCondition(conditions, sql`${fishItems.status}`, filters);
+  addFishFilterConditions(conditions, filters);
+  conditions.push(...dateQueryConditions(sql`${fishItems.updatedAt}`, filters));
+  return conditions;
+}
+
+export function statusChangeQueryConditions(filters?: AdminFilters) {
+  const conditions: Array<SQL> = [];
+
+  if (!filters) {
+    return conditions;
+  }
+  if (filters.buyerId) {
+    conditions.push(sql`false`);
+  }
+  addInventoryStatusCondition(conditions, sql`${inventoryStatusChanges.toStatus}`, filters);
+  addFishFilterConditions(conditions, filters);
+  conditions.push(...dateQueryConditions(sql`${inventoryStatusChanges.createdAt}`, filters));
+  return conditions;
+}
+
+export function adminActionQueryConditions(filters?: AdminFilters) {
+  const conditions: Array<SQL> = [];
+
+  if (!filters) {
+    return conditions;
+  }
+  if (filters.buyerId) {
+    conditions.push(sql`false`);
+  }
+  addAdminActionStatusCondition(conditions, filters);
+  addFishFilterConditions(conditions, filters);
+  conditions.push(...dateQueryConditions(sql`${adminActions.createdAt}`, filters));
+  return conditions;
+}
+
 export function andAll(conditions: Array<SQL>) {
   return conditions.length === 0 ? undefined : and(...conditions);
-}
-
-export function fishMatchesFilters(
-  fish: { status: string; species: string; sellerId: string; updatedAt?: Date },
-  filters?: AdminFilters,
-) {
-  if (!filters) return true;
-  return [
-    matchesOptional(filters.status, fish.status),
-    matchesOptional(filters.species, fish.species),
-    matchesOptional(filters.sellerId, fish.sellerId),
-    isEmptyFilter(filters.buyerId),
-    matchesOptionalDate(fish.updatedAt, filters),
-  ].every(Boolean);
-}
-
-export function statusChangeMatchesFilters(
-  change: {
-    toStatus: string;
-    createdAt: Date;
-    fishItem: { species: string; sellerId: string };
-  },
-  filters?: AdminFilters,
-) {
-  if (!filters) return true;
-  return [
-    matchesOptional(filters.status, change.toStatus),
-    matchesOptional(filters.species, change.fishItem.species),
-    matchesOptional(filters.sellerId, change.fishItem.sellerId),
-    isEmptyFilter(filters.buyerId),
-    dateMatches(change.createdAt, filters),
-  ].every(Boolean);
-}
-
-export function adminActionMatchesFilters(
-  action: {
-    action: string;
-    createdAt: Date;
-    auction: { status: string } | null;
-    fishItem: { species: string; sellerId: string; status?: string } | null;
-  },
-  filters?: AdminFilters,
-) {
-  if (!filters) return true;
-  return [
-    adminActionMatchesStatus(action, filters.status),
-    isEmptyFilter(filters.buyerId),
-    matchesOptional(filters.species, action.fishItem?.species),
-    matchesOptional(filters.sellerId, action.fishItem?.sellerId),
-    dateMatches(action.createdAt, filters),
-  ].every(Boolean);
 }
 
 function dateQueryConditions(dateExpression: SQL, filters: AdminFilters) {
@@ -135,14 +136,48 @@ function dateQueryConditions(dateExpression: SQL, filters: AdminFilters) {
 function addAuctionStatusCondition(conditions: Array<SQL>, filters: AdminFilters) {
   if (filters.status) {
     conditions.push(
-      isAuctionStatus(filters.status) ? sql`${auctions.status} = ${filters.status}` : sql`false`,
+      isAuctionStatus(filters.status)
+        ? sql`${auctions.status}::text = ${filters.status}`
+        : sql`false`,
     );
   }
 }
 
+function addInventoryStatusCondition(
+  conditions: Array<SQL>,
+  statusExpression: SQL,
+  filters: AdminFilters,
+) {
+  if (filters.status) {
+    conditions.push(
+      isInventoryStatus(filters.status)
+        ? sql`${statusExpression}::text = ${filters.status}`
+        : sql`false`,
+    );
+  }
+}
+
+function addAdminActionStatusCondition(conditions: Array<SQL>, filters: AdminFilters) {
+  if (!filters.status) {
+    return;
+  }
+
+  const statusSides: Array<SQL> = [];
+  if (isInventoryStatus(filters.status)) {
+    statusSides.push(sql`${fishItems.status}::text = ${filters.status}`);
+  }
+  if (isAuctionStatus(filters.status)) {
+    statusSides.push(sql`${auctions.status}::text = ${filters.status}`);
+  }
+
+  conditions.push(
+    statusSides.length === 0 ? sql`false` : sql`(${sql.join(statusSides, sql` or `)})`,
+  );
+}
+
 function addFishFilterConditions(conditions: Array<SQL>, filters: AdminFilters) {
   if (filters.species) {
-    conditions.push(sql`${fishItems.species} = ${filters.species}`);
+    conditions.push(sql`${fishItems.species}::text = ${filters.species}`);
   }
   if (filters.sellerId) {
     conditions.push(sql`${fishItems.sellerId} = ${filters.sellerId}`);
@@ -153,40 +188,6 @@ function isAuctionStatus(status: string) {
   return (AUCTION_STATUSES as readonly string[]).includes(status);
 }
 
-function adminActionMatchesStatus(
-  action: {
-    action: string;
-    auction: { status: string } | null;
-    fishItem: { status?: string } | null;
-  },
-  status: string,
-) {
-  if (!status) return true;
-  const directMatch = action.fishItem?.status === status || action.auction?.status === status;
-  const closedSaleMatch =
-    action.action === "close_auction" && status === "sold" && action.fishItem?.status === "sold";
-
-  return directMatch || closedSaleMatch;
-}
-
-function dateMatches(date: Date, filters: AdminFilters) {
-  if (filters.fromDate && date < filters.fromDate) return false;
-  if (filters.toDate) {
-    const toDateInclusive = new Date(filters.toDate);
-    toDateInclusive.setDate(toDateInclusive.getDate() + 1);
-    if (date >= toDateInclusive) return false;
-  }
-  return true;
-}
-
-function matchesOptional(expected: string | undefined, actual: string | undefined) {
-  return expected ? actual === expected : true;
-}
-
-function isEmptyFilter(value: string | undefined) {
-  return !value;
-}
-
-function matchesOptionalDate(date: Date | undefined, filters: AdminFilters) {
-  return date ? dateMatches(date, filters) : true;
+function isInventoryStatus(status: string) {
+  return (INVENTORY_STATUSES as readonly string[]).includes(status);
 }

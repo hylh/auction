@@ -47,6 +47,62 @@ export type AuctionEvent =
 
 export type AuctionEventListener = (event: AuctionEvent) => void;
 
+export function bidAcceptedEvent(auctionId: string, snapshot: BidSnapshot): BidAcceptedEvent {
+  return {
+    type: "bid.accepted",
+    auctionId,
+    bid: snapshot,
+    currentHighestBid: snapshot,
+  };
+}
+
+export function bidRejectedEvent(input: {
+  auctionId: string;
+  actorUserId: string;
+  code: BidErrorCode;
+  message: string;
+  currentHighestBidCents: number | null;
+  rejectedAt: Date;
+}): BidRejectedEvent {
+  return {
+    type: "bid.rejected",
+    auctionId: input.auctionId,
+    actorUserId: input.actorUserId,
+    code: input.code,
+    message: input.message,
+    currentHighestBidCents: input.currentHighestBidCents,
+    rejectedAt: input.rejectedAt.toISOString(),
+  };
+}
+
+export function auctionClosedEvent(
+  auctionId: string,
+  status: "closed" | "unsold",
+  closedAt: Date,
+): AuctionClosedEvent {
+  return {
+    type: "auction.closed",
+    auctionId,
+    status,
+    closedAt: closedAt.toISOString(),
+  };
+}
+
+export function saleCompletedEvent(
+  auctionId: string,
+  saleId: string,
+  amountCents: number,
+  completedAt: Date,
+): SaleCompletedEvent {
+  return {
+    type: "sale.completed",
+    auctionId,
+    saleId,
+    amountCents,
+    completedAt: completedAt.toISOString(),
+  };
+}
+
 type AuctionEventSubscription = {
   userId: string | null | undefined;
   listener: AuctionEventListener;

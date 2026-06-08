@@ -1,17 +1,18 @@
 import { aliasedTable } from "drizzle-orm/alias";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db, sqlClient } from "../db/client";
 import { auctions, bids, fishItems, sales, users } from "../db/schema";
 import { nextMinimumBidCents } from "../domain/bid-builder";
 import type { BidSnapshot } from "../domain/events";
 import type { AdminFilters } from "../domain/validation";
 import { toBidSnapshot, toFishSummary, toUserSummary } from "./auction-mappers";
-import { advanceAuctionLifecycle } from "./auction-lifecycle";
+import { advanceAuctionLifecycle } from "./auction-clock";
+import { highestBidOrder } from "./bid-selection";
 import {
   andAll,
   auctionQueryConditions,
   bidQueryConditions,
-  fishMatchesFilters,
+  fishQueryConditions,
   saleQueryConditions,
 } from "./auction-query-filters";
 import type {
@@ -152,7 +153,7 @@ export async function getAuctionDetail(auctionId: string): Promise<AuctionDetail
         with: {
           bidder: true,
         },
-        orderBy: [desc(bids.amountCents), desc(bids.acceptedAt)],
+        orderBy: highestBidOrder,
       },
     },
   });
@@ -327,7 +328,7 @@ async function loadHighestBidSnapshots(auctionIds: Array<string>) {
     with: {
       bidder: true,
     },
-    orderBy: [desc(bids.amountCents), desc(bids.acceptedAt)],
+    orderBy: highestBidOrder,
   });
   const highestBids = new Map<string, BidSnapshot>();
 
@@ -342,10 +343,10 @@ async function loadHighestBidSnapshots(auctionIds: Array<string>) {
 
 export async function loadInventoryNeedingAction(filters?: AdminFilters) {
   const fishRows = await db.query.fishItems.findMany({
-    where: (item, { inArray }) => inArray(item.status, ["draft", "listed"]),
+    where: and(inArray(fishItems.status, ["draft", "listed"]), ...fishQueryConditions(filters)),
     orderBy: [desc(fishItems.createdAt)],
     limit: filters ? 50 : 8,
   });
 
-  return fishRows.filter((fish) => fishMatchesFilters(fish, filters)).map(toFishSummary);
+  return fishRows.map(toFishSummary);
 }

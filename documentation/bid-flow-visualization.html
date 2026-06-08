@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bid Flow: Button to Database</title>
+  <style>
+    :root {
+      --ink: #0f3460;
+      --line: #c5d2e0;
+      --client: #1565c0;
+      --client-bg: #e3f2fd;
+      --transport: #6a1b9a;
+      --transport-bg: #f3e5f5;
+      --server: #2e7d32;
+      --server-bg: #e8f5e9;
+      --domain: #ef6c00;
+      --domain-bg: #fff3e0;
+      --db: #ad1457;
+      --db-bg: #fce4ec;
+      --realtime: #00838f;
+      --realtime-bg: #e0f7fa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 2rem 1rem 4rem;
+      background: #f5f7fa;
+      color: #1a1a1a;
+      line-height: 1.5;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; }
+    h1 { color: var(--ink); margin-bottom: 0.25rem; }
+    .lead { color: #4a5568; margin-top: 0; max-width: 70ch; }
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 0.5rem 1rem;
+      margin: 1.25rem 0 2rem; padding: 0.75rem 1rem;
+      background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; }
+    .swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+
+    .flow { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+
+    .step {
+      border: 1px solid var(--line);
+      border-left-width: 6px;
+      border-radius: 10px;
+      background: #fff;
+      padding: 0.9rem 1.1rem;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      position: relative;
+    }
+    .step .badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      margin-bottom: 0.45rem;
+    }
+    .step h3 {
+      margin: 0 0 0.35rem;
+      font-size: 1.02rem;
+      display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap;
+    }
+    .step .num {
+      font-variant-numeric: tabular-nums;
+      color: #94a3b8; font-weight: 700;
+    }
+    .step .file {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 0.82rem;
+      background: #f1f5f9;
+      padding: 0.1rem 0.45rem;
+      border-radius: 5px;
+      color: #334155;
+    }
+    .step p { margin: 0.3rem 0 0; font-size: 0.92rem; color: #374151; }
+    .step .sym {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.85em; color: #0b6;
+      background: #f0fdf4; padding: 0 0.25rem; border-radius: 4px;
+    }
+    .step ul { margin: 0.45rem 0 0; padding-left: 1.2rem; font-size: 0.88rem; color: #374151; }
+    .step ul li { margin: 0.15rem 0; }
+
+    .arrow {
+      align-self: center;
+      width: 0; height: 0;
+      border-left: 9px solid transparent;
+      border-right: 9px solid transparent;
+      border-top: 11px solid #94a3b8;
+      margin: 6px 0;
+    }
+    .arrow-label {
+      align-self: center;
+      font-size: 0.72rem;
+      color: #64748b;
+      background: #eef2f7;
+      padding: 0.1rem 0.55rem;
+      border-radius: 999px;
+      margin: 2px 0;
+      font-family: ui-monospace, Consolas, monospace;
+    }
+
+    /* category colors */
+    .c-client   { border-left-color: var(--client); }
+    .c-client   .badge { background: var(--client-bg); color: var(--client); }
+    .c-transport{ border-left-color: var(--transport); }
+    .c-transport .badge { background: var(--transport-bg); color: var(--transport); }
+    .c-server   { border-left-color: var(--server); }
+    .c-server   .badge { background: var(--server-bg); color: var(--server); }
+    .c-domain   { border-left-color: var(--domain); }
+    .c-domain   .badge { background: var(--domain-bg); color: var(--domain); }
+    .c-db       { border-left-color: var(--db); }
+    .c-db       .badge { background: var(--db-bg); color: var(--db); }
+    .c-realtime { border-left-color: var(--realtime); }
+    .c-realtime .badge { background: var(--realtime-bg); color: var(--realtime); }
+
+    .tx-group {
+      border: 2px dashed var(--db);
+      border-radius: 12px;
+      padding: 0.6rem;
+      margin: 0.3rem 0;
+      background: rgba(173,20,87,0.03);
+    }
+    .tx-group > .tx-title {
+      font-size: 0.74rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--db); margin: 0 0 0.5rem 0.2rem;
+    }
+    .tx-group .step { margin-bottom: 0.5rem; }
+    .tx-group .step:last-child { margin-bottom: 0; }
+
+    .return {
+      margin-top: 2.5rem;
+      border-top: 2px dashed var(--realtime);
+      padding-top: 1.25rem;
+    }
+    .return h2 { color: var(--realtime); }
+    footer { margin-top: 3rem; font-size: 0.8rem; color: #94a3b8; text-align: center; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Placing a Bid — File Flow</h1>
+  <p class="lead">
+    Every hop a bid takes, from the moment a buyer presses <strong>Submit bid</strong>
+    on the auction detail page down to the row committed in PostgreSQL, then back out
+    over Server-Sent Events to every connected client. File paths are relative to the repo root.
+  </p>
+
+  <div class="legend">
+    <span><i class="swatch" style="background:var(--client)"></i> Client / React</span>
+    <span><i class="swatch" style="background:var(--transport)"></i> Transport (HTTP/RPC)</span>
+    <span><i class="swatch" style="background:var(--server)"></i> Server function / service</span>
+    <span><i class="swatch" style="background:var(--domain)"></i> Domain logic</span>
+    <span><i class="swatch" style="background:var(--db)"></i> Database</span>
+    <span><i class="swatch" style="background:var(--realtime)"></i> Real-time / SSE</span>
+  </div>
+
+  <div class="flow">
+
+    <div class="step c-client">
+      <span class="badge">Client</span>
+      <h3><span class="num">1</span> Buyer presses “Submit bid” <span class="file">src/routes/auctions.$auctionId.tsx</span></h3>
+      <p>The Place-bid <span class="sym">&lt;form onSubmit&gt;</span> calls <span class="sym">event.preventDefault()</span> then <span class="sym">bidMutation.mutate()</span>. The TanStack Query <span class="sym">useMutation</span> reads the selected demo buyer, the entered amount, and the currently displayed highest bid for optimistic stale-checking.</p>
+    </div>
+
+    <div class="arrow-label">bidMutation.mutate()</div>
+    <div class="arrow"></div>
+
+    <div class="step c-client">
+      <span class="badge">Client</span>
+      <h3><span class="num">2</span> Call the server function <span class="file">src/routes/auctions.$auctionId.tsx</span></h3>
+      <p><span class="sym">mutationFn</span> invokes <span class="sym">placeBidFn({ data: { auctionId, bidderId, amountCents, expectedHighestBidCents } })</span> — a TanStack Start server function called like a normal async function.</p>
+    </div>
+
+    <div class="arrow-label">HTTP POST (RPC)</div>
+    <div class="arrow"></div>
+
+    <div class="step c-transport">
+      <span class="badge">Transport</span>
+      <h3><span class="num">3</span> Server function endpoint <span class="file">src/server/functions.ts</span></h3>
+      <p><span class="sym">placeBidFn = createServerFn({ method: "POST" })</span> runs its <span class="sym">.inputValidator()</span>, then <span class="sym">.handler()</span> wraps the work in <span class="sym">observeServerFn()</span> for metrics &amp; error mapping, and calls <span class="sym">placeBid(data)</span>.</p>
+    </div>
+
+    <div class="arrow-label">placeBid(data)</div>
+    <div class="arrow"></div>
+
+    <div class="step c-server">
+      <span class="badge">Service</span>
+      <h3><span class="num">4</span> Service barrel re-export <span class="file">src/server/auction-service.ts</span></h3>
+      <p>Thin aggregation module that re-exports <span class="sym">placeBid</span> (and the other commands/queries) from the implementation files — the single import surface for the server functions.</p>
+    </div>
+
+    <div class="arrow-label">placeBid(input)</div>
+    <div class="arrow"></div>
+
+    <div class="step c-server">
+      <span class="badge">Command</span>
+      <h3><span class="num">5</span> placeBid orchestration <span class="file">src/server/auction-commands.ts</span></h3>
+      <p>The heart of the write path. Before opening a transaction it:</p>
+      <ul>
+        <li>Validates the payload with <span class="sym">bidInputSchema.parse(input)</span> — see step 6.</li>
+        <li>Calls <span class="sym">advanceAuctionLifecycle()</span> (<span class="file">auction-lifecycle.ts</span>) to auto-close any expired auctions first.</li>
+        <li>Opens an OpenTelemetry <span class="sym">placeBid</span> span and starts a duration timer.</li>
+      </ul>
+    </div>
+
+    <div class="arrow-label">bidInputSchema.parse()</div>
+    <div class="arrow"></div>
+
+    <div class="step c-domain">
+      <span class="badge">Validation</span>
+      <h3><span class="num">6</span> Shared Zod schema <span class="file">src/domain/validation.ts</span></h3>
+      <p><span class="sym">bidInputSchema</span> enforces UUIDs, a positive integer <span class="sym">amountCents</span>, and a nullable <span class="sym">expectedHighestBidCents</span>. The same schema is shared with the client form — one source of truth.</p>
+    </div>
+
+    <div class="arrow-label">db.transaction( … )</div>
+    <div class="arrow"></div>
+
+    <div class="tx-group">
+      <p class="tx-title">⛓ Atomic transaction — src/server/auction-commands.ts → src/db/client.ts</p>
+
+      <div class="step c-db">
+        <span class="badge">DB · lock</span>
+        <h3><span class="num">7</span> Row lock <span class="file">src/db/client.ts</span></h3>
+        <p><span class="sym">SELECT id FROM auctions WHERE id = $1 FOR UPDATE</span> serialises concurrent bids on the same auction so two buyers can’t both win.</p>
+      </div>
+
+      <div class="step c-db">
+        <span class="badge">DB · read</span>
+        <h3><span class="num">8</span> Load current state</h3>
+        <p>Inside the locked tx it reads the auction (with fish item + seller), the <strong>committed</strong> current highest bid (<span class="sym">ORDER BY amountCents DESC</span>), and the bidder record.</p>
+      </div>
+
+      <div class="step c-domain">
+        <span class="badge">Domain rules</span>
+        <h3><span class="num">9</span> evaluateBid <span class="file">src/domain/bid-rules.ts</span></h3>
+        <p>Pure decision function (uses <span class="file">bid-builder.ts</span> for the minimum-increment floor). Returns a typed rejection or acceptance, checking in order:</p>
+        <ul>
+          <li><span class="sym">INVALID_AMOUNT</span> — not a positive integer of cents</li>
+          <li><span class="sym">AUCTION_NOT_ACTIVE</span> — status/clock window</li>
+          <li><span class="sym">SELLER_OWN_AUCTION</span> — seller can’t bid on own fish</li>
+          <li><span class="sym">STALE_BID</span> — expected ≠ committed highest</li>
+          <li><span class="sym">INSUFFICIENT_INCREMENT</span> — below the next valid floor</li>
+        </ul>
+      </div>
+
+      <div class="step c-db">
+        <span class="badge">DB · write</span>
+        <h3><span class="num">10</span> Persist the outcome <span class="file">src/db/schema.ts</span></h3>
+        <p>If rejected → <span class="sym">INSERT INTO rejected_bids</span> (audit trail) and return the typed error. If accepted → <span class="sym">INSERT INTO bids … RETURNING</span> the new row, and a <span class="sym">BidSnapshot</span> is built from it. Drizzle ORM maps to the <span class="sym">bids</span> table defined in <span class="file">schema.ts</span>.</p>
+      </div>
+
+      <div class="step c-db">
+        <span class="badge">DB · commit</span>
+        <h3><span class="num">11</span> COMMIT → PostgreSQL</h3>
+        <p>The <span class="sym">postgres-js</span> pool (<span class="file">src/db/client.ts</span>) commits the transaction. Only now is the bid durable and the lock released.</p>
+      </div>
+    </div>
+
+    <div class="arrow-label">after commit only</div>
+    <div class="arrow"></div>
+
+    <div class="step c-realtime">
+      <span class="badge">Real-time</span>
+      <h3><span class="num">12</span> Broadcast the event <span class="file">src/server/auction-commands.ts → src/domain/events.ts</span></h3>
+      <p>Records the bid-mutation duration metric, logs <span class="sym">bid.accepted</span> / <span class="sym">bid.rejected</span>, then calls <span class="sym">publishAuctionEvent(event)</span> on the in-process <span class="sym">AuctionEventBus</span>. Rejections are delivered only to the acting user. The typed result also returns up the stack (steps 5→1) to resolve the mutation.</p>
+    </div>
+
+  </div>
+
+  <div class="return">
+    <h2>↩ Real-time return path (back to every client)</h2>
+    <div class="flow">
+
+      <div class="step c-realtime">
+        <span class="badge">SSE stream</span>
+        <h3><span class="num">13</span> Event bus → SSE handler <span class="file">src/routes/api.auctions.$auctionId.events.ts</span></h3>
+        <p>Each connected client holds an open <span class="sym">text/event-stream</span>. Its <span class="sym">subscribeToAuction()</span> listener serialises the event as <span class="sym">event: bid.accepted\ndata: {…}</span> and enqueues it into the <span class="sym">ReadableStream</span>.</p>
+      </div>
+
+      <div class="arrow-label">EventSource message</div>
+      <div class="arrow"></div>
+
+      <div class="step c-client">
+        <span class="badge">Client</span>
+        <h3><span class="num">14</span> Patch the cache <span class="file">src/routes/auctions.$auctionId.tsx</span></h3>
+        <p>The <span class="sym">EventSource</span> listener for <span class="sym">bid.accepted</span> de-dupes by <span class="sym">bidId</span>, then <span class="sym">queryClient.setQueryData</span> prepends the bid and updates the highest-bid snapshot — the live bid chain updates instantly for all viewers. Aggregate dashboard/stats queries are invalidated rather than recomputed in the browser.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    Generated for hylh/auction · ascending English auctions · money stored as integer cents.
+  </footer>
+</div>
+</body>
+</html>

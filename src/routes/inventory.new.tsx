@@ -77,12 +77,6 @@ function NewInventoryPage() {
     setStep(clampStep(step - 1));
   };
 
-  useEffect(() => {
-    if (!values.sellerId && sellers[0]) {
-      setValues((current) => ({ ...current, sellerId: sellers[0].id }));
-    }
-  }, [sellers, values.sellerId]);
-
   const mutation = useMutation({
     mutationFn: async () => {
       setMessage(null);
@@ -164,7 +158,13 @@ function NewInventoryPage() {
                 <select
                   name="species"
                   value={values.species}
-                  onChange={(event) => updateField(setValues, "species", event.currentTarget.value)}
+                  onChange={(event) =>
+                    updateField(
+                      setValues,
+                      "species",
+                      event.currentTarget.value as InventoryFormState["species"],
+                    )
+                  }
                 >
                   {FISH_SPECIES.map((species) => (
                     <option key={species} value={species}>
@@ -465,8 +465,10 @@ function validateForm(values: InventoryFormState):
     if (!parsedAuction.success) {
       const auctionErrors = flattenFieldErrors(parsedAuction.error.flatten().fieldErrors);
       Object.assign(fieldErrors, auctionErrors);
-      if ("minimumIncrementCents" in auctionErrors) {
-        fieldErrors.minimumIncrementMajor = auctionErrors.minimumIncrementCents;
+      const incrementError = (auctionErrors as Record<string, string | undefined>)
+        .minimumIncrementCents;
+      if (incrementError) {
+        fieldErrors.minimumIncrementMajor = incrementError;
       }
     }
     if (new Date(values.endsAt) <= new Date()) {

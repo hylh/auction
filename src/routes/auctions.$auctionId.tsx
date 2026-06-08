@@ -5,6 +5,7 @@ import { formatTime } from "../domain/datetime";
 import { centsFromMajor, formatMoney } from "../domain/money";
 import { formatKilograms } from "../domain/weight";
 import { speciesColorToken } from "../domain/species-color";
+import { nextMinimumBidCents } from "../domain/bid-builder";
 import type { AuctionEvent } from "../domain/events";
 import type { AuctionDetail } from "../server/auction-service";
 import { getAuctionDetailFn, getDemoUsersFn, placeBidFn } from "../server/functions";
@@ -52,10 +53,11 @@ function AuctionDetailPage() {
 
   const suggestedAmountMajor = useMemo(() => {
     if (!auction.data) return "";
-    const nextMinimum =
-      auction.data.currentHighestBid === null
-        ? auction.data.fish.startingPriceCents
-        : auction.data.currentHighestBid.amountCents + auction.data.minimumIncrementCents;
+    const nextMinimum = nextMinimumBidCents({
+      currentHighestBidCents: auction.data.currentHighestBid?.amountCents ?? null,
+      startingPriceCents: auction.data.fish.startingPriceCents,
+      minimumIncrementCents: auction.data.minimumIncrementCents,
+    });
 
     return String(nextMinimum / 100);
   }, [auction.data]);
@@ -182,10 +184,11 @@ function AuctionDetailPage() {
   }
 
   const detail = auction.data;
-  const nextMinimum =
-    detail.currentHighestBid === null
-      ? detail.fish.startingPriceCents
-      : detail.currentHighestBid.amountCents + detail.minimumIncrementCents;
+  const nextMinimum = nextMinimumBidCents({
+    currentHighestBidCents: detail.currentHighestBid?.amountCents ?? null,
+    startingPriceCents: detail.fish.startingPriceCents,
+    minimumIncrementCents: detail.minimumIncrementCents,
+  });
 
   return (
     <main className="page auction-detail-page" ref={pageRef}>

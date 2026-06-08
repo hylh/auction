@@ -1,9 +1,14 @@
 import { trace } from "@opentelemetry/api";
-import { desc, eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../db/client";
 import { auctions, bids, fishItems, rejectedBids, users } from "../db/schema";
 import { evaluateBid } from "../domain/bid-rules";
-import { publishAuctionEvent, type BidRejectedEvent, type BidSnapshot } from "../domain/events";
+import {
+  bidAcceptedEvent,
+  bidRejectedEvent,
+  publishAuctionEvent,
+  type BidSnapshot,
+} from "../domain/events";
 import { logInfo, logWarn } from "../domain/logger";
 import { observeBidMutationDuration } from "../domain/metrics";
 import { centsFromMajor } from "../domain/money";
@@ -17,12 +22,11 @@ import {
 } from "../domain/validation";
 import { gramsFromKilograms } from "../domain/weight";
 import { assertAdminUser, recordAdminAction, recordInventoryStatusChange } from "./auction-audit";
-import {
-  advanceAuctionLifecycle,
-  closeAuctionInTransaction,
-  publishCloseResult,
-} from "./auction-lifecycle";
+import { advanceAuctionLifecycle } from "./auction-clock";
+import { closeAuctionInTransaction, publishCloseResult } from "./auction-lifecycle";
 import { toFishSummary, toUserSummary } from "./auction-mappers";
+import { findHighestBidWithBidder } from "./bid-selection";
+import { lockAuctionRow, lockFishItemRow } from "./row-locks";
 import type { AuctionSummary, CloseAuctionResult, PlaceBidResult } from "./auction-types";
 
 const tracer = trace.getTracer("fish-auction");
@@ -78,7 +82,7 @@ export async function createAuction(input: unknown): Promise<AuctionSummary> {
   const createdAuction = await db.transaction(async (tx) => {
     await assertAdminUser(tx, data.adminUserId, "Only admins can create auctions");
 
-    await tx.execute(sql`select id from fish_items where id = ${data.fishItemId} for update`);
+    await lockFishItemRow(tx, data.fishItemId);
 
     const fish = await tx.query.fishItems.findFirst({
       where: eq(fishItems.id, data.fishItemId),
@@ -159,7 +163,7 @@ export async function placeBid(input: unknown): Promise<PlaceBidResult> {
 
     try {
       return await db.transaction(async (tx) => {
-        await tx.execute(sql`select id from auctions where id = ${data.auctionId} for update`);
+        await lockAuctionRow(tx, data.auctionId);
 
         const auction = await tx.query.auctions.findFirst({
           where: eq(auctions.id, data.auctionId),
@@ -176,13 +180,7 @@ export async function placeBid(input: unknown): Promise<PlaceBidResult> {
           throw new Error(`Auction ${data.auctionId} was not found`);
         }
 
-        const currentHighestBid = await tx.query.bids.findFirst({
-          where: eq(bids.auctionId, data.auctionId),
-          with: {
-            bidder: true,
-          },
-          orderBy: [desc(bids.amountCents), desc(bids.acceptedAt)],
-        });
+        const currentHighestBid = await findHighestBidWithBidder(tx, data.auctionId);
 
         const bidder = await tx.query.users.findFirst({
           where: eq(users.id, data.bidderId),
@@ -241,12 +239,7 @@ export async function placeBid(input: unknown): Promise<PlaceBidResult> {
 
         return {
           ok: true as const,
-          event: {
-            type: "bid.accepted" as const,
-            auctionId: data.auctionId,
-            bid: snapshot,
-            currentHighestBid: snapshot,
-          },
+          event: bidAcceptedEvent(data.auctionId, snapshot),
         };
       });
     } finally {
@@ -264,15 +257,14 @@ export async function placeBid(input: unknown): Promise<PlaceBidResult> {
       amountCents: result.event.bid.amountCents,
     });
   } else {
-    const event: BidRejectedEvent = {
-      type: "bid.rejected",
+    const event = bidRejectedEvent({
       auctionId: data.auctionId,
       actorUserId: data.bidderId,
       code: result.code,
       message: result.message,
       currentHighestBidCents: result.currentHighestBidCents,
-      rejectedAt: new Date().toISOString(),
-    };
+      rejectedAt: new Date(),
+    });
     publishAuctionEvent(event);
     logWarn("bid.rejected", {
       auctionId: data.auctionId,
@@ -310,7 +302,7 @@ export async function withdrawAuction(input: unknown) {
   const result = await db.transaction(async (tx) => {
     await assertAdminUser(tx, data.adminUserId, "Only admins can withdraw auctions");
 
-    await tx.execute(sql`select id from auctions where id = ${data.auctionId} for update`);
+    await lockAuctionRow(tx, data.auctionId);
 
     const auction = await tx.query.auctions.findFirst({
       where: eq(auctions.id, data.auctionId),
@@ -374,7 +366,7 @@ export async function withdrawFishItem(input: unknown) {
   const result = await db.transaction(async (tx) => {
     await assertAdminUser(tx, data.adminUserId, "Only admins can withdraw fish inventory");
 
-    await tx.execute(sql`select id from fish_items where id = ${data.fishItemId} for update`);
+    await lockFishItemRow(tx, data.fishItemId);
 
     const fish = await tx.query.fishItems.findFirst({
       where: eq(fishItems.id, data.fishItemId),
