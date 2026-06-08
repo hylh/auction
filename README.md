@@ -10,7 +10,7 @@ Full-stack TypeScript POC for a fish auction house using TanStack Start, TanStac
 4. Run `pnpm db:migrate`.
 5. Run `pnpm db:seed`.
 6. Start the app with `pnpm dev`.
-7. Open the visual metrics page at `http://localhost:3000/metrics` or scrape Prometheus text from `http://localhost:3000/metrics?format=prometheus`.
+7. Open the visual metrics page at `http://localhost:3015/metrics` or scrape Prometheus text from `http://localhost:3015/metrics?format=prometheus`.
 
 Routes:
 

@@ -3,7 +3,7 @@ import postgres from "postgres";
 import * as schema from "./schema";
 
 const connectionString =
-  process.env.DATABASE_URL ?? "postgres://auction:auction@localhost:5432/auction";
+  process.env.DATABASE_URL ?? "postgres://auction:auction@localhost:9022/auction";
 const defaultApplicationName = "auction-app";
 
 const databaseConnection = withApplicationName(connectionString, defaultApplicationName);

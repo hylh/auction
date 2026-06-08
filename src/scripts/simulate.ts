@@ -1,7 +1,7 @@
 import { DEMO_USERS } from "../domain/constants";
 import type { SimulatorSummary } from "../server/simulator-service";
 
-const appOrigin = process.env.APP_ORIGIN ?? "http://localhost:3000";
+const appOrigin = process.env.APP_ORIGIN ?? "http://localhost:3015";
 
 const runSeconds =
   numberArg("--run-seconds", "--load-duration-seconds") ??
