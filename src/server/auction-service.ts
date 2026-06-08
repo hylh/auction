@@ -17,7 +17,6 @@ export type {
   AdminData,
   AuctionDetail,
   AuctionSummary,
-  BidSubmissionContext,
   CloseAuctionResult,
   FishSummary,
   PlaceBidResult,

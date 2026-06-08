@@ -40,7 +40,7 @@ type SpeciesProfile = {
   displayNames: Array<string>;
 };
 
-export type ReferenceData = {
+type ReferenceData = {
   catchRegions: Array<string>;
   sellerNamePrefixes: Array<string>;
   sellerNameSuffixes: Array<string>;
@@ -51,7 +51,7 @@ export type ReferenceData = {
 
 const referencePath = join(dirname(fileURLToPath(import.meta.url)), "seed-data", "reference.json");
 
-export const reference = JSON.parse(readFileSync(referencePath, "utf8")) as ReferenceData;
+const reference = JSON.parse(readFileSync(referencePath, "utf8")) as ReferenceData;
 
 const REJECTION_CODES = [
   "INSUFFICIENT_INCREMENT",
@@ -67,9 +67,9 @@ const REJECTION_REASONS: Record<(typeof REJECTION_CODES)[number], string> = {
   INVALID_AMOUNT: "Bid amount must be a positive integer number of cents",
 };
 
-export type Rng = () => number;
+type Rng = () => number;
 
-export function createRng(seed: number): Rng {
+function createRng(seed: number): Rng {
   let state = seed >>> 0;
   return () => {
     state |= 0;
@@ -80,15 +80,15 @@ export function createRng(seed: number): Rng {
   };
 }
 
-export function randInt(rng: Rng, min: number, max: number): number {
+function randInt(rng: Rng, min: number, max: number): number {
   return min + Math.floor(rng() * (max - min + 1));
 }
 
-export function pick<T>(rng: Rng, values: ReadonlyArray<T>): T {
+function pick<T>(rng: Rng, values: ReadonlyArray<T>): T {
   return values[Math.floor(rng() * values.length)];
 }
 
-export function shuffle<T>(rng: Rng, values: ReadonlyArray<T>): Array<T> {
+function shuffle<T>(rng: Rng, values: ReadonlyArray<T>): Array<T> {
   const copy = [...values];
   for (let index = copy.length - 1; index > 0; index -= 1) {
     const swapWith = Math.floor(rng() * (index + 1));
@@ -97,7 +97,7 @@ export function shuffle<T>(rng: Rng, values: ReadonlyArray<T>): Array<T> {
   return copy;
 }
 
-export function seedUuid(prefix8: string, index: number): string {
+function seedUuid(prefix8: string, index: number): string {
   const tail = index.toString(16).padStart(12, "0");
   return `${prefix8}-0000-4000-8000-${tail}`;
 }
@@ -119,7 +119,7 @@ export type FixedUser = {
   displayName: string;
 };
 
-export type UserPoolInput = {
+type UserPoolInput = {
   sellerCount: number;
   buyerCount: number;
   fixedSellers: Array<FixedUser>;
@@ -127,14 +127,14 @@ export type UserPoolInput = {
   admin: FixedUser;
 };
 
-export type UserPool = {
+type UserPool = {
   users: Array<UserInsert>;
   sellerIds: Array<string>;
   buyerIds: Array<string>;
   adminId: string;
 };
 
-export function buildUserPool(rng: Rng, input: UserPoolInput): UserPool {
+function buildUserPool(rng: Rng, input: UserPoolInput): UserPool {
   const reservedNames = new Set<string>([
     ...input.fixedSellers.map((user) => user.displayName),
     ...input.fixedBuyers.map((user) => user.displayName),
