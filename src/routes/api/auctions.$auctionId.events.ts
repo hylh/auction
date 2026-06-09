@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { subscribeToAuction, type AuctionEvent } from "../domain/events";
+import { subscribeToAuction, type AuctionEvent } from "../../domain/events";
 
 export const Route = createFileRoute("/api/auctions/$auctionId/events")({
   server: {

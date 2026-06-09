@@ -1,14 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { formatTime } from "../domain/datetime";
-import { centsFromMajor, formatMoney } from "../domain/money";
-import { formatKilograms } from "../domain/weight";
-import { speciesColorToken } from "../domain/species-color";
+import { useMemo, useState } from "react";
 import { nextMinimumBidCents } from "../domain/bid-builder";
-import type { AuctionEvent } from "../domain/events";
-import type { AuctionDetail } from "../server/auction-service";
-import { getAuctionDetailFn, getDemoUsersFn, placeBidFn } from "../server/functions";
+import { formatKilograms } from "../domain/weight";
+import { BidChainCard } from "../components/auction/bid-chain-card";
+import { PlaceBidCard } from "../components/auction/place-bid-card";
+import { useAuctionEvents } from "../components/auction/use-auction-events";
+import { useBidBarHeight } from "../components/auction/use-bid-bar-height";
+import { usePlaceBid } from "../components/auction/use-place-bid";
+import { getAuctionDetailFn, getDemoUsersFn } from "../server/functions";
 
 export const Route = createFileRoute("/auctions/$auctionId")({
   component: AuctionDetailPage,
@@ -16,7 +16,6 @@ export const Route = createFileRoute("/auctions/$auctionId")({
 
 function AuctionDetailPage() {
   const { auctionId } = Route.useParams();
-  const queryClient = useQueryClient();
   const users = useQuery({ queryKey: ["demo-users"], queryFn: () => getDemoUsersFn() });
   const auction = useQuery({
     queryKey: ["auction", auctionId],
@@ -28,28 +27,16 @@ function AuctionDetailPage() {
     () => users.data?.filter((user) => user.role === "buyer") ?? [],
     [users.data],
   );
-  const [bidderId, setBidderId] = useState("");
-  const [amountMajor, setAmountMajor] = useState("");
+
+  const [selectedBidderId, setSelectedBidderId] = useState("");
+  const [amountInput, setAmountInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
-  const pageRef = useRef<HTMLElement>(null);
-  const bidBarRef = useRef<HTMLElement>(null);
+  const { pageRef, bidBarRef } = useBidBarHeight();
 
-  // On phones the place-bid card is fixed to the bottom of the viewport. Measure
-  // its height into --bid-bar-h so the page reserves exactly enough bottom space
-  // instead of relying on a magic padding value that can clip the form.
-  useEffect(() => {
-    const page = pageRef.current;
-    const bar = bidBarRef.current;
-    if (!page || !bar || typeof ResizeObserver === "undefined") return;
-
-    const observer = new ResizeObserver((entries) => {
-      const height = entries[0]?.contentRect.height ?? bar.offsetHeight;
-      page.style.setProperty("--bid-bar-h", `${Math.ceil(height)}px`);
-    });
-    observer.observe(bar);
-    return () => observer.disconnect();
-  }, []);
+  // Derive the effective buyer and bid amount during render instead of syncing
+  // them with effects: fall back to the first buyer and the suggested next
+  // minimum bid until the user explicitly picks their own values.
+  const bidderId = selectedBidderId || buyers[0]?.id || "";
 
   const suggestedAmountMajor = useMemo(() => {
     if (!auction.data) return "";
@@ -62,113 +49,21 @@ function AuctionDetailPage() {
     return String(nextMinimum / 100);
   }, [auction.data]);
 
-  useEffect(() => {
-    if (!bidderId && buyers[0]) {
-      setBidderId(buyers[0].id);
-    }
-  }, [bidderId, buyers]);
+  const amountMajor = amountInput || suggestedAmountMajor;
 
-  useEffect(() => {
-    if (!amountMajor && suggestedAmountMajor) {
-      setAmountMajor(suggestedAmountMajor);
-    }
-  }, [amountMajor, suggestedAmountMajor]);
+  const { connectionMessage } = useAuctionEvents({
+    auctionId,
+    bidderId,
+    onBidRejected: setMessage,
+  });
 
-  useEffect(() => {
-    const eventSource = new EventSource(
-      `/api/auctions/${auctionId}/events${bidderId ? `?userId=${bidderId}` : ""}`,
-    );
-
-    const onAccepted = (event: MessageEvent<string>) => {
-      const parsed = JSON.parse(event.data) as AuctionEvent;
-      if (parsed.type !== "bid.accepted") return;
-
-      queryClient.setQueryData<AuctionDetail>(["auction", auctionId], (current) => {
-        if (!current) return current;
-        if (current.bids.some((bid) => bid.bidId === parsed.bid.bidId)) {
-          return current;
-        }
-
-        return {
-          ...current,
-          currentHighestBid: parsed.currentHighestBid,
-          bids: [parsed.bid, ...current.bids],
-        };
-      });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["admin"] });
-    };
-
-    const onRejected = (event: MessageEvent<string>) => {
-      const parsed = JSON.parse(event.data) as AuctionEvent;
-      if (parsed.type === "bid.rejected") {
-        setMessage(parsed.message);
-      }
-    };
-
-    const onClosed = () => {
-      queryClient.invalidateQueries({ queryKey: ["auction", auctionId] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["admin"] });
-    };
-
-    const onConnected = () => {
-      setConnectionMessage(null);
-      queryClient.invalidateQueries({ queryKey: ["auction", auctionId] });
-    };
-
-    const onRealtimeError = () => {
-      setConnectionMessage(
-        "Realtime connection interrupted. The browser will reconnect and this auction refreshes every few seconds.",
-      );
-    };
-
-    eventSource.addEventListener("bid.accepted", onAccepted);
-    eventSource.addEventListener("bid.rejected", onRejected);
-    eventSource.addEventListener("auction.closed", onClosed);
-    eventSource.addEventListener("sale.completed", onClosed);
-    eventSource.addEventListener("connected", onConnected);
-    eventSource.addEventListener("error", onRealtimeError);
-
-    return () => eventSource.close();
-  }, [auctionId, bidderId, queryClient]);
-
-  const bidMutation = useMutation({
-    mutationFn: async () => {
-      if (!auction.data) throw new Error("Auction is not loaded");
-      if (!bidderId) throw new Error("Choose a demo buyer before submitting a bid");
-      const amountCents = centsFromMajor(amountMajor);
-      return placeBidFn({
-        data: {
-          auctionId,
-          bidderId,
-          amountCents,
-          expectedHighestBidCents: auction.data.currentHighestBid?.amountCents ?? null,
-        },
-      });
-    },
-    onSuccess: (result) => {
-      if (!result.ok) {
-        setMessage(result.message);
-        return;
-      }
-      queryClient.setQueryData<AuctionDetail>(["auction", auctionId], (current) => {
-        if (!current) return current;
-        if (current.bids.some((bid) => bid.bidId === result.event.bid.bidId)) {
-          return current;
-        }
-
-        return {
-          ...current,
-          currentHighestBid: result.event.currentHighestBid,
-          bids: [result.event.bid, ...current.bids],
-        };
-      });
-      setMessage("Bid accepted and broadcast to listeners.");
-      setAmountMajor("");
-      queryClient.invalidateQueries({ queryKey: ["auction", auctionId] });
-    },
-    onError: (error) => setMessage(error.message),
+  const bidMutation = usePlaceBid({
+    auctionId,
+    auction: auction.data,
+    bidderId,
+    amountMajor,
+    onMessage: setMessage,
+    onAccepted: () => setAmountInput(""),
   });
 
   if (auction.isLoading) {
@@ -194,7 +89,7 @@ function AuctionDetailPage() {
     <main className="page auction-detail-page" ref={pageRef}>
       <section className="hero">
         <div>
-          <span className={`pill`}>{detail.status}</span>
+          <span className="pill">{detail.status}</span>
           <h1>{detail.fish.displayName}</h1>
           <p>
             {detail.fish.species} · {detail.fish.grade} · {formatKilograms(detail.fish.weightGrams)}{" "}
@@ -204,83 +99,24 @@ function AuctionDetailPage() {
       </section>
 
       <section className="grid">
-        <article className="card c-teal bid-bar-card" ref={bidBarRef}>
-          <h2>Place bid</h2>
-          <p className="metric">
-            {detail.currentHighestBid
-              ? formatMoney(detail.currentHighestBid.amountCents)
-              : formatMoney(detail.fish.startingPriceCents)}
-          </p>
-          <p className="muted">
-            Next valid bid: {formatMoney(nextMinimum)} · increment{" "}
-            {formatMoney(detail.minimumIncrementCents)}
-          </p>
-
-          <form
-            className="form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setMessage(null);
-              bidMutation.mutate();
-            }}
-          >
-            <label className="field">
-              <span>Demo buyer</span>
-              <select value={bidderId} onChange={(event) => setBidderId(event.currentTarget.value)}>
-                {buyers.map((buyer) => (
-                  <option key={buyer.id} value={buyer.id}>
-                    {buyer.displayName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Bid amount ({detail.fish.currency})</span>
-              <input
-                inputMode="numeric"
-                value={amountMajor}
-                onChange={(event) => setAmountMajor(event.currentTarget.value)}
-                placeholder={String(nextMinimum / 100)}
-              />
-            </label>
-            <button className="button" disabled={bidMutation.isPending} type="submit">
-              {bidMutation.isPending ? "Submitting..." : "Submit bid"}
-            </button>
-          </form>
-
-          {message && (
-            <p className={message.includes("accepted") ? "success" : "error"}>{message}</p>
-          )}
-          {connectionMessage && <p className="muted">{connectionMessage}</p>}
-        </article>
-
-        <article className="card c-blue">
-          <h2>
-            Live bid chain{" "}
-            {detail.status === "active" && <span className="badge stream">STREAMING</span>}
-          </h2>
-          <div className="list bid-chain-list">
-            {detail.bids.map((bid) => (
-              <div className="row" key={bid.bidId}>
-                <div className="name-wrap">
-                  <span
-                    className="sdot"
-                    style={{ background: `var(${speciesColorToken(detail.fish.species)})` }}
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <strong>{bid.bidderDisplayName}</strong>
-                    <div className="sub">{formatTime(bid.acceptedAt)}</div>
-                  </div>
-                </div>
-                <span className="amount">{formatMoney(bid.amountCents)}</span>
-              </div>
-            ))}
-            {detail.bids.length === 0 && (
-              <p className="muted">No accepted bids yet. Be the first buyer.</p>
-            )}
-          </div>
-        </article>
+        <PlaceBidCard
+          detail={detail}
+          buyers={buyers}
+          bidderId={bidderId}
+          onBidderChange={setSelectedBidderId}
+          amountMajor={amountMajor}
+          onAmountChange={setAmountInput}
+          nextMinimum={nextMinimum}
+          isPending={bidMutation.isPending}
+          message={message}
+          connectionMessage={connectionMessage}
+          onSubmit={() => {
+            setMessage(null);
+            bidMutation.mutate();
+          }}
+          bidBarRef={bidBarRef}
+        />
+        <BidChainCard detail={detail} />
       </section>
     </main>
   );

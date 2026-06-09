@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ZodError } from "zod";
-import { incrementMetric, measureRequest } from "../domain/metrics";
-import { simulatorInputSchema } from "../domain/validation";
-import { runSimulation } from "../server/simulator-service";
+import { incrementMetric, measureRequest } from "../../domain/metrics";
+import { simulatorInputSchema } from "../../domain/validation";
+import { runSimulation } from "../../server/simulator-service";
 
 export const Route = createFileRoute("/api/simulate")({
   server: {
