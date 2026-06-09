@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lesson 03 — The Database Schema</title>
+<style>
+  :root { --ink:#1c2433; --muted:#5b6678; --line:#e4e8f0; --bg:#f6f8fc; --accent:#1f6feb; --accent-2:#0a7c5a; --warn:#b23c17; --code-bg:#0f1b2d; --code-ink:#d7e3f4; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:var(--bg); line-height:1.62; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+  header.hero { border-left: 5px solid var(--accent); padding: 0.4rem 0 0.4rem 1.1rem; margin-bottom: 2rem; }
+  .kicker { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; font-weight: 700; color: var(--accent); margin: 0 0 0.4rem; }
+  h1 { font-size: 2rem; line-height: 1.15; margin: 0 0 0.5rem; }
+  .sub { color: var(--muted); font-size: 1.05rem; margin: 0; }
+  h2 { margin: 2.4rem 0 0.8rem; font-size: 1.32rem; padding-bottom: 0.35rem; border-bottom: 2px solid var(--line); }
+  h3 { margin: 1.4rem 0 0.3rem; font-size: 1.05rem; }
+  p { margin: 0.7rem 0; }
+  .mission { background:#eef4ff; border:1px solid #d4e3ff; border-radius:10px; padding:1rem 1.15rem; font-size:0.96rem; }
+  .mission strong { color: var(--accent); }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; background:#eef1f6; padding:0.1rem 0.36rem; border-radius:5px; font-size:0.9em; }
+  pre { background:var(--code-bg); color:var(--code-ink); padding:1rem 1.1rem; border-radius:10px; overflow-x:auto; font-size:0.83rem; line-height:1.5; margin:0.8rem 0; }
+  pre code { background:none; padding:0; color:inherit; font-size:inherit; }
+  .cmt { color:#7c93b5; }
+  .file { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:0.82rem; color:var(--accent-2); background:#e9f6f0; padding:0.1rem 0.4rem; border-radius:5px; white-space:nowrap; }
+  .erd { background:#fff; border:1px solid var(--line); border-radius:12px; padding:1.1rem 1.2rem; margin:1.1rem 0; overflow-x:auto; font-family: ui-monospace, Menlo, Consolas, monospace; font-size:0.8rem; line-height:1.7; color:#33404f; }
+  .erd .t { color:var(--accent); font-weight:700; }
+  .erd .a { color:var(--accent-2); font-weight:700; }
+  table.tbl { width:100%; border-collapse:collapse; font-size:0.88rem; margin:0.5rem 0; background:#fff; }
+  table.tbl th, table.tbl td { text-align:left; padding:0.45rem 0.6rem; border-bottom:1px solid var(--line); vertical-align:top; }
+  table.tbl th { background:#f6f8fc; font-size:0.76rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); }
+  table.tbl td.c { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:0.82rem; white-space:nowrap; }
+  .callout { border-left:4px solid var(--accent-2); background:#f0f9f4; padding:0.8rem 1rem; border-radius:0 8px 8px 0; margin:1rem 0; font-size:0.95rem; }
+  .callout.warn { border-color:var(--warn); background:#fdf2ec; }
+  .pill { display:inline-block; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; background:#eef4ff; color:var(--accent); padding:0.15rem 0.5rem; border-radius:999px; margin-left:0.4rem; vertical-align:middle; }
+  .quiz { background:#fff; border:1px solid var(--line); border-radius:12px; padding:1.2rem 1.3rem; margin:1.3rem 0; }
+  .quiz h3 { margin-top:0; }
+  .q { margin:1.2rem 0; }
+  .q p.qtext { font-weight:600; margin-bottom:0.5rem; }
+  .opt { display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fafbfd; border-radius:8px; padding:0.6rem 0.8rem; margin:0.4rem 0; cursor:pointer; font:inherit; color:inherit; transition:border-color .15s, background .15s; }
+  .opt:hover { border-color:var(--accent); }
+  .opt.correct { border-color:var(--accent-2); background:#e7f7ef; }
+  .opt.wrong { border-color:var(--warn); background:#fbeae3; }
+  .fb { font-size:0.9rem; margin-top:0.5rem; display:none; padding:0.5rem 0.7rem; border-radius:7px; }
+  .fb.show { display:block; }
+  .fb.ok { background:#e7f7ef; color:#0a5c43; } .fb.no { background:#fbeae3; color:#8a2c0f; }
+  a { color: var(--accent); }
+  .cites { font-size:0.85rem; color:var(--muted); }
+  .cites li { margin:0.25rem 0; }
+  footer.next { margin-top:2.5rem; background:#fff; border:1px dashed var(--accent); border-radius:12px; padding:1.2rem 1.3rem; }
+  .ask { margin-top:1.5rem; background:#fff7e6; border:1px solid #ffe2a8; border-radius:10px; padding:0.9rem 1.1rem; font-size:0.95rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <p class="kicker">Onboarding · Lesson 03 · Orientation</p>
+    <h1>The Database Schema</h1>
+    <p class="sub">Read <code>db/schema.ts</code> like a native: why money is an integer, why nothing is deleted, and how indexes quietly power the stats page.</p>
+  </header>
+
+  <div class="mission">
+    <strong>Why this lesson?</strong> Drizzle &amp; SQL are on your "less familiar" list, yet the
+    schema is the spine everything else hangs off. Once you can read these eight tables and the four
+    design decisions baked into them, the server queries from Lesson 02 stop being mysterious — they're
+    just walks across this graph. One file: <span class="file">src/db/schema.ts</span>.
+  </div>
+
+  <h2>The eight tables at a glance</h2>
+  <div class="erd">
+<span class="t">users</span> (seller / buyer / admin)
+   │
+   │ owns
+   ▼
+<span class="t">fish_items</span> ──(1 fish, many)──▶ <span class="t">auctions</span> ──(1 auction, many)──▶ <span class="t">bids</span>
+   │                                  │                          │
+   │                                  │                          │ winning bid
+   │                                  ▼                          ▼
+   └────────────────────────────▶ <span class="t">sales</span> ◀──────────────────────┘
+
+audit / history (write-only):
+   <span class="a">rejected_bids</span>   · every bid that was turned away (with code + reason)
+   <span class="a">inventory_status_changes</span> · every fish status transition
+   <span class="a">admin_actions</span>   · every close / withdraw / create an admin did
+  </div>
+  <p>Five <em>core</em> tables model the auction; three <em>audit</em> tables record history.
+  Defined with Drizzle's <code>pgTable(...)</code>, each followed by <code>relations(...)</code> that
+  let you traverse with <code>tx.query.auctions.findFirst({ with: { fishItem: { with: { seller: true }}}})</code>
+  — exactly the nested read you saw in <code>placeBid()</code>.</p>
+
+  <h2>Anatomy of one table</h2>
+  <p>Here's <code>fish_items</code>, lightly trimmed — every pattern in the schema appears here:</p>
+  <pre><code>export const fishItems = pgTable("fish_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  species: fishSpeciesEnum("species").notNull(),        <span class="cmt">// enum from domain/constants.ts</span>
+  displayName: text("display_name").notNull(),
+  weightGrams: integer("weight_grams").notNull(),       <span class="cmt">// kg shown in UI, GRAMS stored</span>
+  startingPriceCents: integer("starting_price_cents").notNull(), <span class="cmt">// money = integer CENTS</span>
+  currency: text("currency").notNull().default("NOK"),
+  sellerId: uuid("seller_id").notNull().references(() =&gt; users.id), <span class="cmt">// FK</span>
+  status: inventoryStatusEnum("status").notNull().default("draft"),
+  ...timestampsWithUpdate(),                            <span class="cmt">// createdAt + updatedAt</span>
+}, (table) =&gt; [
+  index("fish_items_seller_idx").on(table.sellerId),    <span class="cmt">// indexes declared inline</span>
+  index("fish_items_species_idx").on(table.species),
+  index("fish_items_status_idx").on(table.status),
+]);</code></pre>
+  <div class="callout"><strong>How to read a column:</strong> <code>type("db_name")</code> then a chain
+  of modifiers — <code>.notNull()</code>, <code>.default(...)</code>, <code>.references(() =&gt; …)</code>
+  (foreign key), <code>.primaryKey()</code>. The second argument to <code>pgTable</code> is an array of
+  indexes. That's the whole grammar. <span class="pill">drizzle</span></div>
+
+  <h2>The four decisions baked into the schema</h2>
+
+  <h3>1 · Money is integer cents; weight is integer grams</h3>
+  <p>You will never see a <code>float</code> for money. Prices, bids, and sale amounts are
+  <code>integer … _cents</code>; fish weight is <code>weight_grams</code>. The UI converts at the edges
+  via <span class="file">domain/money.ts</span> and <span class="file">domain/weight.ts</span>. This
+  avoids floating-point rounding errors on currency.</p>
+
+  <h3>2 · Enums are shared with the app, not redefined</h3>
+  <pre><code>export const fishSpeciesEnum = pgEnum("fish_species", FISH_SPECIES);   <span class="cmt">// FISH_SPECIES from domain/constants.ts</span>
+export const inventoryStatusEnum = pgEnum("inventory_status", INVENTORY_STATUSES);</code></pre>
+  <p>The Postgres enums are built from the same TypeScript constants the validation and UI use — so the
+  database physically cannot store a status the app doesn't recognise.</p>
+
+  <h3>3 · History is never deleted — it's appended</h3>
+  <p>A rejected bid is written to <code>rejected_bids</code> (with its <code>code</code> and
+  <code>reason</code>). Withdrawing an auction flips a status and writes an
+  <code>inventory_status_changes</code> row plus an <code>admin_actions</code> row. Nothing is hard-deleted
+  — the MVP preserves a full audit trail for admin review and statistics.</p>
+
+  <h3>4 · A sale can only happen once — enforced by the database</h3>
+  <pre><code>uniqueIndex("sales_auction_unique_idx").on(table.auctionId),      <span class="cmt">// one sale per auction</span>
+uniqueIndex("sales_winning_bid_unique_idx").on(table.winningBidId), <span class="cmt">// one sale per winning bid</span></code></pre>
+  <div class="callout warn">These <strong>unique</strong> indexes are a correctness guarantee, not just
+  speed: even with a bug or a race, Postgres refuses to record two sales for the same auction.</div>
+
+  <h2>How indexes power the stats page</h2>
+  <p>The admin statistics aren't a separate analytics store — they're <em>live aggregate queries</em>
+  over these tables, made fast by the indexes above. Straight from
+  <span class="file">server/auction-admin-queries.ts</span>:</p>
+  <pre><code>sql`coalesce(sum(${sales.amountCents}), 0)`        <span class="cmt">// total sales</span>
+sql`coalesce(round(avg(${bids.amountCents})), 0)`  <span class="cmt">// average bid price</span>
+
+db.select({ species: fishItems.species, bidCount: sql`count(*)` })
+  .from(bids).innerJoin(auctions, ...).innerJoin(fishItems, ...)
+  .groupBy(fishItems.species);                      <span class="cmt">// most popular species</span></code></pre>
+  <p>"Most popular fish" = bids grouped by species. "Total sales" = sum over <code>sales</code>. Each is
+  one SQL statement leaning on a matching index (<code>bids_auction_amount_idx</code>,
+  <code>sales_completed_at_idx</code>, …).</p>
+
+  <h2>Where migrations come from</h2>
+  <p>You don't write SQL DDL by hand. Edit <code>schema.ts</code>, then
+  <code>pnpm db:generate</code> diffs it and writes a migration into <code>drizzle/</code>;
+  <code>pnpm db:migrate</code> applies it. The schema file is the source of truth.
+  <span class="pill">drizzle kit</span></p>
+
+  <h2>Check yourself <span class="pill">2 min</span></h2>
+  <div class="quiz" id="quiz">
+    <h3>Click an answer for instant feedback.</h3>
+
+    <div class="q" data-correct="b">
+      <p class="qtext">1. A fish weighs 4.5 kg and is priced at 250.00 NOK. How are those stored?</p>
+      <button class="opt" data-k="a">weight 4.5, price 250.00 (floats)</button>
+      <button class="opt" data-k="b">weight_grams = 4500, starting_price_cents = 25000 (integers)</button>
+      <button class="opt" data-k="c">As text strings to preserve precision</button>
+      <div class="fb ok">✓ Correct. Grams and cents as integers; conversion happens at the UI edges via money.ts / weight.ts.</div>
+      <div class="fb no">No — the rule is integer grams + integer cents, converted at the edges. Floats are deliberately avoided for money.</div>
+    </div>
+
+    <div class="q" data-correct="c">
+      <p class="qtext">2. Why does <code>sales</code> have a <code>uniqueIndex</code> on <code>auctionId</code>?</p>
+      <button class="opt" data-k="a">Purely to speed up reads</button>
+      <button class="opt" data-k="b">Because auctionId is the primary key</button>
+      <button class="opt" data-k="c">To guarantee at most one sale per auction, even under a race</button>
+      <div class="fb ok">✓ Right. It's a correctness constraint: the database itself rejects a second sale for the same auction.</div>
+      <div class="fb no">It's a correctness guarantee, not just speed (and the PK is <code>id</code>). The unique index blocks a second sale per auction.</div>
+    </div>
+
+    <div class="q" data-correct="a">
+      <p class="qtext">3. A bid is rejected for "insufficient increment." What happens in the database?</p>
+      <button class="opt" data-k="a">A row is inserted into rejected_bids with the code and reason</button>
+      <button class="opt" data-k="b">Nothing — rejected bids are discarded</button>
+      <button class="opt" data-k="c">The bids row is inserted but marked invalid</button>
+      <div class="fb ok">✓ Correct. History is append-only: rejections are audited in <code>rejected_bids</code>, never swallowed.</div>
+      <div class="fb no">Re-read decision #3: rejections are <em>recorded</em> in <code>rejected_bids</code> (with code + reason), not discarded.</div>
+    </div>
+
+    <div class="q" data-correct="b">
+      <p class="qtext">4. You need to add a column to <code>auctions</code>. What's the correct workflow?</p>
+      <button class="opt" data-k="a">Write ALTER TABLE SQL directly against Postgres</button>
+      <button class="opt" data-k="b">Edit schema.ts, then pnpm db:generate &amp;&amp; pnpm db:migrate</button>
+      <button class="opt" data-k="c">Edit the files in drizzle/ by hand</button>
+      <div class="fb ok">✓ Right. The schema file is the source of truth; Drizzle Kit generates the migration from your edit.</div>
+      <div class="fb no">No — schema.ts is the source of truth. Edit it, then <code>db:generate</code> writes the migration and <code>db:migrate</code> applies it.</div>
+    </div>
+
+    <p id="score" style="font-weight:600;margin-top:1rem;"></p>
+  </div>
+
+  <div class="ask">
+    💬 <strong>Ask your teacher.</strong> Want to actually open Drizzle Studio (<code>pnpm db:studio</code>)
+    and poke at the live tables together, or trace one stats number from the page back to its SQL? Just ask.
+  </div>
+
+  <h2>Sources &amp; go deeper</h2>
+  <ul class="cites">
+    <li>All tables, columns, indexes &amp; relations cited from <span class="file">src/db/schema.ts</span> (verified this session).</li>
+    <li>Aggregate SQL from <span class="file">src/server/auction-admin-queries.ts</span>.</li>
+    <li>Drizzle schema declaration — <a href="https://orm.drizzle.team/docs/sql-schema-declaration">orm.drizzle.team</a></li>
+    <li>Drizzle Kit migrations — <a href="https://orm.drizzle.team/docs/kit-overview">orm.drizzle.team/docs/kit-overview</a></li>
+    <li>Postgres indexes — <a href="https://www.postgresql.org/docs/current/indexes.html">postgresql.org</a></li>
+  </ul>
+
+  <footer class="next">
+    <strong>Next up (Lesson 04):</strong> <em>Routing &amp; server functions</em> — how TanStack Start
+    turns filenames into URLs and an imported function into an HTTP call, including the page-vs-API split
+    you met in Lesson 02. Another strong fit for your less-familiar list. Say <strong>"next"</strong>, or
+    pick: the admin stats queries in depth, the SSE/event bus internals, or the seed/simulator scripts.
+  </footer>
+
+</div>
+
+<script>
+  document.querySelectorAll('#quiz .q').forEach(function (q) {
+    var correct = q.getAttribute('data-correct');
+    var answered = false;
+    q.querySelectorAll('.opt').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (answered) return;
+        answered = true;
+        var chosen = btn.getAttribute('data-k');
+        if (chosen === correct) { btn.classList.add('correct'); q.querySelector('.fb.ok').classList.add('show'); }
+        else { btn.classList.add('wrong'); q.querySelector('.fb.no').classList.add('show'); q.querySelector('.opt[data-k="' + correct + '"]').classList.add('correct'); }
+        updateScore();
+      });
+    });
+  });
+  function updateScore() {
+    var qs = document.querySelectorAll('#quiz .q'); var done = 0, right = 0;
+    qs.forEach(function (q) {
+      var ok = q.querySelector('.fb.ok.show'), no = q.querySelector('.fb.no.show');
+      if (ok || no) done++; if (ok) right++;
+    });
+    var el = document.getElementById('score');
+    if (done === qs.length) {
+      el.textContent = 'Score: ' + right + ' / ' + qs.length +
+        (right === qs.length ? ' 🎉 You can read the schema natively. Say "next" for Lesson 04.'
+                             : ' — revisit the decision it tests, or ask me to explain.');
+    } else { el.textContent = 'Answered ' + done + ' / ' + qs.length; }
+  }
+</script>
+</body>
+</html>

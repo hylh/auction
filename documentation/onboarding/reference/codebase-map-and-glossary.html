@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reference — Codebase Map &amp; Glossary</title>
+<style>
+  :root { --ink:#1c2433; --muted:#5b6678; --line:#dfe4ee; --accent:#1f6feb; --accent-2:#0a7c5a; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:#fff; line-height:1.5; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+  h1 { font-size: 1.7rem; margin: 0 0 0.2rem; }
+  .sub { color: var(--muted); margin: 0 0 1.5rem; }
+  h2 { font-size: 1.15rem; margin: 1.8rem 0 0.6rem; border-bottom: 2px solid var(--line); padding-bottom: 0.3rem; color: var(--accent); }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; background:#eef1f6; padding:0.08rem 0.32rem; border-radius:4px; font-size:0.88em; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin: 0.5rem 0; }
+  th, td { text-align: left; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: #f6f8fc; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  td.path { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.82rem; color: var(--accent-2); white-space: nowrap; }
+  .term { font-weight: 700; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.5rem; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+  dl { margin: 0; }
+  dt { font-weight: 700; margin-top: 0.7rem; }
+  dd { margin: 0.1rem 0 0; color: #33404f; font-size: 0.92rem; }
+  .note { background:#eef4ff; border:1px solid #d4e3ff; border-radius:8px; padding:0.7rem 0.9rem; font-size:0.9rem; margin:0.8rem 0; }
+  @media print { body { font-size: 11px; } .wrap { padding: 0; } a { color: inherit; text-decoration: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🐟 Fish Auction — Codebase Map &amp; Glossary</h1>
+  <p class="sub">Quick reference. Print-friendly. The canonical names used across all onboarding lessons.</p>
+
+  <div class="note"><strong>Dependency rule:</strong> <code>routes</code> &amp; <code>components</code> → <code>server</code> → <code>domain</code> &amp; <code>db</code>. The <code>domain</code> layer imports nothing outward (no React, no DB).</div>
+
+  <h2>Where things live</h2>
+  <table>
+    <tr><th>Path</th><th>Layer</th><th>Responsibility</th></tr>
+    <tr><td class="path">src/routes/</td><td>Routes</td><td>Pages + API endpoints. Filename = URL. <code>$id</code> = path param. <code>api.*</code> files are raw HTTP (SSE, metrics, simulate).</td></tr>
+    <tr><td class="path">src/routes/__root.tsx</td><td>Routes</td><td>App shell: QueryClientProvider, Outlet, theme, head.</td></tr>
+    <tr><td class="path">src/routeTree.gen.ts</td><td>Generated</td><td>Auto-generated route tree. Never edit.</td></tr>
+    <tr><td class="path">src/components/</td><td>UI</td><td>React components; <code>admin/</code> = one card per admin concern + <code>use-admin-mutations.ts</code>.</td></tr>
+    <tr><td class="path">src/server/functions.ts</td><td>Server</td><td>The only client↔server bridge. All <code>createServerFn</code> live here.</td></tr>
+    <tr><td class="path">src/server/auction-commands.ts</td><td>Server</td><td>Writes (transactional): create fish/auction, placeBid, close, withdraw.</td></tr>
+    <tr><td class="path">src/server/auction-queries.ts</td><td>Server</td><td>Reads for dashboard + auction detail.</td></tr>
+    <tr><td class="path">src/server/auction-admin-queries.ts</td><td>Server</td><td>Reads for admin history + statistics (aggregate SQL).</td></tr>
+    <tr><td class="path">src/server/auction-lifecycle.ts / auction-clock.ts</td><td>Server</td><td>Closing auctions; auto-advancing expired ones.</td></tr>
+    <tr><td class="path">src/server/row-locks.ts</td><td>Server</td><td><code>SELECT … FOR UPDATE</code> helpers for safe concurrent bids.</td></tr>
+    <tr><td class="path">src/server/auction-audit.ts</td><td>Server</td><td>Records admin actions + inventory status changes.</td></tr>
+    <tr><td class="path">src/server/auction-service.ts</td><td>Server</td><td>Barrel file re-exporting the public server surface.</td></tr>
+    <tr><td class="path">src/domain/bid-rules.ts</td><td>Domain</td><td>Pure <code>evaluateBid()</code> + typed error codes.</td></tr>
+    <tr><td class="path">src/domain/events.ts</td><td>Domain</td><td>Auction event types + in-process event bus.</td></tr>
+    <tr><td class="path">src/domain/validation.ts</td><td>Domain</td><td>Zod schemas shared by server &amp; UI.</td></tr>
+    <tr><td class="path">src/domain/money.ts / weight.ts</td><td>Domain</td><td>Integer cents &amp; grams conversions (never floats for money).</td></tr>
+    <tr><td class="path">src/domain/constants.ts</td><td>Domain</td><td>Enums: species, statuses, roles, currency, demo-user IDs.</td></tr>
+    <tr><td class="path">src/domain/metrics.ts / logger.ts</td><td>Domain</td><td>Observability primitives.</td></tr>
+    <tr><td class="path">src/db/schema.ts</td><td>DB</td><td>Drizzle tables, enums, indexes, relations. Source for migrations.</td></tr>
+    <tr><td class="path">src/db/client.ts</td><td>DB</td><td>Postgres pool + Drizzle <code>db</code> client.</td></tr>
+    <tr><td class="path">src/scripts/</td><td>Tooling</td><td><code>seed.ts</code> (db:seed), <code>simulate.ts</code> (load), factories, seed-data.</td></tr>
+    <tr><td class="path">src/theme/</td><td>Tooling</td><td>Cookie-backed light/dark theme.</td></tr>
+    <tr><td class="path">src/router.tsx</td><td>Tooling</td><td>Builds router + QueryClient.</td></tr>
+  </table>
+
+  <h2>Domain glossary</h2>
+  <div class="grid2">
+    <dl>
+      <dt>fish_items</dt><dd>Inventory. Weight stored as integer <strong>grams</strong>; price as integer <strong>cents</strong>.</dd>
+      <dt>auctions</dt><dd>Lifecycle &amp; timing over a fish item. Statuses: scheduled, active, closed, unsold, withdrawn.</dd>
+      <dt>bids</dt><dd>Accepted bid history (immutable, ordered).</dd>
+      <dt>rejected_bids</dt><dd>Rejected attempts — audited, never silently dropped.</dd>
+      <dt>sales</dt><dd>Completed outcome = winning highest bid.</dd>
+      <dt>users</dt><dd>Seeded demo users; roles: seller, buyer, admin.</dd>
+      <dt>Server function</dt><dd>A typed RPC (<code>createServerFn</code>) imported by the client, run on the server.</dd>
+      <dt>Event bus</dt><dd>In-process pub/sub (<code>domain/events.ts</code>) keyed by auctionId.</dd>
+    </dl>
+    <dl>
+      <dt>SSE</dt><dd>Server-Sent Events: one-way server→browser stream over plain HTTP; auto-reconnects.</dd>
+      <dt>evaluateBid()</dt><dd>Pure accept/reject decision; no DB.</dd>
+      <dt>FOR UPDATE / row lock</dt><dd>Serializes concurrent bids on one auction so the highest bid isn't read stale.</dd>
+      <dt>setQueryData vs invalidateQueries</dt><dd>Patch the known detail change directly; invalidate aggregates to refetch.</dd>
+      <dt>Species (MVP)</dt><dd>salmon, cod, tuna, halibut, mackerel, trout, herring.</dd>
+      <dt>Inventory status</dt><dd>draft, listed, in_auction, sold, withdrawn.</dd>
+      <dt>Currency</dt><dd>NOK (single configured currency).</dd>
+      <dt>Demo users</dt><dd>sellerNorth, sellerFjord, buyerOslo, buyerBergen, admin (fixed UUIDs).</dd>
+    </dl>
+  </div>
+
+  <h2>Bid error codes</h2>
+  <p style="font-size:0.9rem;">Returned by <code>evaluateBid()</code>: <code>stale bid</code>, <code>auction not active</code>, <code>seller bidding on own auction</code>, <code>insufficient increment</code>, <code>invalid amount</code>. See <code>src/domain/bid-rules.ts</code>.</p>
+
+  <h2>Key commands</h2>
+  <table>
+    <tr><th>Command</th><th>Does</th></tr>
+    <tr><td class="path">pnpm dev</td><td>Run the app (http://localhost:3015)</td></tr>
+    <tr><td class="path">docker compose up -d</td><td>Start PostgreSQL</td></tr>
+    <tr><td class="path">pnpm db:migrate / db:seed</td><td>Apply migrations / load demo data</td></tr>
+    <tr><td class="path">pnpm db:studio</td><td>Open Drizzle Studio</td></tr>
+    <tr><td class="path">pnpm test</td><td>Run Vitest</td></tr>
+    <tr><td class="path">pnpm simulate</td><td>Generate load (auctions + bids)</td></tr>
+  </table>
+</div>
+</body>
+</html>

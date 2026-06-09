@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lesson 01 — The Life of a Bid</title>
+<style>
+  :root {
+    --ink: #1c2433;
+    --muted: #5b6678;
+    --line: #e4e8f0;
+    --bg: #f6f8fc;
+    --accent: #1f6feb;
+    --accent-2: #0a7c5a;
+    --warn: #b23c17;
+    --code-bg: #0f1b2d;
+    --code-ink: #d7e3f4;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.62;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+  header.hero {
+    border-left: 5px solid var(--accent);
+    padding: 0.4rem 0 0.4rem 1.1rem;
+    margin-bottom: 2rem;
+  }
+  .kicker {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0 0 0.4rem;
+  }
+  h1 { font-size: 2rem; line-height: 1.15; margin: 0 0 0.5rem; }
+  .sub { color: var(--muted); font-size: 1.05rem; margin: 0; }
+  h2 {
+    margin: 2.4rem 0 0.8rem;
+    font-size: 1.32rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 2px solid var(--line);
+  }
+  h3 { margin: 1.6rem 0 0.4rem; font-size: 1.05rem; }
+  p { margin: 0.7rem 0; }
+  .mission {
+    background: #eef4ff;
+    border: 1px solid #d4e3ff;
+    border-radius: 10px;
+    padding: 1rem 1.15rem;
+    font-size: 0.96rem;
+  }
+  .mission strong { color: var(--accent); }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: #eef1f6;
+    padding: 0.1rem 0.36rem;
+    border-radius: 5px;
+    font-size: 0.9em;
+  }
+  .file {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+    color: var(--accent-2);
+    background: #e9f6f0;
+    padding: 0.1rem 0.4rem;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 1rem 1.1rem;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-size: 0.83rem;
+    line-height: 1.5;
+    margin: 0.8rem 0;
+  }
+  pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+  .cmt { color: #7c93b5; }
+  .step {
+    position: relative;
+    padding: 0.2rem 0 0.2rem 3.2rem;
+    margin: 1.4rem 0;
+  }
+  .step .num {
+    position: absolute; left: 0; top: 0;
+    width: 2.3rem; height: 2.3rem;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+  }
+  .step h3 { margin-top: 0.15rem; }
+  .step .where { font-size: 0.82rem; color: var(--muted); margin: 0.1rem 0 0.5rem; }
+  .flow {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.1rem 1.2rem;
+    margin: 1.2rem 0;
+    font-size: 0.9rem;
+    overflow-x: auto;
+  }
+  .flow code { background: #eef1f6; white-space: nowrap; }
+  .arrow { color: var(--accent); font-weight: 700; padding: 0 0.35rem; }
+  .callout {
+    border-left: 4px solid var(--accent-2);
+    background: #f0f9f4;
+    padding: 0.8rem 1rem;
+    border-radius: 0 8px 8px 0;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+  }
+  .callout.warn { border-color: var(--warn); background: #fdf2ec; }
+  .quiz {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.2rem 1.3rem;
+    margin: 1.3rem 0;
+  }
+  .quiz h3 { margin-top: 0; }
+  .q { margin: 1.2rem 0; }
+  .q p.qtext { font-weight: 600; margin-bottom: 0.5rem; }
+  .opt {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 1px solid var(--line);
+    background: #fafbfd;
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    margin: 0.4rem 0;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    transition: border-color .15s, background .15s;
+  }
+  .opt:hover { border-color: var(--accent); }
+  .opt.correct { border-color: var(--accent-2); background: #e7f7ef; }
+  .opt.wrong { border-color: var(--warn); background: #fbeae3; }
+  .fb { font-size: 0.9rem; margin-top: 0.5rem; display: none; padding: 0.5rem 0.7rem; border-radius: 7px; }
+  .fb.show { display: block; }
+  .fb.ok { background: #e7f7ef; color: #0a5c43; }
+  .fb.no { background: #fbeae3; color: #8a2c0f; }
+  a { color: var(--accent); }
+  .cites { font-size: 0.85rem; color: var(--muted); }
+  .cites li { margin: 0.25rem 0; }
+  footer.next {
+    margin-top: 2.5rem;
+    background: #fff;
+    border: 1px dashed var(--accent);
+    border-radius: 12px;
+    padding: 1.2rem 1.3rem;
+  }
+  .ask {
+    margin-top: 1.5rem;
+    background: #fff7e6;
+    border: 1px solid #ffe2a8;
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem;
+    font-size: 0.95rem;
+  }
+  .pill {
+    display: inline-block; font-size: 0.7rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    background: #eef4ff; color: var(--accent);
+    padding: 0.15rem 0.5rem; border-radius: 999px; margin-left: 0.4rem;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <p class="kicker">Onboarding · Lesson 01 · Orientation</p>
+    <h1>The Life of a Bid</h1>
+    <p class="sub">Follow one bid from the buyer's click all the way to every other browser updating — through the <em>real</em> files in this repo.</p>
+  </header>
+
+  <div class="mission">
+    <strong>Why this lesson?</strong> Your mission is to navigate and review the code you
+    built with AI. Almost every important pattern in this codebase shows up on the path a
+    single bid travels: file-based routing, a TanStack Start <em>server function</em>, Zod
+    validation, a transactional Drizzle write, pure domain rules, an in-process event bus, an
+    SSE stream, and a TanStack Query cache patch. Learn this one path and you can find your
+    way to <em>anything</em>.
+  </div>
+
+  <h2>The whole journey on one line</h2>
+  <div class="flow">
+    <code>auctions.$auctionId.tsx</code><span class="arrow">→</span>
+    <code>placeBidFn</code><span class="arrow">→</span>
+    <code>placeBid()</code><span class="arrow">→</span>
+    <code>Zod</code><span class="arrow">→</span>
+    <code>DB tx + lock</code><span class="arrow">→</span>
+    <code>evaluateBid()</code><span class="arrow">→</span>
+    <code>insert bid</code><span class="arrow">→</span>
+    <code>event bus</code><span class="arrow">→</span>
+    <code>SSE</code><span class="arrow">→</span>
+    <code>setQueryData</code>
+  </div>
+  <p>That is the spine of the app. Now let's walk each vertebra with the file and line to open.</p>
+
+  <!-- STEP 1 -->
+  <div class="step">
+    <div class="num">1</div>
+    <h3>The buyer submits — a React component calls a "server function"</h3>
+    <p class="where"><span class="file">src/routes/auctions.$auctionId.tsx</span> · the <code>placeBid</code> mutation</p>
+    <p>The auction page is an ordinary TanStack Query screen. Submitting the form runs a
+    <code>useMutation</code> whose <code>mutationFn</code> calls <code>placeBidFn(...)</code>.
+    It looks like a local function call, but <code>placeBidFn</code> is a <strong>server
+    function</strong>: TanStack Start turns it into an HTTP request to the server. You never
+    write <code>fetch</code> or a REST route for it.</p>
+    <pre><code><span class="cmt">// imported from the server, called from the browser</span>
+import { placeBidFn } from "../server/functions";
+
+const placeBid = useMutation({
+  mutationFn: () =&gt; placeBidFn({ data: { auctionId, bidderId, amountCents, ... } }),
+});</code></pre>
+    <div class="callout">Mental model: a <strong>server function</strong> = a typed RPC. The
+    client imports it; TanStack Start runs it on the server and ships back the result, fully typed.</div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step">
+    <div class="num">2</div>
+    <h3>The server boundary — validate the request shape</h3>
+    <p class="where"><span class="file">src/server/functions.ts</span> · <code>placeBidFn</code></p>
+    <pre><code>export const placeBidFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =&gt; data)
+  .handler(({ data }) =&gt; observeServerFn(() =&gt; placeBid(data)));</code></pre>
+    <p>This file is the <strong>only</strong> bridge between browser and business logic. Every
+    server function is thin: declare the HTTP method, accept input, hand off to a service
+    function, and wrap it in <code>observeServerFn</code> (which records metrics and tags Zod
+    failures). Note it delegates to <code>placeBid()</code> — the real work lives elsewhere.</p>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step">
+    <div class="num">3</div>
+    <h3>Parse with Zod, then open a transaction with a row lock</h3>
+    <p class="where"><span class="file">src/server/auction-commands.ts</span> · <code>placeBid()</code></p>
+    <pre><code>const data = bidInputSchema.parse(input);   <span class="cmt">// Zod: untrusted -&gt; typed</span>
+await advanceAuctionLifecycle();            <span class="cmt">// auto-close expired auctions first</span>
+
+return await db.transaction(async (tx) =&gt; {
+  await lockAuctionRow(tx, data.auctionId); <span class="cmt">// SELECT ... FOR UPDATE</span>
+  const auction = await tx.query.auctions.findFirst({ ... });
+  const currentHighestBid = await findHighestBidWithBidder(tx, data.auctionId);
+  ...</code></pre>
+    <div class="callout warn"><strong>The key concurrency move:</strong> <code>lockAuctionRow</code>
+    issues a Postgres <code>SELECT … FOR UPDATE</code> on that one auction. Two simultaneous
+    bids on the same auction are forced to take turns, so the "current highest bid" can't be
+    read stale. This is how the app stays correct under load. <span class="pill">unfamiliar stack</span></div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step">
+    <div class="num">4</div>
+    <h3>Decide accept-or-reject with a pure function</h3>
+    <p class="where"><span class="file">src/domain/bid-rules.ts</span> · <code>evaluateBid()</code></p>
+    <p>The command gathers facts (amount, current highest, starting price, minimum increment,
+    auction window, seller vs. bidder) and passes them to <code>evaluateBid()</code> — a
+    <strong>pure</strong> function with no database access. It returns either
+    <code>{ ok: true }</code> or a typed error code: stale bid, auction not active, seller
+    bidding on own auction, insufficient increment, or invalid amount.</p>
+    <pre><code>const bidDecision = evaluateBid({ amountCents, currentHighestBidCents, ... });
+
+if (!bidDecision.ok) {
+  await tx.insert(rejectedBids).values({ ...bidDecision }); <span class="cmt">// audited, not swallowed</span>
+  return { ok: false, code: bidDecision.code, message: bidDecision.message, ... };
+}</code></pre>
+    <div class="callout">Why pure? It makes the auction rules trivially unit-testable
+    (see <span class="file">src/domain/bid-rules.test.ts</span>) without a database. Rejected
+    bids are <em>persisted</em>, never silently dropped.</div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step">
+    <div class="num">5</div>
+    <h3>Accepted: insert the bid, build an event — still inside the transaction</h3>
+    <p class="where"><span class="file">src/server/auction-commands.ts</span> · end of the <code>tx</code> block</p>
+    <pre><code>const [insertedBid] = await tx.insert(bids).values({ auctionId, bidderId, amountCents }).returning();
+return { ok: true, event: bidAcceptedEvent(data.auctionId, snapshot) };</code></pre>
+    <p>The bid row and the event object are created <em>inside</em> the transaction, but the
+    event is only <strong>published after the transaction commits</strong> (next step). That
+    ordering guarantees nobody hears about a bid that might roll back.</p>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step">
+    <div class="num">6</div>
+    <h3>Broadcast — publish to the in-process event bus</h3>
+    <p class="where"><span class="file">src/domain/events.ts</span> · <code>publishAuctionEvent()</code></p>
+    <pre><code><span class="cmt">// back outside the transaction, after commit:</span>
+if (result.ok) {
+  publishAuctionEvent(result.event);   <span class="cmt">// notifies every SSE subscriber for this auction</span>
+}</code></pre>
+    <p>The bus is a small in-memory <code>Map&lt;auctionId, Set&lt;subscriber&gt;&gt;</code>. One
+    subtlety worth noticing: a <code>bid.rejected</code> event is only delivered to the user who
+    made it (see <code>shouldDeliverAuctionEventToSubscriber</code>) — others don't see your failures.</p>
+  </div>
+
+  <!-- STEP 7 -->
+  <div class="step">
+    <div class="num">7</div>
+    <h3>Stream it out over Server-Sent Events</h3>
+    <p class="where"><span class="file">src/routes/api.auctions.$auctionId.events.ts</span></p>
+    <p>This is a plain API route (not a page). It opens a <code>ReadableStream</code> with
+    <code>Content-Type: text/event-stream</code>, subscribes to the bus for that auction, and
+    writes each event in SSE wire format. When the browser disconnects, <code>request.signal</code>
+    fires <code>abort</code> and it unsubscribes.</p>
+    <pre><code>controller.enqueue(encoder.encode(`event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`));</code></pre>
+    <div class="callout"><strong>SSE vs WebSocket:</strong> SSE is one-way (server→browser),
+    plain HTTP, and auto-reconnects. Perfect here because bids flow <em>up</em> via the server
+    function and updates flow <em>down</em> via the stream. <span class="pill">unfamiliar stack</span></div>
+  </div>
+
+  <!-- STEP 8 -->
+  <div class="step">
+    <div class="num">8</div>
+    <h3>Every browser patches its cache — no full refetch</h3>
+    <p class="where"><span class="file">src/routes/auctions.$auctionId.tsx</span> · the <code>EventSource</code> effect</p>
+    <pre><code>const eventSource = new EventSource(`/api/auctions/${auctionId}/events?userId=${bidderId}`);
+
+<span class="cmt">// on a bid.accepted message:</span>
+queryClient.setQueryData(["auction", auctionId], (current) =&gt; ({
+  ...current,
+  currentHighestBid: parsed.currentHighestBid,
+  bids: [parsed.bid, ...current.bids],     <span class="cmt">// prepend, dedupe by bidId</span>
+}));
+queryClient.invalidateQueries({ queryKey: ["dashboard"] }); <span class="cmt">// aggregates: refetch</span></code></pre>
+    <p>Two strategies, used deliberately: the detail view is <strong>patched directly</strong>
+    (cheap, instant), while aggregate screens (dashboard, admin stats) are
+    <strong>invalidated</strong> so the server recomputes them. That's the loop closed — your
+    bid is now on everyone's screen.</p>
+  </div>
+
+  <!-- INTERACTIVE CHECK -->
+  <h2>Check yourself <span class="pill">2 min</span></h2>
+  <div class="quiz" id="quiz">
+    <h3>Click an answer — you'll get feedback instantly.</h3>
+
+    <div class="q" data-correct="b">
+      <p class="qtext">1. You need to change the rule that rejects a bid when it doesn't beat the current price by the minimum increment. Which file do you open?</p>
+      <button class="opt" data-k="a">src/server/functions.ts</button>
+      <button class="opt" data-k="b">src/domain/bid-rules.ts</button>
+      <button class="opt" data-k="c">src/routes/auctions.$auctionId.tsx</button>
+      <div class="fb ok">✓ Correct. <code>evaluateBid()</code> in <code>bid-rules.ts</code> is the pure decision function — all accept/reject logic lives there, and it's covered by <code>bid-rules.test.ts</code>.</div>
+      <div class="fb no">Not quite. <code>functions.ts</code> is just the thin HTTP boundary, and the route file is UI. The <em>decision</em> is a pure function in <code>src/domain/bid-rules.ts</code>.</div>
+    </div>
+
+    <div class="q" data-correct="c">
+      <p class="qtext">2. Why does <code>placeBid()</code> call <code>lockAuctionRow(tx, …)</code> before reading the highest bid?</p>
+      <button class="opt" data-k="a">To make the query faster with an index</button>
+      <button class="opt" data-k="b">To check the user is an admin</button>
+      <button class="opt" data-k="c">So concurrent bids on the same auction serialize and can't read a stale highest bid</button>
+      <div class="fb ok">✓ Exactly. <code>SELECT … FOR UPDATE</code> forces simultaneous bidders to take turns, which is what prevents stale-bid races.</div>
+      <div class="fb no">No — it's about concurrency. The lock (<code>SELECT … FOR UPDATE</code>) serializes simultaneous bids so the "current highest" read is never stale.</div>
+    </div>
+
+    <div class="q" data-correct="a">
+      <p class="qtext">3. A bid is accepted. In what order do these happen?</p>
+      <button class="opt" data-k="a">Commit the transaction → publish the event → SSE → client setQueryData</button>
+      <button class="opt" data-k="b">Publish the event → commit the transaction → SSE → client refetch</button>
+      <button class="opt" data-k="c">SSE pushes first, then the bid is written to the database</button>
+      <div class="fb ok">✓ Right. The event is published only <em>after</em> commit, so nobody is told about a bid that could still roll back.</div>
+      <div class="fb no">Look again at step 5–6: the event is published <em>after</em> the transaction commits, never before — otherwise a rolled-back bid could be broadcast.</div>
+    </div>
+
+    <div class="q" data-correct="b">
+      <p class="qtext">4. The detail page is <em>patched</em> with <code>setQueryData</code>, but the dashboard is <em>invalidated</em>. Why the difference?</p>
+      <button class="opt" data-k="a">Because the dashboard doesn't use TanStack Query</button>
+      <button class="opt" data-k="b">The detail update is a simple known change; aggregates are easier to recompute on the server than to patch in the browser</button>
+      <button class="opt" data-k="c">Invalidate and setQueryData are the same thing</button>
+      <div class="fb ok">✓ Yes. Patch the one thing you know changed; let the server recompute totals/averages rather than re-deriving every aggregate client-side.</div>
+      <div class="fb no">Re-read step 8: the dashboard <em>does</em> use Query. The point is that aggregates (totals, averages) are cheaper to recompute server-side via invalidation than to patch by hand.</div>
+    </div>
+
+    <p id="score" style="font-weight:600;margin-top:1rem;"></p>
+  </div>
+
+  <div class="ask">
+    💬 <strong>I'm your teacher — ask me anything.</strong> Stuck on a step, want to actually run
+    the path with the debugger, or curious why it's an in-process bus instead of Redis? Just ask
+    in the chat and we'll dig in.
+  </div>
+
+  <h2>Sources &amp; go deeper</h2>
+  <ul class="cites">
+    <li>Real files cited above: <span class="file">routes/auctions.$auctionId.tsx</span>, <span class="file">server/functions.ts</span>, <span class="file">server/auction-commands.ts</span>, <span class="file">domain/bid-rules.ts</span>, <span class="file">domain/events.ts</span>, <span class="file">routes/api.auctions.$auctionId.events.ts</span>.</li>
+    <li>This repo's own visual: <code>documentation/bid-flow-visualization.html</code>.</li>
+    <li>TanStack Start server functions — <a href="https://tanstack.com/start/latest">tanstack.com/start</a></li>
+    <li>MDN, Server-Sent Events — <a href="https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events">developer.mozilla.org</a></li>
+    <li>Postgres row locking (<code>FOR UPDATE</code>) — <a href="https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-ROWS">postgresql.org</a></li>
+  </ul>
+
+  <footer class="next">
+    <strong>Next up (Lesson 02):</strong> <em>The map of <code>src/</code></em> — a folder-by-folder
+    tour so you can place any file into <code>routes / server / domain / db / components</code> at a
+    glance. Tell me "next" when you're ready, or name a different area (schema, routing, metrics) and
+    we'll go there instead.
+  </footer>
+
+</div>
+
+<script>
+  document.querySelectorAll('#quiz .q').forEach(function (q) {
+    var correct = q.getAttribute('data-correct');
+    var answered = false;
+    var opts = q.querySelectorAll('.opt');
+    var okFb = q.querySelector('.fb.ok');
+    var noFb = q.querySelector('.fb.no');
+    opts.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (answered) return;
+        answered = true;
+        var chosen = btn.getAttribute('data-k');
+        if (chosen === correct) {
+          btn.classList.add('correct');
+          okFb.classList.add('show');
+        } else {
+          btn.classList.add('wrong');
+          noFb.classList.add('show');
+          q.querySelector('.opt[data-k="' + correct + '"]').classList.add('correct');
+        }
+        updateScore();
+      });
+    });
+  });
+
+  function updateScore() {
+    var qs = document.querySelectorAll('#quiz .q');
+    var done = 0, right = 0;
+    qs.forEach(function (q) {
+      var ok = q.querySelector('.fb.ok.show');
+      var no = q.querySelector('.fb.no.show');
+      if (ok || no) done++;
+      if (ok) right++;
+    });
+    var el = document.getElementById('score');
+    if (done === qs.length) {
+      el.textContent = 'Score: ' + right + ' / ' + qs.length +
+        (right === qs.length ? ' 🎉 You can trace a bid end-to-end. Say "next" for Lesson 02.'
+                             : ' — review the steps above, then ask me about any you missed.');
+    } else {
+      el.textContent = 'Answered ' + done + ' / ' + qs.length;
+    }
+  }
+</script>
+</body>
+</html>

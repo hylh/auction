@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lesson 04 — Routing &amp; Server Functions</title>
+<style>
+  :root { --ink:#1c2433; --muted:#5b6678; --line:#e4e8f0; --bg:#f6f8fc; --accent:#1f6feb; --accent-2:#0a7c5a; --warn:#b23c17; --code-bg:#0f1b2d; --code-ink:#d7e3f4; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:var(--bg); line-height:1.62; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+  header.hero { border-left: 5px solid var(--accent); padding: 0.4rem 0 0.4rem 1.1rem; margin-bottom: 2rem; }
+  .kicker { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; font-weight: 700; color: var(--accent); margin: 0 0 0.4rem; }
+  h1 { font-size: 2rem; line-height: 1.15; margin: 0 0 0.5rem; }
+  .sub { color: var(--muted); font-size: 1.05rem; margin: 0; }
+  h2 { margin: 2.4rem 0 0.8rem; font-size: 1.32rem; padding-bottom: 0.35rem; border-bottom: 2px solid var(--line); }
+  h3 { margin: 1.4rem 0 0.3rem; font-size: 1.05rem; }
+  p { margin: 0.7rem 0; }
+  .mission { background:#eef4ff; border:1px solid #d4e3ff; border-radius:10px; padding:1rem 1.15rem; font-size:0.96rem; }
+  .mission strong { color: var(--accent); }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; background:#eef1f6; padding:0.1rem 0.36rem; border-radius:5px; font-size:0.9em; }
+  pre { background:var(--code-bg); color:var(--code-ink); padding:1rem 1.1rem; border-radius:10px; overflow-x:auto; font-size:0.83rem; line-height:1.5; margin:0.8rem 0; }
+  pre code { background:none; padding:0; color:inherit; font-size:inherit; }
+  .cmt { color:#7c93b5; }
+  .file { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:0.82rem; color:var(--accent-2); background:#e9f6f0; padding:0.1rem 0.4rem; border-radius:5px; white-space:nowrap; }
+  table.tbl { width:100%; border-collapse:collapse; font-size:0.87rem; margin:0.6rem 0; background:#fff; }
+  table.tbl th, table.tbl td { text-align:left; padding:0.5rem 0.6rem; border-bottom:1px solid var(--line); vertical-align:top; }
+  table.tbl th { background:#f6f8fc; font-size:0.74rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); }
+  table.tbl td.c { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:0.81rem; white-space:nowrap; }
+  .callout { border-left:4px solid var(--accent-2); background:#f0f9f4; padding:0.8rem 1rem; border-radius:0 8px 8px 0; margin:1rem 0; font-size:0.95rem; }
+  .callout.warn { border-color:var(--warn); background:#fdf2ec; }
+  .split { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:1rem 0; }
+  @media (max-width:680px){ .split { grid-template-columns:1fr; } }
+  .panel { background:#fff; border:1px solid var(--line); border-radius:12px; padding:1rem 1.1rem; }
+  .panel h4 { margin:0 0 0.4rem; font-size:0.95rem; }
+  .panel .tag { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; padding:0.12rem 0.5rem; border-radius:999px; }
+  .tag.page { background:#eef4ff; color:var(--accent); }
+  .tag.api { background:#e9f6f0; color:var(--accent-2); }
+  .pill { display:inline-block; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; background:#eef4ff; color:var(--accent); padding:0.15rem 0.5rem; border-radius:999px; margin-left:0.4rem; vertical-align:middle; }
+  .quiz { background:#fff; border:1px solid var(--line); border-radius:12px; padding:1.2rem 1.3rem; margin:1.3rem 0; }
+  .quiz h3 { margin-top:0; }
+  .q { margin:1.2rem 0; }
+  .q p.qtext { font-weight:600; margin-bottom:0.5rem; }
+  .opt { display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fafbfd; border-radius:8px; padding:0.6rem 0.8rem; margin:0.4rem 0; cursor:pointer; font:inherit; color:inherit; transition:border-color .15s, background .15s; }
+  .opt:hover { border-color:var(--accent); }
+  .opt.correct { border-color:var(--accent-2); background:#e7f7ef; }
+  .opt.wrong { border-color:var(--warn); background:#fbeae3; }
+  .fb { font-size:0.9rem; margin-top:0.5rem; display:none; padding:0.5rem 0.7rem; border-radius:7px; }
+  .fb.show { display:block; }
+  .fb.ok { background:#e7f7ef; color:#0a5c43; } .fb.no { background:#fbeae3; color:#8a2c0f; }
+  a { color: var(--accent); }
+  .cites { font-size:0.85rem; color:var(--muted); }
+  .cites li { margin:0.25rem 0; }
+  footer.next { margin-top:2.5rem; background:#fff; border:1px dashed var(--accent); border-radius:12px; padding:1.2rem 1.3rem; }
+  .ask { margin-top:1.5rem; background:#fff7e6; border:1px solid #ffe2a8; border-radius:10px; padding:0.9rem 1.1rem; font-size:0.95rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <p class="kicker">Onboarding · Lesson 04 · Orientation</p>
+    <h1>Routing &amp; Server Functions</h1>
+    <p class="sub">How a filename becomes a URL, how a page differs from an API route, and how an imported function secretly becomes an HTTP call.</p>
+  </header>
+
+  <div class="mission">
+    <strong>Why this lesson?</strong> TanStack Start &amp; Router are on your "less familiar" list, and
+    they hide a lot of magic. Two mechanisms explain almost everything you'll read in
+    <span class="file">src/routes/</span>: <em>file-based routing</em> (filename → URL) and
+    <em>server functions</em> (typed RPC). Master these two and the whole client/server boundary
+    becomes legible.
+  </div>
+
+  <h2>Mechanism 1 — the filename IS the URL</h2>
+  <p>TanStack Router generates routes from filenames in <code>src/routes/</code>. Dots become slashes,
+  <code>$name</code> is a path parameter, and an <code>api.</code> prefix is just convention for
+  endpoints. The generated map lands in <code>routeTree.gen.ts</code> (never hand-edited).</p>
+  <table class="tbl">
+    <tr><th>File</th><th>URL</th><th>Kind</th></tr>
+    <tr><td class="c">index.tsx</td><td class="c">/</td><td>Page — dashboard</td></tr>
+    <tr><td class="c">admin.tsx</td><td class="c">/admin</td><td>Page</td></tr>
+    <tr><td class="c">inventory.new.tsx</td><td class="c">/inventory/new</td><td>Page</td></tr>
+    <tr><td class="c">auctions.$auctionId.tsx</td><td class="c">/auctions/:auctionId</td><td>Page (dynamic)</td></tr>
+    <tr><td class="c">api.auctions.$auctionId.events.ts</td><td class="c">/api/auctions/:auctionId/events</td><td>API — SSE</td></tr>
+    <tr><td class="c">api.simulate.ts</td><td class="c">/api/simulate</td><td>API — POST</td></tr>
+    <tr><td class="c">metrics.ts</td><td class="c">/metrics</td><td>API — GET (HTML/text)</td></tr>
+  </table>
+  <p>Read a dynamic param in a page with <code>Route.useParams()</code> — exactly what
+  <code>auctions.$auctionId.tsx</code> does to get <code>auctionId</code>.</p>
+
+  <h2>Mechanism 2 — page vs. API route</h2>
+  <p>Both live in <code>routes/</code>; the difference is what the route <em>exports</em>.</p>
+  <div class="split">
+    <div class="panel">
+      <h4><span class="tag page">Page</span> exports a <code>component</code></h4>
+      <pre><code><span class="cmt">// index.tsx</span>
+export const Route = createFileRoute("/")({
+  component: Dashboard,   <span class="cmt">// React renders</span>
+});</code></pre>
+      <p style="font-size:0.9rem;margin:0;">Renders React. Fetches data with TanStack Query calling a <em>server function</em>.</p>
+    </div>
+    <div class="panel">
+      <h4><span class="tag api">API</span> exports <code>server.handlers</code></h4>
+      <pre><code><span class="cmt">// api.simulate.ts</span>
+export const Route = createFileRoute("/api/simulate")({
+  server: { handlers: {
+    POST: async ({ request }) =&gt; { ... }  <span class="cmt">// returns a Response</span>
+  }},
+});</code></pre>
+      <p style="font-size:0.9rem;margin:0;">Raw HTTP. You read <code>request</code> and return a <code>Response</code> — no React.</p>
+    </div>
+  </div>
+  <div class="callout">Rule of thumb: <strong>component → it's a page</strong>;
+  <strong>server.handlers → it's an endpoint</strong>. The app uses API routes only where it truly needs
+  raw HTTP: the SSE stream, the simulator, and the <code>/metrics</code> output (which even returns
+  Prometheus <code>text/plain</code> when asked).</div>
+
+  <h2>Mechanism 3 — server functions: a typed RPC</h2>
+  <p>This is the part that feels like magic. A <em>page</em> imports a function and calls it like local
+  code — but it runs on the server. There's no <code>fetch</code>, no URL, no JSON wiring by hand.</p>
+  <pre><code><span class="cmt">// the page (browser): index.tsx</span>
+import { getDashboardFn } from "../server/functions";
+const dashboard = useQuery({ queryKey: ["dashboard"], queryFn: () =&gt; getDashboardFn() });
+
+<span class="cmt">// the definition (server): server/functions.ts</span>
+export const getDashboardFn = createServerFn({ method: "GET" })
+  .handler(() =&gt; observeServerFn(() =&gt; getDashboardData()));</code></pre>
+  <p>At build time TanStack Start splits this: the <code>.handler</code> body stays on the server, and the
+  browser gets a stub that makes the HTTP request and deserializes the typed result. You get
+  end-to-end types <em>without</em> writing or maintaining a REST contract.</p>
+  <div class="callout warn"><strong>The anatomy of every server function</strong> (all in
+  <span class="file">server/functions.ts</span>):
+  <code>createServerFn({ method })</code> →
+  optional <code>.inputValidator(...)</code> →
+  <code>.handler(({ data }) =&gt; service(data))</code>.
+  Each one is a thin wrapper that delegates to a service in <code>auction-commands</code>/<code>queries</code>
+  and wraps it in <code>observeServerFn</code> for metrics. <span class="pill">tanstack start</span></div>
+
+  <h3>Calling with input</h3>
+  <pre><code><span class="cmt">// page passes { data }:</span>
+getAuctionDetailFn({ data: { auctionId } })
+placeBidFn({ data: { auctionId, bidderId, amountCents, ... } })</code></pre>
+  <p>The payload always goes under a <code>data</code> key. On the server,
+  <code>.inputValidator</code> receives it (here it just passes <code>unknown</code> through), and the
+  service function parses it with a Zod schema — so validation lives in the domain, not the boundary.</p>
+
+  <h2>Putting it together: two ways data moves</h2>
+  <table class="tbl">
+    <tr><th>Direction</th><th>Mechanism</th><th>Example</th></tr>
+    <tr><td>Browser → server (request/response)</td><td>Server function</td><td><code>placeBidFn</code>, <code>getDashboardFn</code></td></tr>
+    <tr><td>Server → browser (push)</td><td>API route + SSE</td><td><code>api.auctions.$auctionId.events.ts</code></td></tr>
+  </table>
+  <p>That's the same split you saw in Lesson 01: bids flow <em>up</em> through a server function; live
+  updates flow <em>down</em> through the SSE endpoint. Routing and server functions are simply the two
+  halves of that boundary.</p>
+
+  <h2>Check yourself <span class="pill">2 min</span></h2>
+  <div class="quiz" id="quiz">
+    <h3>Click an answer for instant feedback.</h3>
+
+    <div class="q" data-correct="b">
+      <p class="qtext">1. What URL does the file <code>routes/inventory.new.tsx</code> serve?</p>
+      <button class="opt" data-k="a">/inventory.new</button>
+      <button class="opt" data-k="b">/inventory/new</button>
+      <button class="opt" data-k="c">/new/inventory</button>
+      <div class="fb ok">✓ Correct. Dots in the filename become slashes in the URL.</div>
+      <div class="fb no">No — dots become slashes, so <code>inventory.new.tsx</code> → <code>/inventory/new</code>.</div>
+    </div>
+
+    <div class="q" data-correct="c">
+      <p class="qtext">2. You open a file in <code>routes/</code>. How do you tell whether it's a page or an API endpoint?</p>
+      <button class="opt" data-k="a">Pages end in .tsx, endpoints end in .ts</button>
+      <button class="opt" data-k="b">Pages are in a subfolder</button>
+      <button class="opt" data-k="c">A page exports a component; an endpoint exports server.handlers and returns a Response</button>
+      <div class="fb ok">✓ Right. It's about what the route exports — component (page) vs server.handlers (endpoint).</div>
+      <div class="fb no">The extension is a hint at best. The real signal is the export: <code>component</code> = page, <code>server.handlers</code> = endpoint.</div>
+    </div>
+
+    <div class="q" data-correct="a">
+      <p class="qtext">3. <code>getDashboardFn()</code> is imported into a browser component and called directly. What actually happens?</p>
+      <button class="opt" data-k="a">Start runs the handler on the server and returns the typed result over HTTP</button>
+      <button class="opt" data-k="b">The dashboard SQL runs in the browser</button>
+      <button class="opt" data-k="c">It returns mock data until you wire up fetch</button>
+      <div class="fb ok">✓ Correct. That's the server-function magic: the handler body stays server-side; the client gets a typed RPC stub.</div>
+      <div class="fb no">It's a server function — the handler executes on the server (DB and all) and the client receives the typed result. No SQL runs in the browser.</div>
+    </div>
+
+    <div class="q" data-correct="b">
+      <p class="qtext">4. Why are the SSE stream, the simulator, and <code>/metrics</code> built as API routes instead of server functions?</p>
+      <button class="opt" data-k="a">Server functions don't work with TanStack Query</button>
+      <button class="opt" data-k="b">They need raw HTTP control — streaming, custom status/headers, or text/plain output</button>
+      <button class="opt" data-k="c">They are older code that predates server functions</button>
+      <div class="fb ok">✓ Right. Server functions are great for typed request/response, but raw Response control (streams, headers, Prometheus text) needs an API route.</div>
+      <div class="fb no">It's about needing the raw <code>Response</code>: SSE streams, custom headers/redirects, and <code>text/plain</code> output don't fit the request/response server-function shape.</div>
+    </div>
+
+    <p id="score" style="font-weight:600;margin-top:1rem;"></p>
+  </div>
+
+  <div class="ask">
+    💬 <strong>Ask your teacher.</strong> Want to walk the <code>inventory.new</code> form end-to-end
+    (Zod schema shared by form + server), or see how <code>defaultPreload: "intent"</code> in
+    <code>router.tsx</code> prefetches on hover? Just ask.
+  </div>
+
+  <h2>Sources &amp; go deeper</h2>
+  <ul class="cites">
+    <li>Real files: <span class="file">routes/index.tsx</span>, <span class="file">routes/metrics.ts</span>, <span class="file">routes/api.simulate.ts</span>, <span class="file">server/functions.ts</span> (verified this session).</li>
+    <li>TanStack Start server functions — <a href="https://tanstack.com/start/latest/docs/framework/react/server-functions">tanstack.com/start</a></li>
+    <li>TanStack Router file-based routing — <a href="https://tanstack.com/router/latest/docs/framework/react/routing/file-based-routing">tanstack.com/router</a></li>
+  </ul>
+
+  <footer class="next">
+    <strong>Next up (Lesson 05):</strong> <em>The real-time layer up close</em> — the event bus,
+    per-user filtering of <code>bid.rejected</code>, the SSE wire format, and why patch-vs-invalidate is
+    chosen on the client. Or pick: the admin stats queries in depth, the seed/simulator scripts, or the
+    Zod-shared inventory form. Say <strong>"next"</strong>.
+  </footer>
+
+</div>
+
+<script>
+  document.querySelectorAll('#quiz .q').forEach(function (q) {
+    var correct = q.getAttribute('data-correct');
+    var answered = false;
+    q.querySelectorAll('.opt').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (answered) return;
+        answered = true;
+        var chosen = btn.getAttribute('data-k');
+        if (chosen === correct) { btn.classList.add('correct'); q.querySelector('.fb.ok').classList.add('show'); }
+        else { btn.classList.add('wrong'); q.querySelector('.fb.no').classList.add('show'); q.querySelector('.opt[data-k="' + correct + '"]').classList.add('correct'); }
+        updateScore();
+      });
+    });
+  });
+  function updateScore() {
+    var qs = document.querySelectorAll('#quiz .q'); var done = 0, right = 0;
+    qs.forEach(function (q) {
+      var ok = q.querySelector('.fb.ok.show'), no = q.querySelector('.fb.no.show');
+      if (ok || no) done++; if (ok) right++;
+    });
+    var el = document.getElementById('score');
+    if (done === qs.length) {
+      el.textContent = 'Score: ' + right + ' / ' + qs.length +
+        (right === qs.length ? ' 🎉 The client/server boundary is yours. Say "next" for Lesson 05.'
+                             : ' — re-skim the mechanism it tests, or ask me.');
+    } else { el.textContent = 'Answered ' + done + ' / ' + qs.length; }
+  }
+</script>
+</body>
+</html>

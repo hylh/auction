@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lesson 02 — The Map of src/</title>
+<style>
+  :root {
+    --ink: #1c2433;
+    --muted: #5b6678;
+    --line: #e4e8f0;
+    --bg: #f6f8fc;
+    --accent: #1f6feb;
+    --accent-2: #0a7c5a;
+    --warn: #b23c17;
+    --code-bg: #0f1b2d;
+    --code-ink: #d7e3f4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink); background: var(--bg); line-height: 1.62;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+  header.hero { border-left: 5px solid var(--accent); padding: 0.4rem 0 0.4rem 1.1rem; margin-bottom: 2rem; }
+  .kicker { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; font-weight: 700; color: var(--accent); margin: 0 0 0.4rem; }
+  h1 { font-size: 2rem; line-height: 1.15; margin: 0 0 0.5rem; }
+  .sub { color: var(--muted); font-size: 1.05rem; margin: 0; }
+  h2 { margin: 2.4rem 0 0.8rem; font-size: 1.32rem; padding-bottom: 0.35rem; border-bottom: 2px solid var(--line); }
+  p { margin: 0.7rem 0; }
+  .mission { background: #eef4ff; border: 1px solid #d4e3ff; border-radius: 10px; padding: 1rem 1.15rem; font-size: 0.96rem; }
+  .mission strong { color: var(--accent); }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: #eef1f6; padding: 0.1rem 0.36rem; border-radius: 5px; font-size: 0.9em; }
+  .tree {
+    background: var(--code-bg); color: var(--code-ink);
+    padding: 1.1rem 1.2rem; border-radius: 10px; overflow-x: auto;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.84rem; line-height: 1.65; margin: 1rem 0;
+  }
+  .tree .dir { color: #7fb2ff; font-weight: 700; }
+  .tree .cmt { color: #7c93b5; }
+  .layer { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.3rem; margin: 1.1rem 0; }
+  .layer h3 { margin: 0 0 0.2rem; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem; }
+  .layer .path { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.82rem; color: var(--accent-2); background: #e9f6f0; padding: 0.1rem 0.45rem; border-radius: 5px; }
+  .layer .role { color: var(--muted); font-size: 0.86rem; margin: 0.15rem 0 0.7rem; }
+  .layer ul { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+  .layer li { margin: 0.3rem 0; font-size: 0.93rem; }
+  .layer .fname { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.85em; background: #eef1f6; padding: 0.05rem 0.3rem; border-radius: 4px; }
+  .dot { width: 0.7rem; height: 0.7rem; border-radius: 50%; display: inline-block; }
+  .d-route { background: #1f6feb; } .d-server { background: #0a7c5a; } .d-domain { background: #8a4fd0; }
+  .d-db { background: #b23c17; } .d-ui { background: #c79100; } .d-infra { background: #5b6678; }
+  .callout { border-left: 4px solid var(--accent-2); background: #f0f9f4; padding: 0.8rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.95rem; }
+  .callout.warn { border-color: var(--warn); background: #fdf2ec; }
+  .rule { background:#fff; border:1px solid var(--line); border-radius:10px; padding:0.9rem 1.1rem; margin:0.8rem 0; font-size:0.96rem; }
+  .rule b { color: var(--accent); }
+  .quiz { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem 1.3rem; margin: 1.3rem 0; }
+  .quiz h3 { margin-top: 0; }
+  .q { margin: 1.2rem 0; }
+  .q p.qtext { font-weight: 600; margin-bottom: 0.5rem; }
+  .opt { display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fafbfd; border-radius:8px; padding:0.6rem 0.8rem; margin:0.4rem 0; cursor:pointer; font:inherit; color:inherit; transition:border-color .15s, background .15s; }
+  .opt:hover { border-color: var(--accent); }
+  .opt.correct { border-color: var(--accent-2); background: #e7f7ef; }
+  .opt.wrong { border-color: var(--warn); background: #fbeae3; }
+  .fb { font-size:0.9rem; margin-top:0.5rem; display:none; padding:0.5rem 0.7rem; border-radius:7px; }
+  .fb.show { display:block; }
+  .fb.ok { background:#e7f7ef; color:#0a5c43; } .fb.no { background:#fbeae3; color:#8a2c0f; }
+  a { color: var(--accent); }
+  .cites { font-size: 0.85rem; color: var(--muted); }
+  .cites li { margin: 0.25rem 0; }
+  footer.next { margin-top: 2.5rem; background: #fff; border: 1px dashed var(--accent); border-radius: 12px; padding: 1.2rem 1.3rem; }
+  .ask { margin-top: 1.5rem; background: #fff7e6; border: 1px solid #ffe2a8; border-radius: 10px; padding: 0.9rem 1.1rem; font-size: 0.95rem; }
+  .pill { display:inline-block; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; background:#eef4ff; color:var(--accent); padding:0.15rem 0.5rem; border-radius:999px; margin-left:0.4rem; vertical-align:middle; }
+  .legend { display:flex; flex-wrap:wrap; gap:0.8rem; font-size:0.82rem; color:var(--muted); margin:0.6rem 0 0; }
+  .legend span { display:flex; align-items:center; gap:0.35rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <p class="kicker">Onboarding · Lesson 02 · Orientation</p>
+    <h1>The Map of <code>src/</code></h1>
+    <p class="sub">Place any file in the codebase into one of six layers — and know which layer to open before you even look.</p>
+  </header>
+
+  <div class="mission">
+    <strong>Why this lesson?</strong> In Lesson 01 you followed one bid across files. That path
+    crossed every layer of the app. Now we zoom out: if you can name the <em>six layers</em> and
+    the one rule about how they're allowed to call each other, you can answer "where does this
+    live?" for almost any feature — exactly the navigation skill your review role needs.
+  </div>
+
+  <h2>The whole <code>src/</code> tree</h2>
+  <div class="tree">
+src/
+├── <span class="dir">routes/</span>          <span class="cmt"># pages + API endpoints (file-based routing)</span>
+├── <span class="dir">components/</span>      <span class="cmt"># React UI pieces (admin/ dashboard cards)</span>
+├── <span class="dir">server/</span>          <span class="cmt"># business logic: commands, queries, transactions</span>
+├── <span class="dir">domain/</span>          <span class="cmt"># pure rules + shared types (no DB, no React)</span>
+├── <span class="dir">db/</span>              <span class="cmt"># Drizzle schema + Postgres client</span>
+├── <span class="dir">theme/</span>           <span class="cmt"># light/dark theming</span>
+├── <span class="dir">scripts/</span>         <span class="cmt"># seed + load simulator (run via pnpm/tsx)</span>
+├── <span class="dir">styles.css</span>       <span class="cmt"># global CSS</span>
+├── <span class="dir">router.tsx</span>       <span class="cmt"># builds the router + QueryClient</span>
+└── <span class="dir">routeTree.gen.ts</span> <span class="cmt"># AUTO-GENERATED route tree — never edit</span>
+  </div>
+  <div class="legend">
+    <span><i class="dot d-route"></i>Routes</span>
+    <span><i class="dot d-ui"></i>UI</span>
+    <span><i class="dot d-server"></i>Server</span>
+    <span><i class="dot d-domain"></i>Domain</span>
+    <span><i class="dot d-db"></i>DB</span>
+    <span><i class="dot d-infra"></i>Infra/Tooling</span>
+  </div>
+
+  <h2>The one rule that ties it together</h2>
+  <div class="rule">
+    Dependencies flow <b>inward</b>:
+    <code>routes</code> &amp; <code>components</code> →
+    <code>server</code> →
+    <code>domain</code> &amp; <code>db</code>.
+    <br />The <b>domain</b> layer is the centre — it imports nothing from React, the database, or
+    routes. That's why bid rules, money math, and event types are trivially unit-testable. If you
+    ever see <code>domain/</code> importing from <code>server/</code> or <code>routes/</code>,
+    something is upside-down.
+  </div>
+
+  <h2>The six layers in detail</h2>
+
+  <div class="layer">
+    <h3><i class="dot d-route"></i> 1 · Routes <span class="path">src/routes/</span></h3>
+    <p class="role">Both <em>pages</em> and <em>API endpoints</em>. The filename <strong>is</strong> the URL (TanStack Router file-based routing). Dots become slashes; <code>$param</code> is a path variable.</p>
+    <ul>
+      <li><span class="fname">__root.tsx</span> — the shell wrapping every page: <code>QueryClientProvider</code>, <code>&lt;Outlet/&gt;</code>, theme, <code>&lt;head&gt;</code>.</li>
+      <li><span class="fname">index.tsx</span> → <code>/</code> live dashboard · <span class="fname">admin.tsx</span> → <code>/admin</code> · <span class="fname">inventory.new.tsx</span> → <code>/inventory/new</code></li>
+      <li><span class="fname">auctions.$auctionId.tsx</span> → <code>/auctions/:id</code> (the page from Lesson 01).</li>
+      <li><span class="fname">api.auctions.$auctionId.events.ts</span> → the SSE stream · <span class="fname">api.simulate.ts</span> · <span class="fname">metrics.ts</span> → the <code>/metrics</code> endpoint.</li>
+    </ul>
+    <div class="callout warn">Pages vs APIs share this folder: a file exporting a <code>component</code> is a page; one whose route declares <code>server.handlers</code> (like the <code>api.*</code> files) is a raw HTTP endpoint. <code>routeTree.gen.ts</code> is generated from these — never hand-edit it.</div>
+  </div>
+
+  <div class="layer">
+    <h3><i class="dot d-ui"></i> 2 · Components <span class="path">src/components/</span></h3>
+    <p class="role">Reusable React UI. Currently focused on the admin dashboard, which is broken into one card per concern.</p>
+    <ul>
+      <li><span class="fname">admin/</span> — <code>auctions-card</code>, <code>bid-history-card</code>, <code>completed-sales-card</code>, <code>summary-cards</code>, <code>status-history-card</code>, filters, tabs…</li>
+      <li><span class="fname">admin/use-admin-mutations.ts</span> — a hook bundling the admin write actions (close, withdraw) — UI calling into server functions.</li>
+      <li><span class="fname">admin/types.ts</span> — view-model types shared across the admin cards.</li>
+    </ul>
+  </div>
+
+  <div class="layer">
+    <h3><i class="dot d-server"></i> 3 · Server <span class="path">src/server/</span></h3>
+    <p class="role">All business logic. Split by responsibility — and crucially split between <em>writes</em> (commands) and <em>reads</em> (queries).</p>
+    <ul>
+      <li><span class="fname">functions.ts</span> — the <strong>only</strong> client↔server bridge: every <code>createServerFn</code> lives here and delegates to a service.</li>
+      <li><span class="fname">auction-commands.ts</span> — writes: <code>createFishItem</code>, <code>createAuction</code>, <code>placeBid</code>, <code>closeAuction</code>, <code>withdraw…</code> (transactional).</li>
+      <li><span class="fname">auction-queries.ts</span> / <span class="fname">auction-admin-queries.ts</span> — reads: dashboard, auction detail, admin/statistics.</li>
+      <li><span class="fname">auction-lifecycle.ts</span> · <span class="fname">auction-clock.ts</span> — closing auctions &amp; auto-advancing expired ones.</li>
+      <li><span class="fname">row-locks.ts</span> (the <code>FOR UPDATE</code> helpers) · <span class="fname">bid-selection.ts</span> · <span class="fname">auction-audit.ts</span> (admin-action &amp; status-change logging) · <span class="fname">auction-mappers.ts</span> (row → view model).</li>
+      <li><span class="fname">auction-service.ts</span> — a barrel file that just re-exports the above (the public surface other code imports).</li>
+    </ul>
+    <div class="callout">Reads and writes are separated on purpose. When reviewing a <em>mutation</em>, open <code>auction-commands.ts</code>; for a <em>screen's data</em>, open the matching <code>*-queries.ts</code>.</div>
+  </div>
+
+  <div class="layer">
+    <h3><i class="dot d-domain"></i> 4 · Domain <span class="path">src/domain/</span></h3>
+    <p class="role">The pure heart: business rules, value conversions, shared types, validation. No database, no React. This is where the <code>.test.ts</code> files cluster.</p>
+    <ul>
+      <li><span class="fname">bid-rules.ts</span> — <code>evaluateBid()</code>, the accept/reject decision &amp; typed error codes.</li>
+      <li><span class="fname">events.ts</span> — auction event types + the in-process event bus (Lesson 01, step 6).</li>
+      <li><span class="fname">validation.ts</span> — the <strong>Zod schemas</strong> shared by server <em>and</em> UI (one source of truth for input shape).</li>
+      <li><span class="fname">money.ts</span> (cents math) · <span class="fname">weight.ts</span> (grams↔kg) — never floating-point money.</li>
+      <li><span class="fname">constants.ts</span> — the enums: species, statuses, roles, currency (NOK), demo-user IDs.</li>
+      <li><span class="fname">metrics.ts</span> · <span class="fname">metric-exposition.ts</span> · <span class="fname">logger.ts</span> — observability primitives.</li>
+    </ul>
+  </div>
+
+  <div class="layer">
+    <h3><i class="dot d-db"></i> 5 · Database <span class="path">src/db/</span></h3>
+    <p class="role">The Drizzle layer — schema is the source of truth that migrations are generated from.</p>
+    <ul>
+      <li><span class="fname">schema.ts</span> — tables (<code>users, fish_items, auctions, bids, sales</code>, plus <code>rejected_bids</code>, audit tables), enums, indexes, and relations.</li>
+      <li><span class="fname">client.ts</span> — the Postgres connection pool + Drizzle client (<code>db</code>), tagged <code>application_name=auction-app</code> for the metrics page.</li>
+    </ul>
+    <div class="callout">Enums in <code>schema.ts</code> are built from <code>domain/constants.ts</code> — so the database and the app literally can't disagree on valid species/statuses. <span class="pill">unfamiliar stack</span></div>
+  </div>
+
+  <div class="layer">
+    <h3><i class="dot d-infra"></i> 6 · Infra &amp; tooling <span class="path">theme/ · scripts/ · router.tsx</span></h3>
+    <p class="role">Everything supporting the app but not part of the bid path.</p>
+    <ul>
+      <li><span class="fname">router.tsx</span> — builds the router, creates the per-request <code>QueryClient</code>, wires <code>defaultPreload: "intent"</code>.</li>
+      <li><span class="fname">theme/</span> — cookie-backed light/dark theme (server reads the cookie, a tiny inline script avoids flash).</li>
+      <li><span class="fname">scripts/seed.ts</span> (→ <code>pnpm db:seed</code>) · <span class="fname">factories.ts</span> · <span class="fname">seed-data/</span> — deterministic demo data &amp; scenarios.</li>
+      <li><span class="fname">scripts/simulate.ts</span> (→ <code>pnpm simulate</code>) — the load generator.</li>
+    </ul>
+  </div>
+
+  <h2>Check yourself <span class="pill">2 min</span></h2>
+  <div class="quiz" id="quiz">
+    <h3>Where does it live? Click an answer for instant feedback.</h3>
+
+    <div class="q" data-correct="c">
+      <p class="qtext">1. You want to add a new fish species, <code>"plaice"</code>, so it's valid everywhere — DB enum, validation, and UI dropdown. Where's the single source you edit first?</p>
+      <button class="opt" data-k="a">src/db/schema.ts</button>
+      <button class="opt" data-k="b">src/routes/inventory.new.tsx</button>
+      <button class="opt" data-k="c">src/domain/constants.ts</button>
+      <div class="fb ok">✓ Correct. <code>FISH_SPECIES</code> in <code>constants.ts</code> feeds the DB enum, Zod, and the UI — change it there and regenerate the migration.</div>
+      <div class="fb no">Not the best entry point. <code>schema.ts</code> <em>derives</em> its enum from <code>domain/constants.ts</code>, and the UI reads it too. Edit <code>constants.ts</code> first.</div>
+    </div>
+
+    <div class="q" data-correct="b">
+      <p class="qtext">2. A reviewer asks "what query powers the admin statistics page?" Which folder do you open?</p>
+      <button class="opt" data-k="a">src/components/admin/</button>
+      <button class="opt" data-k="b">src/server/ (auction-admin-queries.ts)</button>
+      <button class="opt" data-k="c">src/domain/</button>
+      <div class="fb ok">✓ Right. Read models live in <code>server/*-queries.ts</code>; the admin cards in <code>components/</code> just render what those queries return.</div>
+      <div class="fb no">Close, but <code>components/admin/</code> only renders the data. The actual aggregate SQL is in <code>server/auction-admin-queries.ts</code>.</div>
+    </div>
+
+    <div class="q" data-correct="a">
+      <p class="qtext">3. Which statement matches the dependency rule?</p>
+      <button class="opt" data-k="a">domain/ imports nothing from server/, db/, or routes/</button>
+      <button class="opt" data-k="b">domain/ imports the db client to validate bids</button>
+      <button class="opt" data-k="c">routes/ may not import from server/</button>
+      <div class="fb ok">✓ Exactly. The domain is the pure centre; routes/components → server → domain/db, never the reverse.</div>
+      <div class="fb no">No. Dependencies flow inward: the domain is pure and imports nothing outward, while routes <em>do</em> call server functions.</div>
+    </div>
+
+    <div class="q" data-correct="c">
+      <p class="qtext">4. You see <code>routeTree.gen.ts</code> in a diff. What should you do?</p>
+      <button class="opt" data-k="a">Carefully review the hand-written logic in it</button>
+      <button class="opt" data-k="b">Move it into src/server/</button>
+      <button class="opt" data-k="c">Treat it as generated — it changes when route files change, don't hand-edit</button>
+      <div class="fb ok">✓ Correct. It's auto-generated from the files in <code>routes/</code>. You edit route files; this regenerates.</div>
+      <div class="fb no">It's machine-generated from <code>routes/</code>. Don't edit it by hand or move it — just let route-file changes regenerate it.</div>
+    </div>
+
+    <p id="score" style="font-weight:600;margin-top:1rem;"></p>
+  </div>
+
+  <div class="ask">
+    💬 <strong>Ask your teacher.</strong> Want the same map as a printable one-pager, or a tour of
+    one specific folder (the admin cards, the queries, the theme system)? Say so and we'll go there.
+  </div>
+
+  <h2>Sources &amp; go deeper</h2>
+  <ul class="cites">
+    <li>Folders &amp; files above are the actual contents of <code>src/</code> in this repo (verified this session).</li>
+    <li>TanStack Router file-based routing — <a href="https://tanstack.com/router/latest/docs/framework/react/routing/file-based-routing">tanstack.com/router</a></li>
+    <li>Drizzle schema overview — <a href="https://orm.drizzle.team/docs/overview">orm.drizzle.team</a></li>
+    <li>This repo's decision log — <code>documentation/auction-project-decisions.html</code></li>
+  </ul>
+
+  <footer class="next">
+    <strong>Next up (Lesson 03):</strong> <em>The database schema &amp; the Drizzle layer</em> — read
+    <code>db/schema.ts</code> table by table (why grams &amp; cents are integers, why <code>rejected_bids</code>
+    and audit tables exist, how indexes back the stats). A great fit since Drizzle/SQL are on your
+    "less familiar" list. Say <strong>"next"</strong>, or pick another target.
+  </footer>
+
+</div>
+
+<script>
+  document.querySelectorAll('#quiz .q').forEach(function (q) {
+    var correct = q.getAttribute('data-correct');
+    var answered = false;
+    q.querySelectorAll('.opt').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (answered) return;
+        answered = true;
+        var chosen = btn.getAttribute('data-k');
+        if (chosen === correct) { btn.classList.add('correct'); q.querySelector('.fb.ok').classList.add('show'); }
+        else { btn.classList.add('wrong'); q.querySelector('.fb.no').classList.add('show'); q.querySelector('.opt[data-k="' + correct + '"]').classList.add('correct'); }
+        updateScore();
+      });
+    });
+  });
+  function updateScore() {
+    var qs = document.querySelectorAll('#quiz .q'); var done = 0, right = 0;
+    qs.forEach(function (q) {
+      var ok = q.querySelector('.fb.ok.show'), no = q.querySelector('.fb.no.show');
+      if (ok || no) done++; if (ok) right++;
+    });
+    var el = document.getElementById('score');
+    if (done === qs.length) {
+      el.textContent = 'Score: ' + right + ' / ' + qs.length +
+        (right === qs.length ? ' 🎉 You can place any file in the map. Say "next" for Lesson 03.'
+                             : ' — re-skim the layer above for any you missed, or ask me.');
+    } else { el.textContent = 'Answered ' + done + ' / ' + qs.length; }
+  }
+</script>
+</body>
+</html>

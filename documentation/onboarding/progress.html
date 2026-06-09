@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fish Auction — Onboarding Progress</title>
+<style>
+  :root { --ink:#1c2433; --muted:#5b6678; --line:#e4e8f0; --bg:#f6f8fc; --accent:#1f6feb; --accent-2:#0a7c5a; --done:#0a7c5a; --next:#c79100; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+  header.hero { border-left: 5px solid var(--accent); padding: 0.4rem 0 0.4rem 1.1rem; margin-bottom: 1.5rem; }
+  .kicker { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; font-weight: 700; color: var(--accent); margin: 0 0 0.4rem; }
+  h1 { font-size: 2rem; line-height: 1.15; margin: 0 0 0.4rem; }
+  .sub { color: var(--muted); font-size: 1.05rem; margin: 0; }
+  .progress-wrap { margin: 1.5rem 0 0.5rem; }
+  .bar { height: 0.85rem; border-radius: 999px; background: #e4e8f0; overflow: hidden; }
+  .bar > div { height: 100%; width: 50%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); border-radius: inherit; }
+  .progress-label { font-size: 0.85rem; color: var(--muted); margin-top: 0.4rem; }
+  h2 { margin: 2.2rem 0 0.8rem; font-size: 1.25rem; padding-bottom: 0.3rem; border-bottom: 2px solid var(--line); }
+  .mission { background:#eef4ff; border:1px solid #d4e3ff; border-radius:10px; padding:1rem 1.15rem; font-size:0.95rem; }
+  .mission strong { color: var(--accent); }
+  ul.lessons { list-style: none; padding: 0; margin: 0; }
+  ul.lessons li { display:flex; align-items:flex-start; gap:0.9rem; background:#fff; border:1px solid var(--line); border-radius:12px; padding:0.9rem 1.1rem; margin:0.6rem 0; }
+  .badge { flex:0 0 auto; width:2rem; height:2rem; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem; color:#fff; }
+  .badge.done { background: var(--done); }
+  .badge.next { background: var(--next); }
+  .badge.todo { background: #aab4c4; }
+  .l-body { flex:1; min-width:0; }
+  .l-title { font-weight:700; margin:0; }
+  .l-title a { color: var(--ink); text-decoration: none; }
+  .l-title a:hover { color: var(--accent); text-decoration: underline; }
+  .l-desc { color: var(--muted); font-size:0.88rem; margin:0.15rem 0 0; }
+  .l-status { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; padding:0.12rem 0.5rem; border-radius:999px; white-space:nowrap; align-self:center; }
+  .s-done { background:#e7f7ef; color:var(--done); }
+  .s-next { background:#fff7e0; color:#8a6d00; }
+  .s-todo { background:#eef1f6; color:var(--muted); }
+  .ref { background:#fff; border:1px solid var(--line); border-radius:12px; padding:0.9rem 1.1rem; margin:0.6rem 0; }
+  .ref a { color: var(--accent-2); font-weight:600; text-decoration:none; }
+  .ref a:hover { text-decoration:underline; }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; background:#eef1f6; padding:0.08rem 0.32rem; border-radius:4px; font-size:0.85em; }
+  .resume { background:#fff7e6; border:1px solid #ffe2a8; border-radius:10px; padding:0.9rem 1.1rem; font-size:0.95rem; margin-top:0.6rem; }
+  .files { font-size:0.82rem; color:var(--muted); }
+  .files li { margin:0.2rem 0; }
+  .files code { font-size:0.8rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <p class="kicker">🐟 Fish Auction House · Onboarding</p>
+    <h1>Your Learning Progress</h1>
+    <p class="sub">Self-paced lessons that teach this codebase through its real files. Say "next" in chat to advance.</p>
+  </header>
+
+  <div class="progress-wrap">
+    <div class="bar"><div></div></div>
+    <p class="progress-label"><strong>4 of 8</strong> planned lessons delivered · orientation arc complete · core stack + real-time/admin/scripts remaining</p>
+  </div>
+
+  <div class="mission">
+    <strong>Mission:</strong> Understand and confidently navigate the auction codebase you built with AI —
+    enough to read and review any part, with extra focus on the less-familiar stack
+    (TanStack Start/Router, Drizzle, Zod, SSE, SQL). Depth target: <em>orientation</em>.
+    <br /><span class="files">Full mission in <code>MISSION.md</code>.</span>
+  </div>
+
+  <h2>Lessons</h2>
+  <ul class="lessons">
+    <li>
+      <div class="badge done">✓</div>
+      <div class="l-body">
+        <p class="l-title"><a href="lessons/0001-the-bid-lifecycle-tour.html">01 · The Life of a Bid</a></p>
+        <p class="l-desc">One bid end-to-end: route → server fn → Zod → DB tx + row lock → evaluateBid → event bus → SSE → query cache.</p>
+      </div>
+      <span class="l-status s-done">Delivered</span>
+    </li>
+    <li>
+      <div class="badge done">✓</div>
+      <div class="l-body">
+        <p class="l-title"><a href="lessons/0002-the-map-of-src.html">02 · The Map of src/</a></p>
+        <p class="l-desc">Six layers (Routes · Components · Server · Domain · DB · Infra) and the one inward-dependency rule.</p>
+      </div>
+      <span class="l-status s-done">Delivered</span>
+    </li>
+    <li>
+      <div class="badge done">✓</div>
+      <div class="l-body">
+        <p class="l-title"><a href="lessons/0003-the-database-schema.html">03 · The Database Schema</a></p>
+        <p class="l-desc">8 Drizzle tables, column grammar, and 4 decisions: integer money, shared enums, append-only audit, unique sale.</p>
+      </div>
+      <span class="l-status s-done">Delivered</span>
+    </li>
+    <li>
+      <div class="badge done">✓</div>
+      <div class="l-body">
+        <p class="l-title"><a href="lessons/0004-routing-and-server-functions.html">04 · Routing &amp; Server Functions</a></p>
+        <p class="l-desc">Filename→URL, page vs API route, and server functions as typed RPC across the client/server boundary.</p>
+      </div>
+      <span class="l-status s-done">Delivered</span>
+    </li>
+    <li>
+      <div class="badge next">5</div>
+      <div class="l-body">
+        <p class="l-title">05 · The Real-Time Layer Up Close</p>
+        <p class="l-desc">Event bus internals, per-user <code>bid.rejected</code> filtering, SSE wire format, patch-vs-invalidate on the client.</p>
+      </div>
+      <span class="l-status s-next">Up next</span>
+    </li>
+    <li>
+      <div class="badge todo">6</div>
+      <div class="l-body">
+        <p class="l-title">06 · Admin Statistics Queries</p>
+        <p class="l-desc">Aggregate SQL in depth: total sales, average bid, most popular species — and the indexes behind them.</p>
+      </div>
+      <span class="l-status s-todo">Planned</span>
+    </li>
+    <li>
+      <div class="badge todo">7</div>
+      <div class="l-body">
+        <p class="l-title">07 · Seed &amp; Simulator Scripts</p>
+        <p class="l-desc">Deterministic demo data and the load generator that drives the metrics page.</p>
+      </div>
+      <span class="l-status s-todo">Planned</span>
+    </li>
+    <li>
+      <div class="badge todo">8</div>
+      <div class="l-body">
+        <p class="l-title">08 · Zod-Shared Validation</p>
+        <p class="l-desc">One schema for the inventory form and the server — no duplicated validation.</p>
+      </div>
+      <span class="l-status s-todo">Planned</span>
+    </li>
+  </ul>
+
+  <h2>Reference (return to these)</h2>
+  <div class="ref">
+    📌 <a href="reference/codebase-map-and-glossary.html">Codebase Map &amp; Glossary</a>
+    — printable file map, domain glossary, bid error codes, and key commands. The canonical vocabulary
+    used across all lessons.
+  </div>
+
+  <h2>Resume later</h2>
+  <div class="resume">
+    Everything is saved on disk in <code>documentation/onboarding/</code>. To pick up where you left off,
+    open this page or just tell the agent <strong>"next"</strong> for Lesson 05. The agent reads its own
+    state from <code>NOTES.md</code> (session-state block), <code>MISSION.md</code>, and
+    <code>learning-records/</code>.
+  </div>
+
+  <h2>Workspace files</h2>
+  <ul class="files">
+    <li><code>MISSION.md</code> — why you're learning this (the compass).</li>
+    <li><code>NOTES.md</code> — preferences + the resumable session-state block.</li>
+    <li><code>RESOURCES.md</code> — trusted internal &amp; external references.</li>
+    <li><code>learning-records/</code> — durable insights (currently: prior-knowledge baseline).</li>
+    <li><code>lessons/</code> — the HTML lessons above.</li>
+    <li><code>reference/</code> — quick-reference cheat sheets.</li>
+  </ul>
+
+</div>
+</body>
+</html>
