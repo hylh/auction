@@ -41,53 +41,9 @@ export function validateForm(values: InventoryFormState): ValidationResult {
   if (!parsedFish.success) {
     Object.assign(fieldErrors, flattenFieldErrors(parsedFish.error.flatten().fieldErrors));
   }
+  applyMoneyOverrides(values, fieldErrors);
 
-  try {
-    gramsFromKilograms(values.weightKilograms);
-  } catch (error) {
-    fieldErrors.weightKilograms = error instanceof Error ? error.message : "Invalid weight";
-  }
-
-  try {
-    centsFromMajor(values.startingPriceMajor);
-  } catch (error) {
-    fieldErrors.startingPriceMajor =
-      error instanceof Error ? error.message : "Invalid starting price";
-  }
-
-  let auctionInput: AuctionInput | null = null;
-
-  if (values.createAuction) {
-    let minimumIncrementCents = 0;
-    try {
-      minimumIncrementCents = centsFromMajor(values.minimumIncrementMajor);
-    } catch (error) {
-      fieldErrors.minimumIncrementMajor =
-        error instanceof Error ? error.message : "Invalid minimum increment";
-    }
-
-    const auctionCandidate = {
-      fishItemId: dummyFishItemId,
-      adminUserId: DEMO_USERS.admin,
-      startsAt: values.startsAt,
-      endsAt: values.endsAt,
-      minimumIncrementCents,
-    };
-    const parsedAuction = auctionInputSchema.safeParse(auctionCandidate);
-    if (!parsedAuction.success) {
-      const auctionErrors = flattenFieldErrors(parsedAuction.error.flatten().fieldErrors);
-      Object.assign(fieldErrors, auctionErrors);
-      const incrementError = (auctionErrors as Record<string, string | undefined>)
-        .minimumIncrementCents;
-      if (incrementError) {
-        fieldErrors.minimumIncrementMajor = incrementError;
-      }
-    }
-    if (new Date(values.endsAt) <= new Date()) {
-      fieldErrors.endsAt = "Auction end time must be in the future";
-    }
-    auctionInput = auctionCandidate;
-  }
+  const auctionInput = values.createAuction ? buildAuctionInput(values, fieldErrors) : null;
 
   if (Object.keys(fieldErrors).length > 0 || !parsedFish.success) {
     return { ok: false, fieldErrors };
@@ -101,9 +57,80 @@ export function validateForm(values: InventoryFormState): ValidationResult {
   };
 }
 
-export function flattenFieldErrors(
-  errors: Record<string, Array<string> | undefined>,
-): FieldErrors {
+/** Run a parser purely for its thrown message, recording it under `field`. */
+function recordParseError(
+  fieldErrors: FieldErrors,
+  field: keyof FieldErrors,
+  parse: () => void,
+  fallback: string,
+) {
+  try {
+    parse();
+  } catch (error) {
+    fieldErrors[field] = error instanceof Error ? error.message : fallback;
+  }
+}
+
+/** Replace the schema's generic messages with the friendly money/weight ones. */
+function applyMoneyOverrides(values: InventoryFormState, fieldErrors: FieldErrors) {
+  recordParseError(
+    fieldErrors,
+    "weightKilograms",
+    () => gramsFromKilograms(values.weightKilograms),
+    "Invalid weight",
+  );
+  recordParseError(
+    fieldErrors,
+    "startingPriceMajor",
+    () => centsFromMajor(values.startingPriceMajor),
+    "Invalid starting price",
+  );
+}
+
+function buildAuctionInput(values: InventoryFormState, fieldErrors: FieldErrors): AuctionInput {
+  let minimumIncrementCents = 0;
+  recordParseError(
+    fieldErrors,
+    "minimumIncrementMajor",
+    () => {
+      minimumIncrementCents = centsFromMajor(values.minimumIncrementMajor);
+    },
+    "Invalid minimum increment",
+  );
+
+  const auctionCandidate: AuctionInput = {
+    fishItemId: dummyFishItemId,
+    adminUserId: DEMO_USERS.admin,
+    startsAt: values.startsAt,
+    endsAt: values.endsAt,
+    minimumIncrementCents,
+  };
+
+  const parsedAuction = auctionInputSchema.safeParse(auctionCandidate);
+  if (!parsedAuction.success) {
+    applyAuctionSchemaErrors(parsedAuction.error.flatten().fieldErrors, fieldErrors);
+  }
+  if (new Date(values.endsAt) <= new Date()) {
+    fieldErrors.endsAt = "Auction end time must be in the future";
+  }
+  return auctionCandidate;
+}
+
+/** Map auction-schema errors onto form fields, keeping the friendly increment key. */
+function applyAuctionSchemaErrors(
+  schemaFieldErrors: Record<string, Array<string> | undefined>,
+  fieldErrors: FieldErrors,
+) {
+  const auctionErrors = flattenFieldErrors(schemaFieldErrors);
+  Object.assign(fieldErrors, auctionErrors);
+  const incrementError = (auctionErrors as Record<string, string | undefined>)
+    .minimumIncrementCents;
+  if (incrementError) {
+    fieldErrors.minimumIncrementMajor = incrementError;
+  }
+}
+
+function flattenFieldErrors(errors: Record<string, Array<string> | undefined>): FieldErrors {
   return Object.fromEntries(
     Object.entries(errors)
       .filter(([, messages]) => messages?.[0])

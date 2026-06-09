@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Database Audit Check</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f8fb;
+        --card: #ffffff;
+        --text: #172033;
+        --muted: #536173;
+        --border: #d9e0ea;
+        --accent: #0f766e;
+        --accent-soft: #d9f7f3;
+        --warning: #92400e;
+        --warning-soft: #fff7ed;
+        --code: #eef2f7;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #101623;
+          --card: #172033;
+          --text: #edf2f7;
+          --muted: #a9b6c7;
+          --border: #2a3547;
+          --accent: #5eead4;
+          --accent-soft: #123f3a;
+          --warning: #fdba74;
+          --warning-soft: #422006;
+          --code: #202b3b;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        line-height: 1.6;
+      }
+
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 48px 24px;
+      }
+
+      header,
+      section {
+        margin-bottom: 28px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.2;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2rem, 5vw, 3.25rem);
+      }
+
+      h2 {
+        margin: 0 0 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      h3 {
+        margin: 24px 0 8px;
+      }
+
+      p {
+        margin: 0 0 16px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--card);
+      }
+
+      th,
+      td {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--accent-soft);
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      code,
+      pre {
+        background: var(--code);
+        border-radius: 8px;
+      }
+
+      code {
+        padding: 0.1rem 0.3rem;
+      }
+
+      pre {
+        overflow-x: auto;
+        padding: 16px;
+      }
+
+      pre code {
+        padding: 0;
+        background: transparent;
+      }
+
+      .card {
+        padding: 20px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--card);
+      }
+
+      .callout {
+        padding: 16px;
+        border: 1px solid var(--warning);
+        border-radius: 14px;
+        background: var(--warning-soft);
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="muted">Security audit follow-up</p>
+        <h1>Database audit check</h1>
+        <p>
+          This page documents the database hardening steps identified during the audit: adding
+          PostgreSQL constraints for core auction invariants and splitting migration privileges from
+          application runtime privileges.
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>1. Add database constraints for core invariants</h2>
+        <p>
+          Application validation already protects normal UI and server-function flows, but database
+          constraints make the invariants durable. They prevent bad data from direct SQL scripts,
+          future imports, skipped validation paths, or application bugs.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Table</th>
+              <th>Constraint</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>fish_items</code></td>
+              <td><code>weight_grams &gt; 0</code></td>
+              <td>Prevents impossible inventory weights.</td>
+            </tr>
+            <tr>
+              <td><code>fish_items</code></td>
+              <td><code>starting_price_cents &gt; 0</code></td>
+              <td>Prevents free or negative starting prices.</td>
+            </tr>
+            <tr>
+              <td><code>fish_items</code>, <code>sales</code></td>
+              <td><code>currency = 'NOK'</code></td>
+              <td>Enforces the current single-currency decision.</td>
+            </tr>
+            <tr>
+              <td><code>auctions</code></td>
+              <td><code>starts_at &lt; ends_at</code></td>
+              <td>Prevents invalid auction windows.</td>
+            </tr>
+            <tr>
+              <td><code>auctions</code></td>
+              <td><code>minimum_increment_cents &gt; 0</code></td>
+              <td>Prevents zero or negative bid increments.</td>
+            </tr>
+            <tr>
+              <td><code>bids</code>, <code>rejected_bids</code>, <code>sales</code></td>
+              <td><code>amount_cents &gt; 0</code></td>
+              <td>Keeps bid and sale records financially valid.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Example migration SQL</h3>
+        <pre><code>ALTER TABLE fish_items
+  ADD CONSTRAINT fish_items_weight_positive CHECK (weight_grams &gt; 0),
+  ADD CONSTRAINT fish_items_starting_price_positive CHECK (starting_price_cents &gt; 0),
+  ADD CONSTRAINT fish_items_currency_nok CHECK (currency = 'NOK');
+
+ALTER TABLE auctions
+  ADD CONSTRAINT auctions_window_valid CHECK (starts_at &lt; ends_at),
+  ADD CONSTRAINT auctions_minimum_increment_positive CHECK (minimum_increment_cents &gt; 0);
+
+ALTER TABLE bids
+  ADD CONSTRAINT bids_amount_positive CHECK (amount_cents &gt; 0);
+
+ALTER TABLE rejected_bids
+  ADD CONSTRAINT rejected_bids_amount_positive CHECK (amount_cents &gt; 0);
+
+ALTER TABLE sales
+  ADD CONSTRAINT sales_amount_positive CHECK (amount_cents &gt; 0),
+  ADD CONSTRAINT sales_currency_nok CHECK (currency = 'NOK');</code></pre>
+
+        <div class="callout">
+          Add constraints through Drizzle migrations and check existing seed/demo data before
+          applying them. If old rows violate a constraint, clean the data first rather than adding a
+          looser rule.
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>2. Split migration and runtime database roles</h2>
+        <p>
+          The application should not run with the same PostgreSQL role that owns the schema and
+          applies migrations. A compromised app process should not be able to drop tables, alter
+          constraints, create privileged functions, or grant itself access.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Permissions</th>
+              <th>Used by</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>auction_migrator</code></td>
+              <td>Owns schema objects and can create, alter, drop, and migrate database objects.</td>
+              <td>Drizzle Kit migration commands and CI/deploy migration step.</td>
+            </tr>
+            <tr>
+              <td><code>auction_app</code></td>
+              <td>
+                Can connect, use the public schema, and perform only required
+                <code>SELECT</code>, <code>INSERT</code>, and <code>UPDATE</code> operations.
+              </td>
+              <td>The TanStack Start application at runtime.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Example role setup SQL</h3>
+        <pre><code>CREATE ROLE auction_migrator LOGIN PASSWORD 'replace-with-secret';
+CREATE ROLE auction_app LOGIN PASSWORD 'replace-with-secret';
+
+GRANT CONNECT ON DATABASE auction TO auction_app;
+GRANT USAGE ON SCHEMA public TO auction_app;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO auction_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO auction_app;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE ON TABLES TO auction_app;</code></pre>
+
+        <p>
+          Use the app role in the runtime <code>DATABASE_URL</code>. Use a separate migration-only
+          URL for Drizzle Kit, local migration commands, and deployment automation.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Implementation checklist</h2>
+        <ol>
+          <li>Generate a Drizzle migration for the new constraints.</li>
+          <li>Run the migration against local seed data and fix any invalid rows before merging.</li>
+          <li>Create separate PostgreSQL roles for migration and runtime access.</li>
+          <li>Update local and deployment environment variables to use the correct role per task.</li>
+          <li>Confirm the app role cannot run DDL such as <code>ALTER TABLE</code> or <code>DROP TABLE</code>.</li>
+          <li>Keep future migrations owned by the migration role, not the runtime app role.</li>
+        </ol>
+      </section>
+    </main>
+  </body>
+</html>

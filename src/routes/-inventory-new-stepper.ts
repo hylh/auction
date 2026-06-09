@@ -53,24 +53,49 @@ export function canAdvance(step: Step, fieldErrors: StepFieldErrors): boolean {
   return STEP_FIELDS[step].every((f) => !fieldErrors[f]);
 }
 
+const DUMMY_FISH_ITEM_ID = "00000000-0000-4000-8000-000000000099";
+
 /**
  * Validate only the fields that belong to `step`.
  * Reuses the shared Zod schemas and mirrors the friendly-message overrides
  * from the route's validateForm so behaviour is consistent.
  */
 export function validateStep(step: Step, values: StepValues): StepFieldErrors {
+  if (step === 1) return validateFishDetailsStep(values);
+  if (step === 2) return validatePricingStep(values);
+  if (step === 3) return validateAuctionStep(values);
+  return {};
+}
+
+/** Copy the first message of each Zod field error into the target map. */
+function collectZodFieldErrors(
+  fieldErrors: Record<string, Array<string> | undefined>,
+  target: StepFieldErrors,
+) {
+  for (const [field, messages] of Object.entries(fieldErrors)) {
+    if (messages?.[0]) target[field] = messages[0];
+  }
+}
+
+/** Run a parser purely for its thrown message, recording it under `field`. */
+function recordParseError(
+  errors: StepFieldErrors,
+  field: string,
+  parse: () => void,
+  fallback: string,
+) {
+  try {
+    parse();
+  } catch (e) {
+    errors[field] = e instanceof Error ? e.message : fallback;
+  }
+}
+
+function validateFishDetailsStep(values: StepValues): StepFieldErrors {
   const errors: StepFieldErrors = {};
-
-  if (step === 1) {
-    const step1Schema = fishInputSchema.pick({
-      species: true,
-      displayName: true,
-      weightKilograms: true,
-      catchRegion: true,
-      grade: true,
-    });
-
-    const result = step1Schema.safeParse({
+  const result = fishInputSchema
+    .pick({ species: true, displayName: true, weightKilograms: true, catchRegion: true, grade: true })
+    .safeParse({
       species: values.species,
       displayName: values.displayName,
       weightKilograms: values.weightKilograms,
@@ -78,79 +103,76 @@ export function validateStep(step: Step, values: StepValues): StepFieldErrors {
       grade: values.grade,
     });
 
-    if (!result.success) {
-      for (const [field, messages] of Object.entries(result.error.flatten().fieldErrors)) {
-        if (messages?.[0]) errors[field] = messages[0];
-      }
-    }
+  if (!result.success) collectZodFieldErrors(result.error.flatten().fieldErrors, errors);
+  recordParseError(
+    errors,
+    "weightKilograms",
+    () => gramsFromKilograms(values.weightKilograms),
+    "Invalid weight",
+  );
+  return errors;
+}
 
-    // Mirror the friendly override from validateForm.
-    try {
-      gramsFromKilograms(values.weightKilograms);
-    } catch (e) {
-      errors.weightKilograms = e instanceof Error ? e.message : "Invalid weight";
-    }
-  }
-
-  if (step === 2) {
-    const step2Schema = fishInputSchema.pick({
-      startingPriceMajor: true,
-      sellerId: true,
-      description: true,
-      imageUrl: true,
-    });
-
-    const result = step2Schema.safeParse({
+function validatePricingStep(values: StepValues): StepFieldErrors {
+  const errors: StepFieldErrors = {};
+  const result = fishInputSchema
+    .pick({ startingPriceMajor: true, sellerId: true, description: true, imageUrl: true })
+    .safeParse({
       startingPriceMajor: values.startingPriceMajor,
       sellerId: values.sellerId,
       description: values.description,
       imageUrl: values.imageUrl,
     });
 
-    if (!result.success) {
-      for (const [field, messages] of Object.entries(result.error.flatten().fieldErrors)) {
-        if (messages?.[0]) errors[field] = messages[0];
-      }
-    }
-
-    // Mirror the friendly override from validateForm.
-    try {
-      centsFromMajor(values.startingPriceMajor);
-    } catch (e) {
-      errors.startingPriceMajor = e instanceof Error ? e.message : "Invalid starting price";
-    }
-  }
-
-  if (step === 3 && values.createAuction) {
-    let minimumIncrementCents = 0;
-    try {
-      minimumIncrementCents = centsFromMajor(values.minimumIncrementMajor);
-    } catch (e) {
-      errors.minimumIncrementMajor = e instanceof Error ? e.message : "Invalid minimum increment";
-    }
-
-    const dummyFishItemId = "00000000-0000-4000-8000-000000000099";
-    const result = auctionInputSchema.safeParse({
-      fishItemId: dummyFishItemId,
-      adminUserId: DEMO_USERS.admin,
-      startsAt: values.startsAt,
-      endsAt: values.endsAt,
-      minimumIncrementCents,
-    });
-
-    if (!result.success) {
-      const fe = result.error.flatten().fieldErrors;
-      if (fe.startsAt?.[0]) errors.startsAt = fe.startsAt[0];
-      if (fe.endsAt?.[0]) errors.endsAt = fe.endsAt[0];
-      if (fe.minimumIncrementCents?.[0] && !errors.minimumIncrementMajor) {
-        errors.minimumIncrementMajor = fe.minimumIncrementCents[0];
-      }
-    }
-
-    if (values.endsAt && new Date(values.endsAt) <= new Date()) {
-      errors.endsAt = "Auction end time must be in the future";
-    }
-  }
-
+  if (!result.success) collectZodFieldErrors(result.error.flatten().fieldErrors, errors);
+  recordParseError(
+    errors,
+    "startingPriceMajor",
+    () => centsFromMajor(values.startingPriceMajor),
+    "Invalid starting price",
+  );
   return errors;
+}
+
+function validateAuctionStep(values: StepValues): StepFieldErrors {
+  if (!values.createAuction) return {};
+
+  const errors: StepFieldErrors = {};
+  let minimumIncrementCents = 0;
+  recordParseError(
+    errors,
+    "minimumIncrementMajor",
+    () => {
+      minimumIncrementCents = centsFromMajor(values.minimumIncrementMajor);
+    },
+    "Invalid minimum increment",
+  );
+
+  const result = auctionInputSchema.safeParse({
+    fishItemId: DUMMY_FISH_ITEM_ID,
+    adminUserId: DEMO_USERS.admin,
+    startsAt: values.startsAt,
+    endsAt: values.endsAt,
+    minimumIncrementCents,
+  });
+  if (!result.success) {
+    mapAuctionFieldErrors(result.error.flatten().fieldErrors, errors);
+  }
+
+  if (values.endsAt && new Date(values.endsAt) <= new Date()) {
+    errors.endsAt = "Auction end time must be in the future";
+  }
+  return errors;
+}
+
+/** Map auction-schema errors onto step field keys, keeping friendly overrides. */
+function mapAuctionFieldErrors(
+  fe: Record<string, Array<string> | undefined>,
+  errors: StepFieldErrors,
+) {
+  if (fe.startsAt?.[0]) errors.startsAt = fe.startsAt[0];
+  if (fe.endsAt?.[0]) errors.endsAt = fe.endsAt[0];
+  if (fe.minimumIncrementCents?.[0] && !errors.minimumIncrementMajor) {
+    errors.minimumIncrementMajor = fe.minimumIncrementCents[0];
+  }
 }
