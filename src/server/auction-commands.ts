@@ -2,7 +2,7 @@ import { trace } from "@opentelemetry/api";
 import { eq } from "drizzle-orm";
 import { db } from "../db/client";
 import { auctions, bids, fishItems, rejectedBids, users } from "../db/schema";
-import { evaluateBid } from "../domain/bid-rules";
+import { evaluateBid, type BidRuleResult } from "../domain/bid-rules";
 import {
   bidAcceptedEvent,
   bidRejectedEvent,
@@ -30,6 +30,11 @@ import { lockAuctionRow, lockFishItemRow } from "./row-locks";
 import type { AuctionSummary, CloseAuctionResult, PlaceBidResult } from "./auction-types";
 
 const tracer = trace.getTracer("fish-auction");
+
+type AuctionCommandTx = Parameters<typeof lockAuctionRow>[0];
+type AuctionInputData = ReturnType<(typeof auctionInputSchema)["parse"]>;
+type BidInputData = ReturnType<(typeof bidInputSchema)["parse"]>;
+type RejectedBidDecision = Extract<BidRuleResult, { ok: false }>;
 
 export async function createFishItem(input: unknown) {
   const data = fishInputSchema.parse(input);
@@ -82,53 +87,12 @@ export async function createAuction(input: unknown): Promise<AuctionSummary> {
   const createdAuction = await db.transaction(async (tx) => {
     await assertAdminUser(tx, data.adminUserId, "Only admins can create auctions");
 
-    await lockFishItemRow(tx, data.fishItemId);
-
-    const fish = await tx.query.fishItems.findFirst({
-      where: eq(fishItems.id, data.fishItemId),
-      with: {
-        seller: true,
-      },
-    });
-    if (!fish) {
-      throw new Error(`Fish item ${data.fishItemId} was not found`);
-    }
-    if (fish.status !== "listed") {
-      throw new Error("Only listed fish inventory can be auctioned");
-    }
-
+    const fish = await loadAuctionableFish(tx, data.fishItemId);
     const initialStatus = data.startsAt <= now && now < data.endsAt ? "active" : "scheduled";
-    const [auction] = await tx
-      .insert(auctions)
-      .values({
-        fishItemId: fish.id,
-        status: initialStatus,
-        startsAt: data.startsAt,
-        endsAt: data.endsAt,
-        minimumIncrementCents: data.minimumIncrementCents,
-      })
-      .returning();
+    const auction = await insertAuctionRecord(tx, data, fish.id, initialStatus);
 
-    await tx
-      .update(fishItems)
-      .set({ status: "in_auction", updatedAt: now })
-      .where(eq(fishItems.id, fish.id));
-
-    await recordInventoryStatusChange(tx, {
-      fishItemId: fish.id,
-      auctionId: auction.id,
-      fromStatus: fish.status,
-      toStatus: "in_auction",
-      changedByUserId: data.adminUserId,
-      reason: "Auction created from listed inventory",
-    });
-    await recordAdminAction(tx, {
-      adminUserId: data.adminUserId,
-      action: "create_auction",
-      auctionId: auction.id,
-      fishItemId: fish.id,
-      reason: "Auction created from listed inventory",
-    });
+    await markFishInAuction(tx, fish.id, now);
+    await recordAuctionCreationAudit(tx, data, fish.id, fish.status, auction.id);
 
     return {
       id: auction.id,
@@ -151,6 +115,77 @@ export async function createAuction(input: unknown): Promise<AuctionSummary> {
   return createdAuction;
 }
 
+async function loadAuctionableFish(tx: AuctionCommandTx, fishItemId: string) {
+  await lockFishItemRow(tx, fishItemId);
+
+  const fish = await tx.query.fishItems.findFirst({
+    where: eq(fishItems.id, fishItemId),
+    with: {
+      seller: true,
+    },
+  });
+
+  if (!fish) {
+    throw new Error(`Fish item ${fishItemId} was not found`);
+  }
+  if (fish.status !== "listed") {
+    throw new Error("Only listed fish inventory can be auctioned");
+  }
+
+  return fish;
+}
+
+async function insertAuctionRecord(
+  tx: AuctionCommandTx,
+  data: AuctionInputData,
+  fishItemId: string,
+  initialStatus: "active" | "scheduled",
+) {
+  const [auction] = await tx
+    .insert(auctions)
+    .values({
+      fishItemId,
+      status: initialStatus,
+      startsAt: data.startsAt,
+      endsAt: data.endsAt,
+      minimumIncrementCents: data.minimumIncrementCents,
+    })
+    .returning();
+
+  return auction;
+}
+
+async function markFishInAuction(tx: AuctionCommandTx, fishItemId: string, now: Date) {
+  await tx
+    .update(fishItems)
+    .set({ status: "in_auction", updatedAt: now })
+    .where(eq(fishItems.id, fishItemId));
+}
+
+async function recordAuctionCreationAudit(
+  tx: AuctionCommandTx,
+  data: AuctionInputData,
+  fishItemId: string,
+  fromStatus: "listed",
+  auctionId: string,
+) {
+  await recordInventoryStatusChange(tx, {
+    fishItemId,
+    auctionId,
+    fromStatus,
+    toStatus: "in_auction",
+    changedByUserId: data.adminUserId,
+    reason: "Auction created from listed inventory",
+  });
+  await recordAdminAction(tx, {
+    adminUserId: data.adminUserId,
+    action: "create_auction",
+    auctionId,
+    fishItemId,
+    reason: "Auction created from listed inventory",
+  });
+}
+
 export async function placeBid(input: unknown): Promise<PlaceBidResult> {
   const data = bidInputSchema.parse(input);
   await advanceAuctionLifecycle();
@@ -162,93 +197,129 @@ export async function placeBid(input: unknown): Promise<PlaceBidResult> {
     span.setAttribute("bid.amount_cents", data.amountCents);
 
     try {
-      return await db.transaction(async (tx) => {
-        await lockAuctionRow(tx, data.auctionId);
-
-        const auction = await tx.query.auctions.findFirst({
-          where: eq(auctions.id, data.auctionId),
-          with: {
-            fishItem: {
-              with: {
-                seller: true,
-              },
-            },
-          },
-        });
-
-        if (!auction) {
-          throw new Error(`Auction ${data.auctionId} was not found`);
-        }
-
-        const currentHighestBid = await findHighestBidWithBidder(tx, data.auctionId);
-
-        const bidder = await tx.query.users.findFirst({
-          where: eq(users.id, data.bidderId),
-        });
-
-        if (!bidder) {
-          throw new Error(`Bidder ${data.bidderId} was not found`);
-        }
-
-        const bidDecision = evaluateBid({
-          amountCents: data.amountCents,
-          expectedHighestBidCents: data.expectedHighestBidCents,
-          currentHighestBidCents: currentHighestBid?.amountCents ?? null,
-          startingPriceCents: auction.fishItem.startingPriceCents,
-          minimumIncrementCents: auction.minimumIncrementCents,
-          auctionStatus: auction.status,
-          startsAt: auction.startsAt,
-          endsAt: auction.endsAt,
-          now: new Date(),
-          sellerId: auction.fishItem.sellerId,
-          bidderId: data.bidderId,
-        });
-
-        if (!bidDecision.ok) {
-          await tx.insert(rejectedBids).values({
-            auctionId: data.auctionId,
-            bidderId: data.bidderId,
-            amountCents: data.amountCents,
-            code: bidDecision.code,
-            reason: bidDecision.message,
-          });
-
-          return {
-            ok: false as const,
-            code: bidDecision.code,
-            message: bidDecision.message,
-            currentHighestBidCents: bidDecision.currentHighestBidCents,
-          };
-        }
-
-        const [insertedBid] = await tx
-          .insert(bids)
-          .values({
-            auctionId: data.auctionId,
-            bidderId: data.bidderId,
-            amountCents: data.amountCents,
-          })
-          .returning();
-
-        const snapshot: BidSnapshot = {
-          bidId: insertedBid.id,
-          amountCents: insertedBid.amountCents,
-          bidderDisplayName: bidder.displayName,
-          acceptedAt: insertedBid.acceptedAt.toISOString(),
-        };
-
-        return {
-          ok: true as const,
-          event: bidAcceptedEvent(data.auctionId, snapshot),
-        };
-      });
+      return await db.transaction((tx) => placeBidInTransaction(tx, data));
     } finally {
       span.end();
     }
   });
 
   observeBidMutationDuration(performance.now() - started);
+  publishBidResult(result, data);
 
+  return result;
+}
+
+async function placeBidInTransaction(
+  tx: AuctionCommandTx,
+  data: BidInputData,
+): Promise<PlaceBidResult> {
+  const context = await loadBidContext(tx, data);
+  const bidDecision = evaluateBidForContext(data, context);
+
+  if (!bidDecision.ok) {
+    return recordRejectedBid(tx, data, bidDecision);
+  }
+
+  return recordAcceptedBid(tx, data, context.bidder);
+}
+
+async function loadBidContext(tx: AuctionCommandTx, data: BidInputData) {
+  await lockAuctionRow(tx, data.auctionId);
+
+  const auction = await tx.query.auctions.findFirst({
+    where: eq(auctions.id, data.auctionId),
+    with: {
+      fishItem: {
+        with: {
+          seller: true,
+        },
+      },
+    },
+  });
+
+  if (!auction) {
+    throw new Error(`Auction ${data.auctionId} was not found`);
+  }
+
+  const currentHighestBid = await findHighestBidWithBidder(tx, data.auctionId);
+  const bidder = await tx.query.users.findFirst({
+    where: eq(users.id, data.bidderId),
+  });
+
+  if (!bidder) {
+    throw new Error(`Bidder ${data.bidderId} was not found`);
+  }
+
+  return { auction, currentHighestBid, bidder };
+}
+
+type BidContext = Awaited<ReturnType<typeof loadBidContext>>;
+
+function evaluateBidForContext(data: BidInputData, context: BidContext) {
+  return evaluateBid({
+    amountCents: data.amountCents,
+    expectedHighestBidCents: data.expectedHighestBidCents,
+    currentHighestBidCents: context.currentHighestBid?.amountCents ?? null,
+    startingPriceCents: context.auction.fishItem.startingPriceCents,
+    minimumIncrementCents: context.auction.minimumIncrementCents,
+    auctionStatus: context.auction.status,
+    startsAt: context.auction.startsAt,
+    endsAt: context.auction.endsAt,
+    now: new Date(),
+    sellerId: context.auction.fishItem.sellerId,
+    bidderId: data.bidderId,
+  });
+}
+
+async function recordRejectedBid(
+  tx: AuctionCommandTx,
+  data: BidInputData,
+  bidDecision: RejectedBidDecision,
+): Promise<PlaceBidResult> {
+  await tx.insert(rejectedBids).values({
+    auctionId: data.auctionId,
+    bidderId: data.bidderId,
+    amountCents: data.amountCents,
+    code: bidDecision.code,
+    reason: bidDecision.message,
+  });
+
+  return {
+    ok: false,
+    code: bidDecision.code,
+    message: bidDecision.message,
+    currentHighestBidCents: bidDecision.currentHighestBidCents,
+  };
+}
+
+async function recordAcceptedBid(
+  tx: AuctionCommandTx,
+  data: BidInputData,
+  bidder: BidContext["bidder"],
+): Promise<PlaceBidResult> {
+  const [insertedBid] = await tx
+    .insert(bids)
+    .values({
+      auctionId: data.auctionId,
+      bidderId: data.bidderId,
+      amountCents: data.amountCents,
+    })
+    .returning();
+
+  const snapshot: BidSnapshot = {
+    bidId: insertedBid.id,
+    amountCents: insertedBid.amountCents,
+    bidderDisplayName: bidder.displayName,
+    acceptedAt: insertedBid.acceptedAt.toISOString(),
+  };
+
+  return {
+    ok: true,
+    event: bidAcceptedEvent(data.auctionId, snapshot),
+  };
+}
+
+function publishBidResult(result: PlaceBidResult, data: BidInputData) {
   if (result.ok) {
     publishAuctionEvent(result.event);
     logInfo("bid.accepted", {
@@ -272,8 +343,6 @@ export async function placeBid(input: unknown): Promise<PlaceBidResult> {
       code: result.code,
     });
   }
-
-  return result;
 }
 
 export async function closeAuction(input: unknown): Promise<CloseAuctionResult> {

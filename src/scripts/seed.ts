@@ -306,60 +306,72 @@ async function seedBusyAuctionScenario() {
 }
 
 async function seedAllExpiredScenario() {
+  const lots = expiredAuctionLots();
   const fishRows = await db
     .insert(fishItems)
-    .values([
-      {
-        species: "cod",
+    .values(lots.map((lot) => lot.fish))
+    .returning();
+
+  const [withBidsFish, noBidsFish] = fishRows;
+  const auctionRows = await db
+    .insert(auctions)
+    .values(lots.map((lot, index) => ({ ...lot.auction, fishItemId: fishRows[index].id })))
+    .returning();
+  const [withBidsAuction, noBidsAuction] = auctionRows;
+
+  await insertExpiredScenarioBids(withBidsAuction.id);
+  await insertExpiredScenarioStatusHistory(
+    { fishId: withBidsFish.id, auctionId: withBidsAuction.id, createdOffsetMinutes: -181 },
+    { fishId: noBidsFish.id, auctionId: noBidsAuction.id, createdOffsetMinutes: -121 },
+  );
+}
+
+function expiredAuctionLots() {
+  return [
+    {
+      fish: {
+        species: "cod" as const,
         displayName: "Expired cod awaiting close (with bids)",
         weightGrams: 60000,
         catchRegion: "Vestfjorden",
         grade: "A",
         startingPriceCents: 130000,
         sellerId: DEMO_USERS.sellerFjord,
-        status: "in_auction",
+        status: "in_auction" as const,
         description: "Auction window already ended; should close as a sale on next load.",
       },
-      {
-        species: "trout",
+      auction: {
+        status: "active" as const,
+        startsAt: minutes(-180),
+        endsAt: minutes(-30),
+        minimumIncrementCents: 5000,
+      },
+    },
+    {
+      fish: {
+        species: "trout" as const,
         displayName: "Expired trout awaiting close (no bids)",
         weightGrams: 30000,
         catchRegion: "Hardanger",
         grade: "B",
         startingPriceCents: 110000,
         sellerId: DEMO_USERS.sellerNorth,
-        status: "in_auction",
+        status: "in_auction" as const,
         description: "Auction window already ended with no bids; should close as unsold.",
       },
-    ])
-    .returning();
-
-  const [withBidsFish, noBidsFish] = fishRows;
-
-  const auctionRows = await db
-    .insert(auctions)
-    .values([
-      {
-        fishItemId: withBidsFish.id,
-        status: "active",
-        startsAt: minutes(-180),
-        endsAt: minutes(-30),
-        minimumIncrementCents: 5000,
-      },
-      {
-        fishItemId: noBidsFish.id,
-        status: "active",
+      auction: {
+        status: "active" as const,
         startsAt: minutes(-120),
         endsAt: minutes(-20),
         minimumIncrementCents: 5000,
       },
-    ])
-    .returning();
+    },
+  ];
+}
 
-  const [withBidsAuction, noBidsAuction] = auctionRows;
-
+async function insertExpiredScenarioBids(auctionId: string) {
   await insertEscalatingBids({
-    auctionId: withBidsAuction.id,
+    auctionId,
     startingPriceCents: 130000,
     minimumIncrementCents: 5000,
     buyerIds: [DEMO_USERS.buyerOslo, DEMO_USERS.buyerBergen],
@@ -367,27 +379,22 @@ async function seedAllExpiredScenario() {
     firstOffsetMinutes: -150,
     stepMinutes: 10,
   });
+}
 
-  await db.insert(inventoryStatusChanges).values([
-    {
-      fishItemId: withBidsFish.id,
-      auctionId: withBidsAuction.id,
-      fromStatus: "listed",
-      toStatus: "in_auction",
+async function insertExpiredScenarioStatusHistory(
+  ...rows: Array<{ fishId: string; auctionId: string; createdOffsetMinutes: number }>
+) {
+  await db.insert(inventoryStatusChanges).values(
+    rows.map((row) => ({
+      fishItemId: row.fishId,
+      auctionId: row.auctionId,
+      fromStatus: "listed" as const,
+      toStatus: "in_auction" as const,
       changedByUserId: DEMO_USERS.admin,
       reason: "Seeded expired auction created from listed inventory",
-      createdAt: minutes(-181),
-    },
-    {
-      fishItemId: noBidsFish.id,
-      auctionId: noBidsAuction.id,
-      fromStatus: "listed",
-      toStatus: "in_auction",
-      changedByUserId: DEMO_USERS.admin,
-      reason: "Seeded expired auction created from listed inventory",
-      createdAt: minutes(-121),
-    },
-  ]);
+      createdAt: minutes(row.createdOffsetMinutes),
+    })),
+  );
 }
 
 async function seedNoBidsScenario() {

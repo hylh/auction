@@ -80,25 +80,7 @@ export function useInventoryForm() {
   const mutation = useMutation({
     mutationFn: async () => {
       setMessage(null);
-      const validation = validateForm(effectiveValues);
-      setFieldErrors(validation.fieldErrors);
-      if (!validation.ok) {
-        throw new Error("Fix the highlighted fields before adding inventory.");
-      }
-
-      const fish = await createFishItemFn({ data: validation.fishInput });
-      if (!validation.auctionInput) {
-        return `${fish.displayName} was added as listed inventory.`;
-      }
-
-      const auction = await createAuctionFn({
-        data: {
-          ...validation.auctionInput,
-          fishItemId: fish.id,
-        },
-      });
-
-      return `${fish.displayName} was listed and ${auction.status} auction ${auction.id.slice(0, 8)} was created.`;
+      return submitInventoryForm(effectiveValues, setFieldErrors);
     },
     onSuccess: (resultMessage) => {
       setMessage({ type: "success", text: resultMessage });
@@ -124,4 +106,29 @@ export function useInventoryForm() {
     handleBack,
     submit: () => mutation.mutate(),
   };
+}
+
+async function submitInventoryForm(
+  values: InventoryFormState,
+  setFieldErrors: (fieldErrors: FieldErrors) => void,
+) {
+  const validation = validateForm(values);
+  setFieldErrors(validation.fieldErrors);
+  if (!validation.ok) {
+    throw new Error("Fix the highlighted fields before adding inventory.");
+  }
+
+  const fish = await createFishItemFn({ data: validation.fishInput });
+  if (!validation.auctionInput) {
+    return `${fish.displayName} was added as listed inventory.`;
+  }
+
+  const auction = await createAuctionFn({
+    data: {
+      ...validation.auctionInput,
+      fishItemId: fish.id,
+    },
+  });
+
+  return `${fish.displayName} was listed and ${auction.status} auction ${auction.id.slice(0, 8)} was created.`;
 }

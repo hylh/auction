@@ -54,18 +54,42 @@ export async function runSimulation(input: SimulatorInput): Promise<SimulatorSum
     (user) => user.role === "buyer" && (!input.buyerIds || input.buyerIds.includes(user.id)),
   );
 
-  if (sellers.length === 0) {
+  assertSimulatorUsers(sellers.length, buyers.length);
+
+  const { createdFish, createdAuctions } = await createSimulatedAuctions(input, random, sellers);
+  const activeAuctions = await loadSimulatedAuctions(input.auctionIds, createdAuctions);
+  const bids = await placeSimulatedBids(activeAuctions, buyers, random, input);
+  const closeAuctionIds = closeCandidateAuctionIds(input.auctionIds, createdAuctions);
+  const closedAuctions = input.closeAuctions ? await closeCreatedAuctions(closeAuctionIds) : [];
+
+  return {
+    seed: input.seed,
+    createdFish,
+    createdAuctions,
+    bids,
+    closedAuctions,
+    totals: simulationTotals(bids, closedAuctions),
+  };
+}
+
+function assertSimulatorUsers(sellerCount: number, buyerCount: number) {
+  if (sellerCount === 0) {
     throw new Error("Simulator requires at least one seeded seller");
   }
-  if (buyers.length === 0) {
+  if (buyerCount === 0) {
     throw new Error("Simulator requires at least one seeded buyer");
   }
+}
 
+async function createSimulatedAuctions(
+  input: SimulatorInput,
+  random: () => number,
+  sellers: Array<{ id: string }>,
+) {
   const createdFish: Array<FishSummary> = [];
   const createdAuctions: Array<AuctionSummary> = [];
   const startsAt = new Date(Date.now() - 1_000);
   const endsAt = new Date(Date.now() + input.durationMinutes * 60_000);
-
   for (let index = 0; index < input.auctionCount; index += 1) {
     const seller = sellers[index % sellers.length];
     const species = FISH_SPECIES[(input.seed + index) % FISH_SPECIES.length];
@@ -93,50 +117,84 @@ export async function runSimulation(input: SimulatorInput): Promise<SimulatorSum
     );
   }
 
-  const activeAuctions = await loadSimulatedAuctions(input.auctionIds, createdAuctions);
+  return { createdFish, createdAuctions };
+}
+
+async function placeSimulatedBids(
+  activeAuctions: Array<SimulatedAuctionState>,
+  buyers: Array<{ id: string }>,
+  random: () => number,
+  input: SimulatorInput,
+) {
   const bids: Array<SimulatedBid> = [];
 
-  if (activeAuctions.length > 0 && buyers.length > 0) {
-    const rounds = input.bidRounds ?? 0;
-
-    if (rounds > 0) {
-      for (let round = 0; round < rounds; round += 1) {
-        for (let auctionIndex = 0; auctionIndex < activeAuctions.length; auctionIndex += 1) {
-          const auction = activeAuctions[auctionIndex];
-          const buyer = buyers[(round + auctionIndex) % buyers.length];
-          await placeSimulatedBid(auction, buyer.id, random, input, bids);
-        }
-      }
-    } else {
-      for (let index = 0; index < input.bidCount; index += 1) {
-        const auction = activeAuctions[index % activeAuctions.length];
-        const buyer = buyers[index % buyers.length];
-        if (!auction || !buyer) break;
-        await placeSimulatedBid(auction, buyer.id, random, input, bids);
-      }
-    }
+  if (activeAuctions.length === 0 || buyers.length === 0) {
+    return bids;
   }
 
-  const closeAuctionIds = [
+  const rounds = input.bidRounds ?? 0;
+  if (rounds > 0) {
+    await placeRoundRobinBids(activeAuctions, buyers, random, input, bids, rounds);
+  } else {
+    await placeSequentialBids(activeAuctions, buyers, random, input, bids);
+  }
+
+  return bids;
+}
+
+async function placeRoundRobinBids(
+  activeAuctions: Array<SimulatedAuctionState>,
+  buyers: Array<{ id: string }>,
+  random: () => number,
+  input: SimulatorInput,
+  bids: Array<SimulatedBid>,
+  rounds: number,
+) {
+  for (let round = 0; round < rounds; round += 1) {
+    for (let auctionIndex = 0; auctionIndex < activeAuctions.length; auctionIndex += 1) {
+      const auction = activeAuctions[auctionIndex];
+      const buyer = buyers[(round + auctionIndex) % buyers.length];
+      await placeSimulatedBid(auction, buyer.id, random, input, bids);
+    }
+  }
+}
+
+async function placeSequentialBids(
+  activeAuctions: Array<SimulatedAuctionState>,
+  buyers: Array<{ id: string }>,
+  random: () => number,
+  input: SimulatorInput,
+  bids: Array<SimulatedBid>,
+) {
+  for (let index = 0; index < input.bidCount; index += 1) {
+    const auction = activeAuctions[index % activeAuctions.length];
+    const buyer = buyers[index % buyers.length];
+    if (!auction || !buyer) break;
+    await placeSimulatedBid(auction, buyer.id, random, input, bids);
+  }
+}
+
+function closeCandidateAuctionIds(
+  auctionIds: Array<string> | undefined,
+  createdAuctions: Array<AuctionSummary>,
+) {
+  return [
     ...new Set([
       ...createdAuctions.map((auction) => auction.id),
-      ...(createdAuctions.length === 0 ? (input.auctionIds ?? []) : []),
+      ...(createdAuctions.length === 0 ? (auctionIds ?? []) : []),
     ]),
   ];
-  const closedAuctions = input.closeAuctions ? await closeCreatedAuctions(closeAuctionIds) : [];
+}
 
+function simulationTotals(
+  bids: Array<SimulatedBid>,
+  closedAuctions: Array<CloseAuctionResult>,
+): SimulatorSummary["totals"] {
   return {
-    seed: input.seed,
-    createdFish,
-    createdAuctions,
-    bids,
-    closedAuctions,
-    totals: {
-      acceptedBids: bids.filter((bid) => bid.result.ok).length,
-      rejectedBids: bids.filter((bid) => !bid.result.ok).length,
-      closedAuctions: closedAuctions.filter((result) => result.changed).length,
-      completedSales: closedAuctions.filter((result) => result.saleEvent !== null).length,
-    },
+    acceptedBids: bids.filter((bid) => bid.result.ok).length,
+    rejectedBids: bids.filter((bid) => !bid.result.ok).length,
+    closedAuctions: closedAuctions.filter((result) => result.changed).length,
+    completedSales: closedAuctions.filter((result) => result.saleEvent !== null).length,
   };
 }
 

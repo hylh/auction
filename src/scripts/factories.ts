@@ -200,6 +200,38 @@ export type DefaultDatasetInput = {
   now?: Date;
 };
 
+type SeedCounters = {
+  fish: number;
+  auction: number;
+  bid: number;
+  rejected: number;
+  sale: number;
+  statusChange: number;
+  adminAction: number;
+};
+
+type DatasetBuildContext = {
+  rng: Rng;
+  pool: UserPool;
+  dataset: SeedDataset;
+  counters: SeedCounters;
+  minutes: (value: number) => Date;
+};
+
+type AuctionSeedBase = {
+  sellerId: string;
+  species: (typeof FISH_SPECIES)[number];
+  profile: SpeciesProfile;
+  fishId: string;
+  auctionId: string;
+  startingPriceCents: number;
+  minimumIncrementCents: number;
+};
+
+type AuctionSeed = AuctionSeedBase & {
+  timing: AuctionTiming;
+};
+
 export function buildDefaultDataset(input: DefaultDatasetInput): SeedDataset {
   const rng = createRng(input.seed);
   const now = input.now ?? new Date();
@@ -213,218 +245,13 @@ export function buildDefaultDataset(input: DefaultDatasetInput): SeedDataset {
     admin: input.admin,
   });
 
-  const dataset: SeedDataset = {
-    users: pool.users,
-    fishItems: [],
-    auctions: [],
-    bids: [],
-    rejectedBids: [],
-    sales: [],
-    inventoryStatusChanges: [],
-    adminActions: [],
-  };
-
-  const counters = {
-    fish: 0,
-    auction: 0,
-    bid: 0,
-    rejected: 0,
-    sale: 0,
-    statusChange: 0,
-    adminAction: 0,
-  };
-
+  const dataset = createEmptyDataset(pool);
+  const counters = createSeedCounters();
   const plans = buildAuctionPlans(rng, input.auctionCount);
+  const context: DatasetBuildContext = { rng, pool, dataset, counters, minutes };
 
   for (const plan of plans) {
-    const sellerId = pool.sellerIds[counters.auction % pool.sellerIds.length];
-    const species = pick(rng, FISH_SPECIES);
-    const profile = reference.speciesProfiles[species];
-
-    const fishId = seedUuid(UUID_PREFIX.fish, counters.fish);
-    counters.fish += 1;
-    const auctionId = seedUuid(UUID_PREFIX.auction, counters.auction);
-    counters.auction += 1;
-
-    const startingPriceCents = roundToHundred(
-      randInt(
-        rng,
-        profile.startingPriceCentsRange[0],
-        profile.startingPriceCentsRange[1],
-      ),
-    );
-    const minimumIncrementCents = pick(rng, [2500, 5000, 7500, 10000]);
-    const fishStatus = fishStatusForKind(plan.kind);
-
-    dataset.fishItems.push({
-      id: fishId,
-      species,
-      displayName: `${pick(rng, profile.displayNames)} #${counters.fish}`,
-      weightGrams: randInt(rng, profile.weightGramsRange[0], profile.weightGramsRange[1]),
-      catchRegion: pick(rng, reference.catchRegions),
-      grade: pick(rng, profile.grades),
-      startingPriceCents,
-      sellerId,
-      status: fishStatus,
-      description: "Seeded fish auction history.",
-    });
-
-    const timing = auctionTiming(rng, plan.kind, minutes);
-    dataset.auctions.push({
-      id: auctionId,
-      fishItemId: fishId,
-      status: plan.kind,
-      startsAt: timing.startsAt,
-      endsAt: timing.endsAt,
-      minimumIncrementCents,
-      closedAt: timing.closedAt,
-    });
-
-    // Inventory listed -> in_auction when the auction was created.
-    dataset.inventoryStatusChanges.push({
-      id: seedUuid(UUID_PREFIX.statusChange, counters.statusChange),
-      fishItemId: fishId,
-      auctionId,
-      fromStatus: "listed",
-      toStatus: "in_auction",
-      changedByUserId: pool.adminId,
-      reason: "Auction created from listed inventory",
-      createdAt: timing.createdAt,
-    });
-    counters.statusChange += 1;
-
-    dataset.adminActions.push({
-      id: seedUuid(UUID_PREFIX.adminAction, counters.adminAction),
-      adminUserId: pool.adminId,
-      action: "create_auction",
-      auctionId,
-      fishItemId: fishId,
-      reason: "Auction created from listed inventory",
-      createdAt: timing.createdAt,
-    });
-    counters.adminAction += 1;
-
-    const eligibleBuyerIds = pool.buyerIds.filter((id) => id !== sellerId);
-    const hasBids = plan.kind === "active" || plan.kind === "closed";
-
-    let winningBid: BidInsert | null = null;
-    if (hasBids) {
-      const bidRows = buildEscalatingBids({
-        rng,
-        auctionId,
-        startingPriceCents,
-        minimumIncrementCents,
-        buyerIds: shuffle(rng, eligibleBuyerIds).slice(0, randInt(rng, 2, 5)),
-        count: randInt(rng, 3, 14),
-        window: timing,
-        nextBidIndex: () => {
-          const id = seedUuid(UUID_PREFIX.bid, counters.bid);
-          counters.bid += 1;
-          return id;
-        },
-      });
-      dataset.bids.push(...bidRows);
-      winningBid = bidRows[bidRows.length - 1] ?? null;
-
-      // A few rejected attempts while the auction was active.
-      const rejectionCount = randInt(rng, 0, 4);
-      for (let index = 0; index < rejectionCount; index += 1) {
-        const code = pick(rng, REJECTION_CODES);
-        const bidderId =
-          code === "SELLER_OWN_AUCTION" ? sellerId : pick(rng, eligibleBuyerIds);
-        dataset.rejectedBids.push({
-          id: seedUuid(UUID_PREFIX.rejected, counters.rejected),
-          auctionId,
-          bidderId,
-          amountCents: code === "INVALID_AMOUNT" ? 0 : startingPriceCents,
-          code,
-          reason: REJECTION_REASONS[code],
-          rejectedAt: randomWithin(rng, timing.startsAt, timing.closeReference),
-        });
-        counters.rejected += 1;
-      }
-    }
-
-    if (plan.kind === "closed" && winningBid && timing.closedAt) {
-      dataset.inventoryStatusChanges.push({
-        id: seedUuid(UUID_PREFIX.statusChange, counters.statusChange),
-        fishItemId: fishId,
-        auctionId,
-        fromStatus: "in_auction",
-        toStatus: "sold",
-        changedByUserId: plan.manualClose ? pool.adminId : null,
-        reason: plan.manualClose
-          ? "Auction closed with winning bid"
-          : "Auction expired with winning bid",
-        createdAt: timing.closedAt,
-      });
-      counters.statusChange += 1;
-
-      if (plan.manualClose) {
-        dataset.adminActions.push({
-          id: seedUuid(UUID_PREFIX.adminAction, counters.adminAction),
-          adminUserId: pool.adminId,
-          action: "close_auction",
-          auctionId,
-          fishItemId: fishId,
-          reason: "Auction closed with winning bid",
-          createdAt: timing.closedAt,
-        });
-        counters.adminAction += 1;
-      }
-
-      dataset.sales.push({
-        id: seedUuid(UUID_PREFIX.sale, counters.sale),
-        auctionId,
-        fishItemId: fishId,
-        winningBidId: winningBid.id as string,
-        buyerId: winningBid.bidderId,
-        sellerId,
-        amountCents: winningBid.amountCents,
-        completedAt: timing.closedAt,
-      });
-      counters.sale += 1;
-    }
-
-    if (plan.kind === "unsold" && timing.closedAt) {
-      // Expired without bids -> inventory returns to listed (system change).
-      dataset.inventoryStatusChanges.push({
-        id: seedUuid(UUID_PREFIX.statusChange, counters.statusChange),
-        fishItemId: fishId,
-        auctionId,
-        fromStatus: "in_auction",
-        toStatus: "listed",
-        changedByUserId: null,
-        reason: "Auction expired without bids",
-        createdAt: timing.closedAt,
-      });
-      counters.statusChange += 1;
-    }
-
-    if (plan.kind === "withdrawn" && timing.closedAt) {
-      dataset.inventoryStatusChanges.push({
-        id: seedUuid(UUID_PREFIX.statusChange, counters.statusChange),
-        fishItemId: fishId,
-        auctionId,
-        fromStatus: "in_auction",
-        toStatus: "withdrawn",
-        changedByUserId: pool.adminId,
-        reason: "Auction withdrawn by admin",
-        createdAt: timing.closedAt,
-      });
-      counters.statusChange += 1;
-
-      dataset.adminActions.push({
-        id: seedUuid(UUID_PREFIX.adminAction, counters.adminAction),
-        adminUserId: pool.adminId,
-        action: "withdraw_auction",
-        auctionId,
-        fishItemId: fishId,
-        reason: "Auction withdrawn by admin",
-        createdAt: timing.closedAt,
-      });
-      counters.adminAction += 1;
-    }
+    appendAuctionPlan(context, plan);
   }
 
   appendStandaloneInventory({
@@ -445,6 +272,284 @@ export function buildDefaultDataset(input: DefaultDatasetInput): SeedDataset {
   });
 
   return dataset;
+}
+
+function createEmptyDataset(pool: UserPool): SeedDataset {
+  return {
+    users: pool.users,
+    fishItems: [],
+    auctions: [],
+    bids: [],
+    rejectedBids: [],
+    sales: [],
+    inventoryStatusChanges: [],
+    adminActions: [],
+  };
+}
+
+function createSeedCounters(): SeedCounters {
+  return {
+    fish: 0,
+    auction: 0,
+    bid: 0,
+    rejected: 0,
+    sale: 0,
+    statusChange: 0,
+    adminAction: 0,
+  };
+}
+
+function appendAuctionPlan(context: DatasetBuildContext, plan: AuctionPlan) {
+  const seedBase = createAuctionSeed(context);
+  const seed = appendAuctionInventory(context, plan, seedBase);
+  appendAuctionCreationAudit(context, seed);
+
+  const winningBid = appendBidHistory(context, plan, seed);
+  appendCompletedSale(context, plan, seed, winningBid);
+  appendUnsoldReturn(context, plan, seed);
+  appendAuctionWithdrawal(context, plan, seed);
+}
+
+function createAuctionSeed(context: DatasetBuildContext): AuctionSeedBase {
+  const { rng, pool, counters } = context;
+  const sellerId = pool.sellerIds[counters.auction % pool.sellerIds.length];
+  const species = pick(rng, FISH_SPECIES);
+  const profile = reference.speciesProfiles[species];
+  const fishId = seedUuid(UUID_PREFIX.fish, counters.fish);
+  counters.fish += 1;
+  const auctionId = seedUuid(UUID_PREFIX.auction, counters.auction);
+  counters.auction += 1;
+
+  return {
+    sellerId,
+    species,
+    profile,
+    fishId,
+    auctionId,
+    startingPriceCents: roundToHundred(
+      randInt(rng, profile.startingPriceCentsRange[0], profile.startingPriceCentsRange[1]),
+    ),
+    minimumIncrementCents: pick(rng, [2500, 5000, 7500, 10000]),
+  };
+}
+
+function appendAuctionInventory(
+  { rng, dataset, minutes }: DatasetBuildContext,
+  plan: AuctionPlan,
+  seed: AuctionSeedBase,
+): AuctionSeed {
+  dataset.fishItems.push({
+    id: seed.fishId,
+    species: seed.species,
+    displayName: `${pick(rng, seed.profile.displayNames)} #${dataset.fishItems.length + 1}`,
+    weightGrams: randInt(rng, seed.profile.weightGramsRange[0], seed.profile.weightGramsRange[1]),
+    catchRegion: pick(rng, reference.catchRegions),
+    grade: pick(rng, seed.profile.grades),
+    startingPriceCents: seed.startingPriceCents,
+    sellerId: seed.sellerId,
+    status: fishStatusForKind(plan.kind),
+    description: "Seeded fish auction history.",
+  });
+
+  const timing = auctionTiming(rng, plan.kind, minutes);
+  dataset.auctions.push({
+    id: seed.auctionId,
+    fishItemId: seed.fishId,
+    status: plan.kind,
+    startsAt: timing.startsAt,
+    endsAt: timing.endsAt,
+    minimumIncrementCents: seed.minimumIncrementCents,
+    closedAt: timing.closedAt,
+  });
+
+  return { ...seed, timing };
+}
+
+function appendAuctionCreationAudit(
+  { dataset, counters, pool }: DatasetBuildContext,
+  seed: AuctionSeed,
+) {
+  dataset.inventoryStatusChanges.push({
+    id: seedUuid(UUID_PREFIX.statusChange, counters.statusChange),
+    fishItemId: seed.fishId,
+    auctionId: seed.auctionId,
+    fromStatus: "listed",
+    toStatus: "in_auction",
+    changedByUserId: pool.adminId,
+    reason: "Auction created from listed inventory",
+    createdAt: seed.timing.createdAt,
+  });
+  counters.statusChange += 1;
+
+  dataset.adminActions.push({
+    id: seedUuid(UUID_PREFIX.adminAction, counters.adminAction),
+    adminUserId: pool.adminId,
+    action: "create_auction",
+    auctionId: seed.auctionId,
+    fishItemId: seed.fishId,
+    reason: "Auction created from listed inventory",
+    createdAt: seed.timing.createdAt,
+  });
+  counters.adminAction += 1;
+}
+
+function appendBidHistory(
+  { rng, dataset, counters, pool }: DatasetBuildContext,
+  plan: AuctionPlan,
+  seed: AuctionSeed,
+): BidInsert | null {
+  const hasBids = plan.kind === "active" || plan.kind === "closed";
+  if (!hasBids) {
+    return null;
+  }
+
+  const eligibleBuyerIds = pool.buyerIds.filter((id) => id !== seed.sellerId);
+  const bidRows = buildEscalatingBids({
+    rng,
+    auctionId: seed.auctionId,
+    startingPriceCents: seed.startingPriceCents,
+    minimumIncrementCents: seed.minimumIncrementCents,
+    buyerIds: shuffle(rng, eligibleBuyerIds).slice(0, randInt(rng, 2, 5)),
+    count: randInt(rng, 3, 14),
+    window: seed.timing,
+    nextBidIndex: () => {
+      const id = seedUuid(UUID_PREFIX.bid, counters.bid);
+      counters.bid += 1;
+      return id;
+    },
+  });
+
+  dataset.bids.push(...bidRows);
+  appendRejectedBidAttempts({ rng, dataset, counters }, seed, eligibleBuyerIds);
+  return bidRows[bidRows.length - 1] ?? null;
+}
+
+function appendRejectedBidAttempts(
+  context: Pick<DatasetBuildContext, "rng" | "dataset" | "counters">,
+  seed: AuctionSeed,
+  eligibleBuyerIds: Array<string>,
+) {
+  const rejectionCount = randInt(context.rng, 0, 4);
+  for (let index = 0; index < rejectionCount; index += 1) {
+    const code = pick(context.rng, REJECTION_CODES);
+    const bidderId =
+      code === "SELLER_OWN_AUCTION" ? seed.sellerId : pick(context.rng, eligibleBuyerIds);
+    context.dataset.rejectedBids.push({
+      id: seedUuid(UUID_PREFIX.rejected, context.counters.rejected),
+      auctionId: seed.auctionId,
+      bidderId,
+      amountCents: code === "INVALID_AMOUNT" ? 0 : seed.startingPriceCents,
+      code,
+      reason: REJECTION_REASONS[code],
+      rejectedAt: randomWithin(context.rng, seed.timing.startsAt, seed.timing.closeReference),
+    });
+    context.counters.rejected += 1;
+  }
+}
+
+function appendCompletedSale(
+  { dataset, counters, pool }: DatasetBuildContext,
+  plan: AuctionPlan,
+  seed: AuctionSeed,
+  winningBid: BidInsert | null,
+) {
+  if (plan.kind !== "closed" || !winningBid || !seed.timing.closedAt) {
+    return;
+  }
+
+  dataset.inventoryStatusChanges.push({
+    id: seedUuid(UUID_PREFIX.statusChange, counters.statusChange),
+    fishItemId: seed.fishId,
+    auctionId: seed.auctionId,
+    fromStatus: "in_auction",
+    toStatus: "sold",
+    changedByUserId: plan.manualClose ? pool.adminId : null,
+    reason: plan.manualClose
+      ? "Auction closed with winning bid"
+      : "Auction expired with winning bid",
+    createdAt: seed.timing.closedAt,
+  });
+  counters.statusChange += 1;
+
+  if (plan.manualClose) {
+    dataset.adminActions.push({
+      id: seedUuid(UUID_PREFIX.adminAction, counters.adminAction),
+      adminUserId: pool.adminId,
+      action: "close_auction",
+      auctionId: seed.auctionId,
+      fishItemId: seed.fishId,
+      reason: "Auction closed with winning bid",
+      createdAt: seed.timing.closedAt,
+    });
+    counters.adminAction += 1;
+  }
+
+  dataset.sales.push({
+    id: seedUuid(UUID_PREFIX.sale, counters.sale),
+    auctionId: seed.auctionId,
+    fishItemId: seed.fishId,
+    winningBidId: winningBid.id as string,
+    buyerId: winningBid.bidderId,
+    sellerId: seed.sellerId,
+    amountCents: winningBid.amountCents,
+    completedAt: seed.timing.closedAt,
+  });
+  counters.sale += 1;
+}
+
+function appendUnsoldReturn(
+  { dataset, counters }: DatasetBuildContext,
+  plan: AuctionPlan,
+  seed: AuctionSeed,
+) {
+  if (plan.kind !== "unsold" || !seed.timing.closedAt) {
+    return;
+  }
+
+  dataset.inventoryStatusChanges.push({
+    id: seedUuid(UUID_PREFIX.statusChange, counters.statusChange),
+    fishItemId: seed.fishId,
+    auctionId: seed.auctionId,
+    fromStatus: "in_auction",
+    toStatus: "listed",
+    changedByUserId: null,
+    reason: "Auction expired without bids",
+    createdAt: seed.timing.closedAt,
+  });
+  counters.statusChange += 1;
+}
+
+function appendAuctionWithdrawal(
+  { dataset, counters, pool }: DatasetBuildContext,
+  plan: AuctionPlan,
+  seed: AuctionSeed,
+) {
+  if (plan.kind !== "withdrawn" || !seed.timing.closedAt) {
+    return;
+  }
+
+  dataset.inventoryStatusChanges.push({
+    id: seedUuid(UUID_PREFIX.statusChange, counters.statusChange),
+    fishItemId: seed.fishId,
+    auctionId: seed.auctionId,
+    fromStatus: "in_auction",
+    toStatus: "withdrawn",
+    changedByUserId: pool.adminId,
+    reason: "Auction withdrawn by admin",
+    createdAt: seed.timing.closedAt,
+  });
+  counters.statusChange += 1;
+
+  dataset.adminActions.push({
+    id: seedUuid(UUID_PREFIX.adminAction, counters.adminAction),
+    adminUserId: pool.adminId,
+    action: "withdraw_auction",
+    auctionId: seed.auctionId,
+    fishItemId: seed.fishId,
+    reason: "Auction withdrawn by admin",
+    createdAt: seed.timing.closedAt,
+  });
+  counters.adminAction += 1;
 }
 
 type AuctionTiming = {
@@ -569,11 +674,7 @@ function appendStandaloneInventory(input: StandaloneInput) {
         id: fishId,
         species,
         displayName: `${pick(input.rng, profile.displayNames)} (${extra.status})`,
-        weightGrams: randInt(
-          input.rng,
-          profile.weightGramsRange[0],
-          profile.weightGramsRange[1],
-        ),
+        weightGrams: randInt(input.rng, profile.weightGramsRange[0], profile.weightGramsRange[1]),
         catchRegion: pick(input.rng, reference.catchRegions),
         grade: pick(input.rng, profile.grades),
         startingPriceCents: roundToHundred(

@@ -57,181 +57,221 @@ const trackedTables = [
   "admin_actions",
 ];
 
+type DatabaseSql = typeof sqlClient;
+
 export async function loadDatabaseMetrics(): Promise<DatabaseMetrics> {
   return sqlClient.begin(async (sql) => {
-    const databaseSize = await sql<{ database_size_bytes: string }[]>`
-      select pg_database_size(current_database())::text as database_size_bytes
-    `;
-    const rowCounts = await sql<{ table_name: string; row_count: string }[]>`
-      select 'users' as table_name, count(*)::text as row_count from users
-      union all select 'fish_items', count(*)::text from fish_items
-      union all select 'auctions', count(*)::text from auctions
-      union all select 'bids', count(*)::text from bids
-      union all select 'rejected_bids', count(*)::text from rejected_bids
-      union all select 'sales', count(*)::text from sales
-      union all select 'inventory_status_changes', count(*)::text from inventory_status_changes
-      union all select 'admin_actions', count(*)::text from admin_actions
-    `;
-    const historyRows = await sql<
-      {
-        accepted_bids: string;
-        rejected_bids: string;
-        auctions_created: string;
-        auctions_closed: string;
-        sales_completed: string;
-        total_sale_value_cents: string | null;
-      }[]
-    >`
-      select
-        (select count(*) from bids)::text as accepted_bids,
-        (select count(*) from rejected_bids)::text as rejected_bids,
-        (select count(*) from auctions)::text as auctions_created,
-        (select count(*) from auctions where status in ('closed', 'unsold'))::text as auctions_closed,
-        (select count(*) from sales)::text as sales_completed,
-        (select coalesce(sum(amount_cents), 0)::text from sales) as total_sale_value_cents
-    `;
-    const tableSizes = await sql<
-      {
-        table_name: string;
-        total_bytes: string;
-        heap_bytes: string;
-        index_bytes: string;
-      }[]
-    >`
-      select
-        relname as table_name,
-        pg_total_relation_size(relid)::text as total_bytes,
-        pg_relation_size(relid)::text as heap_bytes,
-        pg_indexes_size(relid)::text as index_bytes
-      from pg_stat_user_tables
-      where schemaname = 'public'
-        and relname = any(${trackedTables})
-    `;
-    const auctionStatuses = await sql<{ status: string; count: string }[]>`
-      select status::text, count(*)::text as count
-      from auctions
-      group by status
-      order by status
-    `;
-    const inventoryStatuses = await sql<{ status: string; count: string }[]>`
-      select status::text, count(*)::text as count
-      from fish_items
-      group by status
-      order by status
-    `;
-    const connectionRows = await sql<
-      {
-        total_connections: string;
-        active_connections: string;
-        idle_connections: string;
-        app_connections: string;
-        app_active_connections: string;
-        app_idle_connections: string;
-      }[]
-    >`
-      select
-        count(*)::text as total_connections,
-        count(*) filter (where state = 'active')::text as active_connections,
-        count(*) filter (where state = 'idle')::text as idle_connections,
-        count(*) filter (where application_name = ${databaseApplicationName})::text as app_connections,
-        count(*) filter (
-          where application_name = ${databaseApplicationName} and state = 'active'
-        )::text as app_active_connections,
-        count(*) filter (
-          where application_name = ${databaseApplicationName} and state = 'idle'
-        )::text as app_idle_connections
-      from pg_stat_activity
-      where datname = current_database()
-    `;
-    const loadRows = await sql<
-      {
-        active_auctions: string;
-        bids_last_minute: string;
-        bids_last_five_minutes: string;
-        auctions_created_last_minute: string;
-        average_bids_per_active_auction: string | null;
-        hottest_auction_bid_count: string | null;
-        newest_bid_age_seconds: string | null;
-      }[]
-    >`
-      with active_auctions as (
-        select id from auctions where status = 'active'
-      ),
-      bids_by_active_auction as (
-        select b.auction_id, count(*) as bid_count
-        from bids b
-        join active_auctions a on a.id = b.auction_id
-        group by b.auction_id
-      )
-      select
-        (select count(*) from active_auctions)::text as active_auctions,
-        (select count(*) from bids where accepted_at > now() - interval '1 minute')::text as bids_last_minute,
-        (select count(*) from bids where accepted_at > now() - interval '5 minutes')::text as bids_last_five_minutes,
-        (select count(*) from auctions where created_at > now() - interval '1 minute')::text as auctions_created_last_minute,
-        (select avg(bid_count)::text from bids_by_active_auction) as average_bids_per_active_auction,
-        (select max(bid_count)::text from bids_by_active_auction) as hottest_auction_bid_count,
-        (select extract(epoch from now() - max(accepted_at))::text from bids) as newest_bid_age_seconds
-    `;
-
-    const rowCountByTable = new Map(
-      rowCounts.map((row) => [row.table_name, parseNumber(row.row_count)]),
-    );
-    const sizeByTable = new Map(tableSizes.map((row) => [row.table_name, row]));
-    const connections = connectionRows[0];
-    const load = loadRows[0];
-    const history = historyRows[0];
-
     return {
-      databaseSizeBytes: parseNumber(databaseSize[0]?.database_size_bytes),
-      history: {
-        acceptedBids: parseNumber(history?.accepted_bids),
-        rejectedBids: parseNumber(history?.rejected_bids),
-        auctionsCreated: parseNumber(history?.auctions_created),
-        auctionsClosed: parseNumber(history?.auctions_closed),
-        salesCompleted: parseNumber(history?.sales_completed),
-        totalSaleValueCents: parseNumber(history?.total_sale_value_cents),
-      },
-      connections: {
-        applicationName: databaseApplicationName,
-        total: parseNumber(connections?.total_connections),
-        active: parseNumber(connections?.active_connections),
-        idle: parseNumber(connections?.idle_connections),
-        appTotal: parseNumber(connections?.app_connections),
-        appActive: parseNumber(connections?.app_active_connections),
-        appIdle: parseNumber(connections?.app_idle_connections),
-      },
-      tables: trackedTables.map((tableName) => {
-        const size = sizeByTable.get(tableName);
-        return {
-          tableName,
-          rowCount: rowCountByTable.get(tableName) ?? 0,
-          totalBytes: parseNumber(size?.total_bytes),
-          heapBytes: parseNumber(size?.heap_bytes),
-          indexBytes: parseNumber(size?.index_bytes),
-        };
-      }),
-      auctionStatuses: auctionStatuses.map((row) => ({
-        status: row.status,
-        count: parseNumber(row.count),
-      })),
-      inventoryStatuses: inventoryStatuses.map((row) => ({
-        status: row.status,
-        count: parseNumber(row.count),
-      })),
-      load: {
-        activeAuctions: parseNumber(load?.active_auctions),
-        bidsLastMinute: parseNumber(load?.bids_last_minute),
-        bidsLastFiveMinutes: parseNumber(load?.bids_last_five_minutes),
-        auctionsCreatedLastMinute: parseNumber(load?.auctions_created_last_minute),
-        averageBidsPerActiveAuction: parseNumber(load?.average_bids_per_active_auction),
-        hottestAuctionBidCount: parseNumber(load?.hottest_auction_bid_count),
-        newestBidAgeSeconds:
-          load?.newest_bid_age_seconds === null || load?.newest_bid_age_seconds === undefined
-            ? null
-            : Math.round(parseNumber(load.newest_bid_age_seconds)),
-      },
+      databaseSizeBytes: await loadDatabaseSizeBytes(sql),
+      history: await loadHistoryMetrics(sql),
+      connections: await loadConnectionMetrics(sql),
+      tables: await loadTableMetrics(sql),
+      auctionStatuses: await loadStatusCounts(sql, "auctions"),
+      inventoryStatuses: await loadStatusCounts(sql, "fish_items"),
+      load: await loadCurrentLoadMetrics(sql),
     };
   });
+}
+
+async function loadDatabaseSizeBytes(sql: DatabaseSql) {
+  const rows = await sql<{ database_size_bytes: string }[]>`
+    select pg_database_size(current_database())::text as database_size_bytes
+  `;
+
+  return parseNumber(rows[0]?.database_size_bytes);
+}
+
+async function loadHistoryMetrics(sql: DatabaseSql): Promise<DatabaseMetrics["history"]> {
+  const rows = await sql<
+    {
+      accepted_bids: string;
+      rejected_bids: string;
+      auctions_created: string;
+      auctions_closed: string;
+      sales_completed: string;
+      total_sale_value_cents: string | null;
+    }[]
+  >`
+    select
+      (select count(*) from bids)::text as accepted_bids,
+      (select count(*) from rejected_bids)::text as rejected_bids,
+      (select count(*) from auctions)::text as auctions_created,
+      (select count(*) from auctions where status in ('closed', 'unsold'))::text as auctions_closed,
+      (select count(*) from sales)::text as sales_completed,
+      (select coalesce(sum(amount_cents), 0)::text from sales) as total_sale_value_cents
+  `;
+  const history = rows[0];
+
+  return {
+    acceptedBids: parseNumber(history?.accepted_bids),
+    rejectedBids: parseNumber(history?.rejected_bids),
+    auctionsCreated: parseNumber(history?.auctions_created),
+    auctionsClosed: parseNumber(history?.auctions_closed),
+    salesCompleted: parseNumber(history?.sales_completed),
+    totalSaleValueCents: parseNumber(history?.total_sale_value_cents),
+  };
+}
+
+async function loadTableMetrics(sql: DatabaseSql): Promise<DatabaseMetrics["tables"]> {
+  const rowCounts = await loadTableRowCounts(sql);
+  const tableSizes = await loadTableSizes(sql);
+  const rowCountByTable = new Map(
+    rowCounts.map((row) => [row.table_name, parseNumber(row.row_count)]),
+  );
+  const sizeByTable = new Map(tableSizes.map((row) => [row.table_name, row]));
+
+  return trackedTables.map((tableName) => {
+    const size = sizeByTable.get(tableName);
+    return {
+      tableName,
+      rowCount: rowCountByTable.get(tableName) ?? 0,
+      totalBytes: parseNumber(size?.total_bytes),
+      heapBytes: parseNumber(size?.heap_bytes),
+      indexBytes: parseNumber(size?.index_bytes),
+    };
+  });
+}
+
+async function loadTableRowCounts(sql: DatabaseSql) {
+  return sql<{ table_name: string; row_count: string }[]>`
+    select 'users' as table_name, count(*)::text as row_count from users
+    union all select 'fish_items', count(*)::text from fish_items
+    union all select 'auctions', count(*)::text from auctions
+    union all select 'bids', count(*)::text from bids
+    union all select 'rejected_bids', count(*)::text from rejected_bids
+    union all select 'sales', count(*)::text from sales
+    union all select 'inventory_status_changes', count(*)::text from inventory_status_changes
+    union all select 'admin_actions', count(*)::text from admin_actions
+  `;
+}
+
+async function loadTableSizes(sql: DatabaseSql) {
+  return sql<
+    {
+      table_name: string;
+      total_bytes: string;
+      heap_bytes: string;
+      index_bytes: string;
+    }[]
+  >`
+    select
+      relname as table_name,
+      pg_total_relation_size(relid)::text as total_bytes,
+      pg_relation_size(relid)::text as heap_bytes,
+      pg_indexes_size(relid)::text as index_bytes
+    from pg_stat_user_tables
+    where schemaname = 'public'
+      and relname = any(${trackedTables})
+  `;
+}
+
+async function loadStatusCounts(
+  sql: DatabaseSql,
+  tableName: "auctions" | "fish_items",
+): Promise<Array<{ status: string; count: number }>> {
+  const rows =
+    tableName === "auctions"
+      ? await sql<{ status: string; count: string }[]>`
+          select status::text, count(*)::text as count
+          from auctions
+          group by status
+          order by status
+        `
+      : await sql<{ status: string; count: string }[]>`
+          select status::text, count(*)::text as count
+          from fish_items
+          group by status
+          order by status
+        `;
+
+  return rows.map((row) => ({
+    status: row.status,
+    count: parseNumber(row.count),
+  }));
+}
+
+async function loadConnectionMetrics(sql: DatabaseSql): Promise<DatabaseMetrics["connections"]> {
+  const rows = await sql<
+    {
+      total_connections: string;
+      active_connections: string;
+      idle_connections: string;
+      app_connections: string;
+      app_active_connections: string;
+      app_idle_connections: string;
+    }[]
+  >`
+    select
+      count(*)::text as total_connections,
+      count(*) filter (where state = 'active')::text as active_connections,
+      count(*) filter (where state = 'idle')::text as idle_connections,
+      count(*) filter (where application_name = ${databaseApplicationName})::text as app_connections,
+      count(*) filter (
+        where application_name = ${databaseApplicationName} and state = 'active'
+      )::text as app_active_connections,
+      count(*) filter (
+        where application_name = ${databaseApplicationName} and state = 'idle'
+      )::text as app_idle_connections
+    from pg_stat_activity
+    where datname = current_database()
+  `;
+  const connections = rows[0];
+
+  return {
+    applicationName: databaseApplicationName,
+    total: parseNumber(connections?.total_connections),
+    active: parseNumber(connections?.active_connections),
+    idle: parseNumber(connections?.idle_connections),
+    appTotal: parseNumber(connections?.app_connections),
+    appActive: parseNumber(connections?.app_active_connections),
+    appIdle: parseNumber(connections?.app_idle_connections),
+  };
+}
+
+async function loadCurrentLoadMetrics(sql: DatabaseSql): Promise<DatabaseMetrics["load"]> {
+  const rows = await sql<
+    {
+      active_auctions: string;
+      bids_last_minute: string;
+      bids_last_five_minutes: string;
+      auctions_created_last_minute: string;
+      average_bids_per_active_auction: string | null;
+      hottest_auction_bid_count: string | null;
+      newest_bid_age_seconds: string | null;
+    }[]
+  >`
+    with active_auctions as (
+      select id from auctions where status = 'active'
+    ),
+    bids_by_active_auction as (
+      select b.auction_id, count(*) as bid_count
+      from bids b
+      join active_auctions a on a.id = b.auction_id
+      group by b.auction_id
+    )
+    select
+      (select count(*) from active_auctions)::text as active_auctions,
+      (select count(*) from bids where accepted_at > now() - interval '1 minute')::text as bids_last_minute,
+      (select count(*) from bids where accepted_at > now() - interval '5 minutes')::text as bids_last_five_minutes,
+      (select count(*) from auctions where created_at > now() - interval '1 minute')::text as auctions_created_last_minute,
+      (select avg(bid_count)::text from bids_by_active_auction) as average_bids_per_active_auction,
+      (select max(bid_count)::text from bids_by_active_auction) as hottest_auction_bid_count,
+      (select extract(epoch from now() - max(accepted_at))::text from bids) as newest_bid_age_seconds
+  `;
+  const load = rows[0];
+
+  return {
+    activeAuctions: parseNumber(load?.active_auctions),
+    bidsLastMinute: parseNumber(load?.bids_last_minute),
+    bidsLastFiveMinutes: parseNumber(load?.bids_last_five_minutes),
+    auctionsCreatedLastMinute: parseNumber(load?.auctions_created_last_minute),
+    averageBidsPerActiveAuction: parseNumber(load?.average_bids_per_active_auction),
+    hottestAuctionBidCount: parseNumber(load?.hottest_auction_bid_count),
+    newestBidAgeSeconds:
+      load?.newest_bid_age_seconds === null || load?.newest_bid_age_seconds === undefined
+        ? null
+        : Math.round(parseNumber(load.newest_bid_age_seconds)),
+  };
 }
 
 export function databaseMetricsText(metrics: DatabaseMetrics) {
@@ -240,17 +280,24 @@ export function databaseMetricsText(metrics: DatabaseMetrics) {
 
 function databaseMetricsFamilies(metrics: DatabaseMetrics): Array<MetricFamily> {
   return [
+    ...historyMetricFamilies(metrics),
+    ...connectionMetricFamilies(metrics),
+    ...tableMetricFamilies(metrics),
+    ...loadMetricFamilies(metrics),
+  ];
+}
+
+function historyMetricFamilies(metrics: DatabaseMetrics): Array<MetricFamily> {
+  return [
     gaugeFamily("auction_history_accepted_bids", "All-time accepted bid count from PostgreSQL", [
       { value: metrics.history.acceptedBids },
     ]),
     gaugeFamily("auction_history_rejected_bids", "All-time rejected bid count from PostgreSQL", [
       { value: metrics.history.rejectedBids },
     ]),
-    gaugeFamily(
-      "auction_history_auctions_created",
-      "All-time auction count from PostgreSQL",
-      [{ value: metrics.history.auctionsCreated }],
-    ),
+    gaugeFamily("auction_history_auctions_created", "All-time auction count from PostgreSQL", [
+      { value: metrics.history.auctionsCreated },
+    ]),
     gaugeFamily(
       "auction_history_auctions_closed",
       "All-time closed and unsold auction count from PostgreSQL",
@@ -266,6 +313,11 @@ function databaseMetricsFamilies(metrics: DatabaseMetrics): Array<MetricFamily> 
       "All-time completed sale value in cents from PostgreSQL",
       [{ value: metrics.history.totalSaleValueCents }],
     ),
+  ];
+}
+
+function connectionMetricFamilies(metrics: DatabaseMetrics): Array<MetricFamily> {
+  return [
     gaugeFamily("auction_database_size_bytes", "PostgreSQL database size in bytes", [
       { value: metrics.databaseSizeBytes },
     ]),
@@ -301,6 +353,11 @@ function databaseMetricsFamilies(metrics: DatabaseMetrics): Array<MetricFamily> 
         },
       ],
     ),
+  ];
+}
+
+function tableMetricFamilies(metrics: DatabaseMetrics): Array<MetricFamily> {
+  return [
     gaugeFamily(
       "auction_database_table_rows",
       "Exact table row count",
@@ -336,6 +393,11 @@ function databaseMetricsFamilies(metrics: DatabaseMetrics): Array<MetricFamily> 
         },
       ]),
     ),
+  ];
+}
+
+function loadMetricFamilies(metrics: DatabaseMetrics): Array<MetricFamily> {
+  return [
     gaugeFamily("auction_database_active_auctions", "Active auction count from PostgreSQL", [
       { value: metrics.load.activeAuctions },
     ]),

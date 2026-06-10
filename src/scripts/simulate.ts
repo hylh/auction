@@ -40,6 +40,10 @@ async function main() {
     return;
   }
 
+  await runLoadProfileMode();
+}
+
+async function runLoadProfileMode() {
   const beforeMetrics = await fetchMetrics();
   const summary = emptySummary(options.seed);
   const auctionIds: Array<string> = [...options.existingAuctionIds];
@@ -60,41 +64,13 @@ async function main() {
       placedBids < options.maxBids && auctionIds.length > 0 && now >= nextBidAt;
 
     if (shouldCreateAuction) {
-      mergeSummary(
-        summary,
-        await postSimulation({
-          auctionCount: 1,
-          bidCount: 0,
-          intervalMs: 0,
-          durationMinutes: options.auctionDurationMinutes,
-          rejectionRate: options.rejectionRate,
-          seed: options.seed + createdAuctions,
-          buyerIds: options.buyerIds,
-          closeAuctions: false,
-        }),
-      );
-      auctionIds.push(
-        ...summary.createdAuctions.slice(createdAuctions).map((auction) => auction.id),
-      );
+      await createAuctionPulse(summary, auctionIds, createdAuctions);
       createdAuctions += 1;
       nextAuctionAt += options.auctionIntervalMs;
     }
 
     if (shouldPlaceBid) {
-      mergeSummary(
-        summary,
-        await postSimulation({
-          auctionCount: 0,
-          bidCount: 1,
-          intervalMs: 0,
-          durationMinutes: options.auctionDurationMinutes,
-          rejectionRate: options.rejectionRate,
-          seed: options.seed + options.maxAuctions + placedBids,
-          buyerIds: buyerIdsForBid(placedBids, options.buyerIds),
-          auctionIds: [auctionIds[placedBids % auctionIds.length]],
-          closeAuctions: false,
-        }),
-      );
+      await placeBidPulse(summary, auctionIds, placedBids);
       placedBids += 1;
       nextBidAt += options.bidIntervalMs;
     }
@@ -110,25 +86,83 @@ async function main() {
     }
   }
 
-  if (options.closeAuctions && auctionIds.length > 0) {
-    for (const auctionId of auctionIds) {
-      mergeSummary(
-        summary,
-        await postSimulation({
-          auctionCount: 0,
-          bidCount: 0,
-          intervalMs: 0,
-          durationMinutes: options.auctionDurationMinutes,
-          rejectionRate: options.rejectionRate,
-          auctionIds: [auctionId],
-          closeAuctions: true,
-        }),
-      );
-    }
-  }
+  await closeAuctionPulse(summary, auctionIds);
 
   recomputeTotals(summary);
   const afterMetrics = await fetchMetrics();
+  printLoadProfileSummary(summary, beforeMetrics, afterMetrics, createdAuctions, placedBids);
+}
+
+async function createAuctionPulse(
+  summary: SimulatorSummary,
+  auctionIds: Array<string>,
+  createdAuctions: number,
+) {
+  mergeSummary(
+    summary,
+    await postSimulation({
+      auctionCount: 1,
+      bidCount: 0,
+      intervalMs: 0,
+      durationMinutes: options.auctionDurationMinutes,
+      rejectionRate: options.rejectionRate,
+      seed: options.seed + createdAuctions,
+      buyerIds: options.buyerIds,
+      closeAuctions: false,
+    }),
+  );
+  auctionIds.push(...summary.createdAuctions.slice(createdAuctions).map((auction) => auction.id));
+}
+
+async function placeBidPulse(
+  summary: SimulatorSummary,
+  auctionIds: Array<string>,
+  placedBids: number,
+) {
+  mergeSummary(
+    summary,
+    await postSimulation({
+      auctionCount: 0,
+      bidCount: 1,
+      intervalMs: 0,
+      durationMinutes: options.auctionDurationMinutes,
+      rejectionRate: options.rejectionRate,
+      seed: options.seed + options.maxAuctions + placedBids,
+      buyerIds: buyerIdsForBid(placedBids, options.buyerIds),
+      auctionIds: [auctionIds[placedBids % auctionIds.length]],
+      closeAuctions: false,
+    }),
+  );
+}
+
+async function closeAuctionPulse(summary: SimulatorSummary, auctionIds: Array<string>) {
+  if (!options.closeAuctions || auctionIds.length === 0) {
+    return;
+  }
+
+  for (const auctionId of auctionIds) {
+    mergeSummary(
+      summary,
+      await postSimulation({
+        auctionCount: 0,
+        bidCount: 0,
+        intervalMs: 0,
+        durationMinutes: options.auctionDurationMinutes,
+        rejectionRate: options.rejectionRate,
+        auctionIds: [auctionId],
+        closeAuctions: true,
+      }),
+    );
+  }
+}
+
+function printLoadProfileSummary(
+  summary: SimulatorSummary,
+  beforeMetrics: Map<string, number>,
+  afterMetrics: Map<string, number>,
+  createdAuctions: number,
+  placedBids: number,
+) {
   console.info(
     JSON.stringify(
       {

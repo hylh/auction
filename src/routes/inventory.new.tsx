@@ -15,17 +15,7 @@ function NewInventoryPage() {
 
   return (
     <main className="page">
-      <section className="hero">
-        <div>
-          <span className="pill">Inventory intake</span>
-          <h1>Add fish for sale.</h1>
-          <p>
-            Fish weight is entered in kilograms and stored as integer grams. Money is entered in NOK
-            and stored as integer cents. You can list inventory only, or create an active or
-            scheduled auction immediately.
-          </p>
-        </div>
-      </section>
+      <InventoryIntro />
 
       <article className="card c-teal">
         <form
@@ -64,35 +54,90 @@ function NewInventoryPage() {
             />
           </div>
 
-          {/* Submit — always visible on desktop; on mobile only visible on step 3 (CSS). */}
-          <button
-            className="button wizard-submit"
-            disabled={form.isSubmitting || form.isUsersLoading}
-            type="submit"
-          >
-            {form.isSubmitting
-              ? "Adding fish..."
-              : values.createAuction
-                ? "Add fish and create auction"
-                : "Add fish"}
-          </button>
+          <InventorySubmitButton
+            isSubmitting={form.isSubmitting}
+            isUsersLoading={form.isUsersLoading}
+            createAuction={values.createAuction}
+          />
 
-          {/* Back / Next navigation — mobile only (hidden on desktop via CSS). */}
-          <div className="wizard-nav">
-            {step > 1 && (
-              <button type="button" className="button secondary" onClick={form.handleBack}>
-                ← Back
-              </button>
-            )}
-            {step < totalSteps && (
-              <button type="button" className="button" onClick={form.handleNext}>
-                Next →
-              </button>
-            )}
-          </div>
+          <InventoryNavigation
+            step={step}
+            totalSteps={totalSteps}
+            onBack={form.handleBack}
+            onNext={form.handleNext}
+          />
         </form>
         {form.message && <p className={form.message.type}>{form.message.text}</p>}
       </article>
     </main>
+  );
+}
+
+function InventoryIntro() {
+  return (
+    <section className="hero">
+      <div>
+        <span className="pill">Inventory intake</span>
+        <h1>Add fish for sale.</h1>
+        <p>
+          Fish weight is entered in kilograms and stored as integer grams. Money is entered in NOK
+          and stored as integer cents. You can list inventory only, or create an active or scheduled
+          auction immediately.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function InventorySubmitButton({
+  isSubmitting,
+  isUsersLoading,
+  createAuction,
+}: {
+  isSubmitting: boolean;
+  isUsersLoading: boolean;
+  createAuction: boolean;
+}) {
+  const label = isSubmitting
+    ? "Adding fish..."
+    : createAuction
+      ? "Add fish and create auction"
+      : "Add fish";
+
+  return (
+    <button
+      className="button wizard-submit"
+      disabled={isSubmitting || isUsersLoading}
+      type="submit"
+    >
+      {label}
+    </button>
+  );
+}
+
+function InventoryNavigation({
+  step,
+  totalSteps,
+  onBack,
+  onNext,
+}: {
+  step: number;
+  totalSteps: number;
+  onBack: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="wizard-nav">
+      {step > 1 && (
+        <button type="button" className="button secondary" onClick={onBack}>
+          ← Back
+        </button>
+      )}
+      {step < totalSteps && (
+        <button type="button" className="button" onClick={onNext}>
+          Next →
+        </button>
+      )}
+    </div>
   );
 }

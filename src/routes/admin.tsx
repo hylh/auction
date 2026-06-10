@@ -16,6 +16,9 @@ import { useAdminMutations } from "../components/admin/use-admin-mutations";
 import { WithdrawnInventoryCard } from "../components/admin/withdrawn-inventory-card";
 import { getAdminDataFn } from "../server/functions";
 
+type AdminData = Awaited<ReturnType<typeof getAdminDataFn>>;
+type AdminMutations = ReturnType<typeof useAdminMutations>;
+
 export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
@@ -50,24 +53,7 @@ function AdminPage() {
   const { closeMutation, createAuctionMutation, withdrawAuctionMutation, withdrawFishMutation } =
     mutations;
 
-  const tabs: Array<AdminTab> = [
-    {
-      id: "live",
-      label: "Inventory & auctions",
-      count: listedInventory.length + data.auctions.length,
-    },
-    {
-      id: "sales",
-      label: "Sales & bids",
-      count: data.completedSales.length + data.bidHistory.length,
-    },
-    {
-      id: "inventory-history",
-      label: "Inventory history",
-      count: data.withdrawnInventory.length + data.inventoryStatusChanges.length,
-    },
-    { id: "actions", label: "Admin actions", count: data.adminActions.length },
-  ];
+  const tabs = buildAdminTabs(data, listedInventory.length);
 
   return (
     <main className="page">
@@ -101,38 +87,107 @@ function AdminPage() {
         id={`admin-panel-${activeTab}`}
         aria-labelledby={`admin-tab-${activeTab}`}
       >
-        {activeTab === "live" && (
-          <>
-            <ListedInventoryCard
-              inventory={listedInventory}
-              isStartingAuction={createAuctionMutation.isPending}
-              isWithdrawingFish={withdrawFishMutation.isPending}
-              onStartAuction={createAuctionMutation.mutate}
-              onWithdrawFish={withdrawFishMutation.mutate}
-            />
-            <AuctionsCard
-              auctions={data.auctions}
-              isClosing={closeMutation.isPending}
-              isWithdrawingAuction={withdrawAuctionMutation.isPending}
-              onClose={closeMutation.mutate}
-              onWithdrawAuction={withdrawAuctionMutation.mutate}
-            />
-          </>
-        )}
-        {activeTab === "sales" && (
-          <>
-            <CompletedSalesCard sales={data.completedSales} />
-            <BidHistoryCard bids={data.bidHistory} />
-          </>
-        )}
-        {activeTab === "inventory-history" && (
-          <>
-            <WithdrawnInventoryCard inventory={data.withdrawnInventory} />
-            <StatusHistoryCard changes={data.inventoryStatusChanges} />
-          </>
-        )}
-        {activeTab === "actions" && <AdminActionsCard actions={data.adminActions} />}
+        <AdminTabPanel
+          activeTab={activeTab}
+          data={data}
+          listedInventory={listedInventory}
+          mutations={mutations}
+        />
       </section>
     </main>
+  );
+}
+
+function buildAdminTabs(data: AdminData, listedInventoryCount: number): Array<AdminTab> {
+  return [
+    {
+      id: "live",
+      label: "Inventory & auctions",
+      count: listedInventoryCount + data.auctions.length,
+    },
+    {
+      id: "sales",
+      label: "Sales & bids",
+      count: data.completedSales.length + data.bidHistory.length,
+    },
+    {
+      id: "inventory-history",
+      label: "Inventory history",
+      count: data.withdrawnInventory.length + data.inventoryStatusChanges.length,
+    },
+    { id: "actions", label: "Admin actions", count: data.adminActions.length },
+  ];
+}
+
+function AdminTabPanel({
+  activeTab,
+  data,
+  listedInventory,
+  mutations,
+}: {
+  activeTab: AdminTabId;
+  data: AdminData;
+  listedInventory: AdminData["inventoryNeedingAction"];
+  mutations: AdminMutations;
+}) {
+  if (activeTab === "live") {
+    return <LiveAdminTab data={data} listedInventory={listedInventory} mutations={mutations} />;
+  }
+  if (activeTab === "sales") {
+    return <SalesAdminTab data={data} />;
+  }
+  if (activeTab === "inventory-history") {
+    return <InventoryHistoryAdminTab data={data} />;
+  }
+  return <AdminActionsCard actions={data.adminActions} />;
+}
+
+function LiveAdminTab({
+  data,
+  listedInventory,
+  mutations,
+}: {
+  data: AdminData;
+  listedInventory: AdminData["inventoryNeedingAction"];
+  mutations: AdminMutations;
+}) {
+  const { closeMutation, createAuctionMutation, withdrawAuctionMutation, withdrawFishMutation } =
+    mutations;
+
+  return (
+    <>
+      <ListedInventoryCard
+        inventory={listedInventory}
+        isStartingAuction={createAuctionMutation.isPending}
+        isWithdrawingFish={withdrawFishMutation.isPending}
+        onStartAuction={createAuctionMutation.mutate}
+        onWithdrawFish={withdrawFishMutation.mutate}
+      />
+      <AuctionsCard
+        auctions={data.auctions}
+        isClosing={closeMutation.isPending}
+        isWithdrawingAuction={withdrawAuctionMutation.isPending}
+        onClose={closeMutation.mutate}
+        onWithdrawAuction={withdrawAuctionMutation.mutate}
+      />
+    </>
+  );
+}
+
+function SalesAdminTab({ data }: { data: AdminData }) {
+  return (
+    <>
+      <CompletedSalesCard sales={data.completedSales} />
+      <BidHistoryCard bids={data.bidHistory} />
+    </>
+  );
+}
+
+function InventoryHistoryAdminTab({ data }: { data: AdminData }) {
+  return (
+    <>
+      <WithdrawnInventoryCard inventory={data.withdrawnInventory} />
+      <StatusHistoryCard changes={data.inventoryStatusChanges} />
+    </>
   );
 }

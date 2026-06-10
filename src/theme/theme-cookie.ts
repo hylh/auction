@@ -1,7 +1,7 @@
 /** Valid theme values. */
 export type Theme = "dark" | "light";
 
-export const DEFAULT_THEME: Theme = "dark";
+const DEFAULT_THEME: Theme = "dark";
 
 const COOKIE_NAME = "theme";
 
@@ -10,7 +10,7 @@ const COOKIE_NAME = "theme";
  * Anything else (undefined, null, empty, "system", unknown) falls back
  * to the configured default so we never store a bad value.
  */
-export function parseTheme(value: string | null | undefined): Theme {
+function parseTheme(value: string | null | undefined): Theme {
   if (value === "dark" || value === "light") return value;
   return DEFAULT_THEME;
 }

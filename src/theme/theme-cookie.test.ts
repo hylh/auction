@@ -1,40 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  DEFAULT_THEME,
-  parseTheme,
-  parseThemeFromCookieHeader,
-  serializeThemeCookie,
-} from "./theme-cookie";
-
-describe("parseTheme", () => {
-  it("accepts dark", () => {
-    expect(parseTheme("dark")).toBe("dark");
-  });
-
-  it("accepts light", () => {
-    expect(parseTheme("light")).toBe("light");
-  });
-
-  it("returns default for undefined", () => {
-    expect(parseTheme(undefined)).toBe(DEFAULT_THEME);
-  });
-
-  it("returns default for null", () => {
-    expect(parseTheme(null)).toBe(DEFAULT_THEME);
-  });
-
-  it("returns default for empty string", () => {
-    expect(parseTheme("")).toBe(DEFAULT_THEME);
-  });
-
-  it("returns default for unknown value", () => {
-    expect(parseTheme("system")).toBe(DEFAULT_THEME);
-  });
-
-  it("returns default for injected-looking value", () => {
-    expect(parseTheme("dark; Path=/")).toBe(DEFAULT_THEME);
-  });
-});
+import { parseThemeFromCookieHeader, serializeThemeCookie } from "./theme-cookie";
 
 describe("parseThemeFromCookieHeader", () => {
   it("reads theme=dark from Cookie header", () => {
@@ -54,19 +19,24 @@ describe("parseThemeFromCookieHeader", () => {
   });
 
   it("returns default when cookie header is null", () => {
-    expect(parseThemeFromCookieHeader(null)).toBe(DEFAULT_THEME);
+    expect(parseThemeFromCookieHeader(null)).toBe("dark");
   });
 
   it("returns default when cookie header is undefined", () => {
-    expect(parseThemeFromCookieHeader(undefined)).toBe(DEFAULT_THEME);
+    expect(parseThemeFromCookieHeader(undefined)).toBe("dark");
   });
 
   it("returns default when theme cookie is absent", () => {
-    expect(parseThemeFromCookieHeader("session=abc; lang=en")).toBe(DEFAULT_THEME);
+    expect(parseThemeFromCookieHeader("session=abc; lang=en")).toBe("dark");
   });
 
   it("returns default for invalid theme value in cookie", () => {
-    expect(parseThemeFromCookieHeader("theme=rainbow")).toBe(DEFAULT_THEME);
+    expect(parseThemeFromCookieHeader("theme=rainbow")).toBe("dark");
+  });
+
+  it("returns default for empty and injected-looking theme cookie values", () => {
+    expect(parseThemeFromCookieHeader("theme=")).toBe("dark");
+    expect(parseThemeFromCookieHeader("theme=dark%3B%20Path%3D%2F")).toBe("dark");
   });
 });
 
