@@ -44,39 +44,89 @@ export function PlaceBidCard({
         {formatMoney(detail.minimumIncrementCents)}
       </p>
 
-      <form
-        className="form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSubmit();
-        }}
-      >
-        <label className="field">
-          <span>Demo buyer</span>
-          <select value={bidderId} onChange={(event) => onBidderChange(event.currentTarget.value)}>
-            {buyers.map((buyer) => (
-              <option key={buyer.id} value={buyer.id}>
-                {buyer.displayName}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>Bid amount ({detail.fish.currency})</span>
-          <input
-            inputMode="numeric"
-            value={amountMajor}
-            onChange={(event) => onAmountChange(event.currentTarget.value)}
-            placeholder={String(nextMinimum / 100)}
-          />
-        </label>
-        <button className="button" disabled={isPending} type="submit">
-          {isPending ? "Submitting..." : "Submit bid"}
-        </button>
-      </form>
+      <PlaceBidForm
+        buyers={buyers}
+        bidderId={bidderId}
+        onBidderChange={onBidderChange}
+        currency={detail.fish.currency}
+        amountMajor={amountMajor}
+        onAmountChange={onAmountChange}
+        nextMinimum={nextMinimum}
+        isPending={isPending}
+        onSubmit={onSubmit}
+      />
 
+      <BidStatusMessages message={message} connectionMessage={connectionMessage} />
+    </article>
+  );
+}
+
+function PlaceBidForm({
+  buyers,
+  bidderId,
+  onBidderChange,
+  currency,
+  amountMajor,
+  onAmountChange,
+  nextMinimum,
+  isPending,
+  onSubmit,
+}: {
+  buyers: PlaceBidCardProps["buyers"];
+  bidderId: string;
+  onBidderChange: (bidderId: string) => void;
+  currency: string;
+  amountMajor: string;
+  onAmountChange: (amount: string) => void;
+  nextMinimum: number;
+  isPending: boolean;
+  onSubmit: () => void;
+}) {
+  return (
+    <form
+      className="form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
+      <label className="field">
+        <span>Demo buyer</span>
+        <select value={bidderId} onChange={(event) => onBidderChange(event.currentTarget.value)}>
+          {buyers.map((buyer) => (
+            <option key={buyer.id} value={buyer.id}>
+              {buyer.displayName}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
+        <span>Bid amount ({currency})</span>
+        <input
+          inputMode="numeric"
+          value={amountMajor}
+          onChange={(event) => onAmountChange(event.currentTarget.value)}
+          placeholder={String(nextMinimum / 100)}
+        />
+      </label>
+      <button className="button" disabled={isPending} type="submit">
+        {isPending ? "Submitting..." : "Submit bid"}
+      </button>
+    </form>
+  );
+}
+
+function BidStatusMessages({
+  message,
+  connectionMessage,
+}: {
+  message: string | null;
+  connectionMessage: string | null;
+}) {
+  return (
+    <>
       {message && <p className={message.includes("accepted") ? "success" : "error"}>{message}</p>}
       {connectionMessage && <p className="muted">{connectionMessage}</p>}
-    </article>
+    </>
   );
 }

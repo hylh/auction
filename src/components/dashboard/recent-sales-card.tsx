@@ -1,28 +1,19 @@
-import { formatMoney } from "../../domain/money";
 import type { DashboardData } from "../../server/auction-types";
+import { HistoryCard } from "../history-card";
 import { SpeciesDot } from "./species-dot";
 
 export function RecentSalesCard({ sales }: { sales: DashboardData["recentSales"] }) {
   return (
-    <article className="card c-amber">
-      <h2>Recent sales</h2>
-      <div className="list">
-        {sales.map((sale) => (
-          <div className="row" key={sale.id}>
-            <div className="name-wrap">
-              <SpeciesDot species={sale.species} />
-              <div>
-                <strong>{sale.fishDisplayName}</strong>
-                <div className="sub">
-                  {sale.buyerDisplayName} ← {sale.sellerDisplayName}
-                </div>
-              </div>
-            </div>
-            <span className="amount">{formatMoney(sale.amountCents)}</span>
-          </div>
-        ))}
-        {sales.length === 0 && <p className="muted">Completed auction sales will appear here.</p>}
-      </div>
-    </article>
+    <HistoryCard
+      className="c-amber"
+      title="Recent sales"
+      items={sales}
+      emptyMessage="Completed auction sales will appear here."
+      getKey={(sale) => sale.id}
+      renderLeading={(sale) => <SpeciesDot species={sale.species} />}
+      renderTitle={(sale) => sale.fishDisplayName}
+      renderSubtitle={(sale) => `${sale.buyerDisplayName} ← ${sale.sellerDisplayName}`}
+      getAmountCents={(sale) => sale.amountCents}
+    />
   );
 }
