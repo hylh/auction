@@ -1,0 +1,109 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/config-schema.json",
+  "audit": {
+    "gate": "new-only",
+    "cacheMaxAgeDays": 7
+  },
+  "ignorePatterns": ["src/server/functions.ts"],
+  "production": {
+    "deadCode": false,
+    "health": true,
+    "dupes": true
+  },
+  "duplicates": {
+    "mode": "mild",
+    "ignoreImports": true,
+    "ignore": [
+      "src/**/*.test.ts",
+      "src/**/*.spec.ts",
+      "e2e/**",
+      "src/routeTree.gen.ts",
+      "drizzle/**",
+      "src/server/functions.ts"
+    ]
+  },
+  "health": {
+    "maxCyclomatic": 20,
+    "maxCognitive": 15,
+    "maxCrap": 30,
+    "ignore": [
+      "src/**/*.test.ts",
+      "src/**/*.spec.ts",
+      "e2e/**",
+      "src/routeTree.gen.ts",
+      "drizzle/**"
+    ]
+  },
+  "boundaries": {
+    "zones": [
+      {
+        "name": "domain",
+        "patterns": ["src/domain/**"]
+      },
+      {
+        "name": "db",
+        "patterns": ["src/db/**"]
+      },
+      {
+        "name": "server",
+        "patterns": ["src/server/**"]
+      },
+      {
+        "name": "components",
+        "patterns": ["src/components/**"]
+      },
+      {
+        "name": "routes",
+        "patterns": ["src/routes/**"]
+      },
+      {
+        "name": "metrics",
+        "patterns": ["src/metrics/**"]
+      },
+      {
+        "name": "theme",
+        "patterns": ["src/theme/**"]
+      },
+      {
+        "name": "scripts",
+        "patterns": ["src/scripts/**"]
+      }
+    ],
+    "rules": [
+      {
+        "from": "domain",
+        "allow": []
+      },
+      {
+        "from": "db",
+        "allow": ["domain"]
+      },
+      {
+        "from": "server",
+        "allow": ["db", "domain"]
+      },
+      {
+        "from": "metrics",
+        "allow": ["domain", "theme"],
+        "allowTypeOnly": ["server"]
+      },
+      {
+        "from": "theme",
+        "allow": []
+      },
+      {
+        "from": "components",
+        "allow": ["domain", "routes", "server", "theme"],
+        "allowTypeOnly": ["server"]
+      },
+      {
+        "from": "routes",
+        "allow": ["components", "domain", "metrics", "server", "theme"]
+      },
+      {
+        "from": "scripts",
+        "allow": ["db", "domain", "server"]
+      }
+    ]
+  }
+}
